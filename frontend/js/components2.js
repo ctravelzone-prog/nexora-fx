@@ -11,7 +11,7 @@ const Components={
   },
   navLink(href,label,icon){
     const active=window.location.pathname===href;
-    return '<a href="'+href+'" class="sidebar-link'+(active?' active':'')+'">'+icon+'<span>'+label+'</span></a>';
+    return '<a href="'+href+'" onclick="Components.closeSidebar()" class="sidebar-link'+(active?' active':'')+'">'+icon+'<span>'+label+'</span></a>';
   },
   openSidebar(){
     const s=document.getElementById('sidebar'),o=document.getElementById('sb-ov');

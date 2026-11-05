@@ -61,6 +61,10 @@ const App = {
   },
 
   route(path) {
+    // Release the mobile sidebar scroll-lock on every navigation.
+    // openSidebar() sets body overflow hidden; a sidebar link tap re-renders
+    // the page without calling closeSidebar(), which left the page unscrollable.
+    try { if (typeof Components !== 'undefined' && Components.closeSidebar) Components.closeSidebar(); } catch(e) {}
     // loggedIn = has valid token AND user loaded (or just token for public page routing)
     const hasToken = utils.isLoggedIn();
     const loggedIn = hasToken && App.state.user !== null;
