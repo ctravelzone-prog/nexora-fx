@@ -156,8 +156,15 @@ Pages.landing = async function() {
         .hero-particles span{position:absolute;left:var(--x);top:var(--y);width:var(--s);height:var(--s);border-radius:9999px;background:radial-gradient(circle,#FDE68A 0%,#F59E0B 70%,transparent 100%);opacity:0;animation:particleFloat var(--d) ease-in-out infinite;animation-delay:var(--t)}
         @keyframes particleFloat{0%{transform:translateY(0) scale(.6);opacity:0}25%{opacity:.9}50%{transform:translateY(-90px) scale(1);opacity:.5}75%{opacity:.25}100%{transform:translateY(-160px) scale(.6);opacity:0}}
         /* Where We Work — glassmorphism broker cards (frosted glass over a warm gradient). */
-        .broker-card{background:rgba(255,255,255,.55);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid rgba(255,255,255,.85);border-radius:1.25rem;box-shadow:0 8px 32px rgba(249,115,22,.10);transition:transform .25s ease,box-shadow .25s ease}
+        .broker-card{position:relative;overflow:hidden;background:rgba(255,255,255,.55);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid rgba(255,255,255,.85);border-radius:1.25rem;box-shadow:0 8px 32px rgba(249,115,22,.10);transition:transform .25s ease,box-shadow .25s ease}
         .broker-card:hover{transform:translateY(-4px);box-shadow:0 16px 40px rgba(249,115,22,.18)}
+        /* Shining sweep — a soft diagonal light glides across each glass card, one after another. */
+        .broker-card::after{content:'';position:absolute;top:0;left:-80%;width:60%;height:100%;background:linear-gradient(105deg,transparent 0%,rgba(255,255,255,.55) 50%,transparent 100%);transform:skewX(-20deg);pointer-events:none;animation:cardShine 5s ease-in-out infinite}
+        .broker-card:nth-child(2)::after{animation-delay:1.2s}
+        .broker-card:nth-child(3)::after{animation-delay:2.4s}
+        .broker-card:nth-child(4)::after{animation-delay:3.6s}
+        @keyframes cardShine{0%{left:-80%}50%{left:130%}100%{left:130%}}
+        @media (prefers-reduced-motion:reduce){.broker-card::after{animation:none}}
         /* Animated smoke from the coins — REALISTIC + CONFINED: the smoke layer
            lives INSIDE the hero-image box (left:-100% so it reaches left to the
            "Trade Smarter" headline, right:0/bottom:0 + overflow hidden so it is
