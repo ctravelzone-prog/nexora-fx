@@ -7,12 +7,12 @@ const Components={
     if(page==='login') right='<a href="/register" class="btn-primary text-sm" style="padding:8px 20px;width:auto">Sign Up</a>';
     else if(page==='register') right='<a href="/login" class="font-semibold text-sm text-gray-700">Log In</a>';
     else right='<a href="/login" class="font-semibold text-sm text-gray-700 mr-3">Log In</a><a href="/register" class="btn-primary text-sm" style="padding:8px 20px;width:auto">Sign Up</a>';
-    return '<header class="bg-white border-b border-gray-100 sticky top-0 z-30"><div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between"><a href="/" class="flex items-center gap-2">'+logo+'<div><div class="font-bold text-base">Nexora <span class="text-orange-500">FX</span></div><div class="text-xs text-gray-400 hidden sm:block">COPY TRADING PLATFORM</div></div></a><div class="flex items-center gap-2">'+right+'</div></div></header>';
+    return '<header class="bg-white border-b border-gray-100 sticky top-0 z-30"><div class="nx-container py-3 flex items-center justify-between"><a href="/" class="flex items-center gap-2">'+logo+'<div><div class="font-bold text-base">Nexora <span class="text-orange-500">FX</span></div><div class="text-xs text-gray-400 hidden sm:block">COPY TRADING PLATFORM</div></div></a><div class="flex items-center gap-2">'+right+'</div></div></header>';
   },
   // Public page layout (no login needed): public header + content + back link.
   // Used by News / Schedule / Promotion so visitors can open them from the landing page.
   publicLayout(html){
-    document.getElementById('app').innerHTML=Components.topbarPublic('')+'<main class="max-w-7xl mx-auto px-4 sm:px-6 py-8">'+html+'</main>';
+    document.getElementById('app').innerHTML=Components.topbarPublic('')+'<main class="nx-container py-8">'+html+'</main>';
   },
   navLink(href,label,icon){
     const active=window.location.pathname===href;

@@ -9,7 +9,7 @@ Pages.landing = async function() {
     ${s.announcement_bar ? `<div class="bg-orange-500 text-white text-center text-sm font-medium py-2 px-4">${s.announcement_bar}</div>` : ''}
     <main>
       <!-- Hero -->
-      <section class="max-w-7xl mx-auto px-4 sm:px-6 py-12 lg:py-16 hero-cover">
+      <section class="nx-container py-12 lg:py-16 2xl:py-20 hero-cover">
         <div class="hero-particles" aria-hidden="true">
         <span style="--x:33.1%;--y:25.6%;--s:9px;--d:10.4s;--t:5.7s"></span>
         <span style="--x:11.0%;--y:55.8%;--s:8px;--d:11.7s;--t:0.6s"></span>
@@ -112,12 +112,12 @@ Pages.landing = async function() {
         <span style="--x:56.6%;--y:71.9%;--s:4px;--d:16.6s;--t:4.1s"></span>
         <span style="--x:87.7%;--y:62.8%;--s:9px;--d:15.1s;--t:0.6s"></span>
       </div>
-        <div class="flex flex-col lg:grid lg:grid-cols-2 gap-8 lg:gap-10 items-center hero-grid">
+        <div class="flex flex-col lg:grid lg:grid-cols-2 gap-8 lg:gap-10 2xl:gap-16 items-center hero-grid">
           <div>
             <div class="inline-flex items-center gap-2 bg-gray-900 text-white text-xs font-semibold px-4 py-2 rounded-full mb-6">
               <span class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span> LIVE MARKETS
             </div>
-            <h1 class="text-4xl lg:text-5xl font-extrabold text-gray-900 leading-tight mb-4">
+            <h1 class="text-4xl sm:text-5xl 2xl:text-6xl font-extrabold text-gray-900 leading-tight mb-4">
               Trade <span class="text-orange-500">Smarter</span>,<br>Not Harder.
             </h1>
             <p class="text-gray-500 text-lg mb-8">Join thousands of traders worldwide. Start your journey today — copy top strategies, follow live markets, and grow at your own pace.</p>
@@ -129,7 +129,7 @@ Pages.landing = async function() {
               ${['SECURE|Account security|🛡️','FAST|Instant execution|⚡','TRUSTED|Trader profiles|🏆'].map(x=>{const[t,s,e]=x.split('|');return`<div class="flex items-center gap-2 text-sm"><span class="w-8 h-8 rounded-full bg-orange-100 text-orange-500 flex items-center justify-center text-base">${e}</span><div><div class="font-bold text-xs">${t}</div><div class="text-gray-400 text-xs">${s}</div></div></div>`;}).join('')}
             </div>
           </div>
-          <div class="relative h-80 lg:h-96">${heroImg}
+          <div class="relative h-80 lg:h-96 2xl:h-[28rem]">${heroImg}
             <div class="absolute bottom-4 left-4 right-4 grid grid-cols-2 gap-3">
               <div class="bg-white rounded-xl p-3 shadow-lg"><div class="text-xs text-gray-400 font-semibold">BITCOIN · BTC/USD</div><div class="text-lg font-bold" id="hero-btc-price">$75,907</div><div class="text-xs text-green-500 font-semibold" id="hero-btc-change">▲ Live market</div></div>
               <div class="bg-white rounded-xl p-3 shadow-lg"><div class="text-xs text-gray-400 font-semibold">GOLD · XAU/USD</div><div class="text-lg font-bold" id="hero-xau-price">$3,936.10</div><div class="text-xs text-red-500 font-semibold" id="hero-xau-change">▼ −0.37% today</div></div>
@@ -159,7 +159,7 @@ Pages.landing = async function() {
         .nx-fallback-track:hover{animation-play-state:paused}
         @keyframes nxTickerScroll{from{transform:translateX(0)}to{transform:translateX(-50%)}}
       </style>
-      <div class="max-w-7xl mx-auto px-4 sm:px-6 py-4">
+      <div class="nx-container py-4">
       <div class="nx-ticker-wrap">
         <div class="nx-ticker-scroll">
           <div class="tradingview-widget-container">
@@ -183,14 +183,14 @@ Pages.landing = async function() {
       </div>
       </div>
       <!-- Quick actions -->
-      <section class="max-w-7xl mx-auto px-4 sm:px-6 py-10">
+      <section class="nx-container py-10">
         <h2 class="text-xl font-bold mb-6">Quick actions</h2>
         <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
           ${[['⭐','Promotion','NEW',"App.navigate('/promotion')"],['📰','News','',"App.navigate('/news')"],['📅','Schedule','',"App.navigate('/schedule')"],['📹','Webinar','',"window.open('https://www.youtube.com/@nexorafx00','_blank')"]].map(([e,l,b,a])=>`<div onclick="${a}" class="card hover:shadow-md transition-shadow cursor-pointer flex flex-col items-center gap-2 py-6 relative">${b?`<span class="absolute top-3 right-3 orange-tag">${b}</span>`:''}<span class="text-3xl">${e}</span><span class="text-sm font-semibold text-gray-600">${l}</span></div>`).join('')}
         </div>
       </section>
       <!-- Download app -->
-      <section class="max-w-7xl mx-auto px-4 sm:px-6 pb-10">
+      <section class="nx-container pb-10">
         <div class="flex justify-center">
           <a href="#" class="inline-flex items-center gap-3 bg-gray-900 text-white rounded-2xl px-5 py-3 text-sm font-semibold" style="max-width:280px">
             <span>📱</span> Download Android App
@@ -199,7 +199,7 @@ Pages.landing = async function() {
       </section>
       <!-- Footer -->
       <footer class="border-t border-gray-100 py-10 mt-6">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6">
+        <div class="nx-container">
           <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
             <div class="flex items-center gap-2"><img src="/assets/logo-nx-mark-transparent.png" style="height:28px" alt="NX"><span class="font-bold">Nexora <span class="text-orange-500">FX</span></span></div>
             <div class="flex gap-6 text-sm text-gray-500">
