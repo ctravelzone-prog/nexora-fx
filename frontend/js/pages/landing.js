@@ -155,6 +155,9 @@ Pages.landing = async function() {
         .hero-particles{position:absolute;inset:0;overflow:hidden;pointer-events:none}
         .hero-particles span{position:absolute;left:var(--x);top:var(--y);width:var(--s);height:var(--s);border-radius:9999px;background:radial-gradient(circle,#FDE68A 0%,#F59E0B 70%,transparent 100%);opacity:0;animation:particleFloat var(--d) ease-in-out infinite;animation-delay:var(--t)}
         @keyframes particleFloat{0%{transform:translateY(0) scale(.6);opacity:0}25%{opacity:.9}50%{transform:translateY(-90px) scale(1);opacity:.5}75%{opacity:.25}100%{transform:translateY(-160px) scale(.6);opacity:0}}
+        /* Where We Work — glassmorphism broker cards (frosted glass over a warm gradient). */
+        .broker-card{background:rgba(255,255,255,.55);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid rgba(255,255,255,.85);border-radius:1.25rem;box-shadow:0 8px 32px rgba(249,115,22,.10);transition:transform .25s ease,box-shadow .25s ease}
+        .broker-card:hover{transform:translateY(-4px);box-shadow:0 16px 40px rgba(249,115,22,.18)}
         /* Animated smoke from the coins — REALISTIC + CONFINED: the smoke layer
            lives INSIDE the hero-image box (left:-100% so it reaches left to the
            "Trade Smarter" headline, right:0/bottom:0 + overflow hidden so it is
@@ -212,6 +215,28 @@ Pages.landing = async function() {
         <h2 class="text-xl font-bold mb-6">Quick actions</h2>
         <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
           ${[['⭐','Promotion','NEW',"App.navigate('/promotion')"],['📰','News','',"App.navigate('/news')"],['📅','Schedule','',"App.navigate('/schedule')"],['📹','Webinar','',"window.open('https://www.youtube.com/@nexorafx00','_blank')"]].map(([e,l,b,a])=>`<div onclick="${a}" class="card hover:shadow-md transition-shadow cursor-pointer flex flex-col items-center gap-2 py-6 relative">${b?`<span class="absolute top-3 right-3 orange-tag">${b}</span>`:''}<span class="text-3xl">${e}</span><span class="text-sm font-semibold text-gray-600">${l}</span></div>`).join('')}
+        </div>
+      </section>
+      <!-- Where We Work (brokers & exchanges) -->
+      <section class="nx-container py-10">
+        <div class="rounded-3xl p-6 sm:p-8" style="background:linear-gradient(135deg,#FFEDD5 0%,#FFFBEB 50%,#FEF3C7 100%)">
+          <h2 class="text-2xl font-bold">Where We Work</h2>
+          <p class="text-sm text-gray-500 mt-1 mb-6">Nexora connects your copy trading to the world\u2019s leading brokers and exchanges.</p>
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            ${[
+              {name:'Binance',type:'Crypto Exchange',logo:'/assets/brokers/binance.svg',box:'bg-white',accent:'#F3BA2F',features:['World\u2019s largest crypto exchange','Low trading fees','Deep liquidity','Binance Pay for fast deposits']},
+              {name:'Exness',type:'Forex Broker',logo:'/assets/brokers/exness.svg',box:'bg-white',accent:'#141D22',features:['Ultra-tight spreads','Instant withdrawals','Regulated & trusted','Lightning-fast execution']},
+              {name:'Bybit',type:'Crypto Exchange',logo:'/assets/brokers/bybit.svg',box:'bg-white',accent:'#F6A500',features:['Top crypto derivatives exchange','Low fees & deep liquidity','Advanced trading tools','Fast, reliable platform']},
+              {name:'XM',type:'Forex Broker',logo:'/assets/brokers/xm.jpg',box:'bg-black',accent:'#E11D2E',features:['Regulated in multiple regions','Wide range of instruments','Tight spreads','Trusted by traders worldwide']},
+            ].map(b=>`<div class="broker-card p-5 flex flex-col">
+              <div class="rounded-xl h-16 flex items-center justify-center p-3 shadow-sm mb-4 ${b.box}">
+                <img src="${b.logo}" alt="${b.name} logo" class="max-h-10 max-w-full object-contain" loading="lazy" onerror="this.style.display='none';this.parentElement.querySelector('.logo-fallback').style.display='flex'">
+                <span class="logo-fallback hidden items-center justify-center w-10 h-10 rounded-full text-white text-lg font-bold" style="background:${b.accent}">${b.name[0]}</span>
+              </div>
+              <div class="flex items-center gap-2 mb-1"><h3 class="text-lg font-bold">${b.name}</h3><span class="text-[11px] font-semibold px-2 py-0.5 rounded-full ${b.type==='Crypto Exchange'?'bg-orange-100 text-orange-600':'bg-blue-100 text-blue-600'}">${b.type}</span></div>
+              <ul class="mt-2 space-y-2">${b.features.map(f=>`<li class="flex items-start gap-2 text-sm text-gray-600"><span class="text-orange-500 font-bold leading-5">\u2713</span><span>${f}</span></li>`).join('')}</ul>
+            </div>`).join('')}
+          </div>
         </div>
       </section>
       <!-- Download app -->
