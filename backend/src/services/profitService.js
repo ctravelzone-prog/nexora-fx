@@ -71,6 +71,19 @@ function applyShowcasePnl(db, rateBp, yr, mo, day) {
     const ac = Math.round((u.showcase_copy_cents || 0) * rateBp / 10000);
     ins.run(u.id, yr, mo, day, rateBp, ac);
     upd.run(ac, u.id);
+    // Mirror the real-user flow: spread the day's profit across the user's
+    // active copies (proportional to each copy's amount) so the trader
+    // profile in Your Copies / My Copies shows its own profit too.
+    const copies = db.prepare("SELECT id, amount_cents FROM copies WHERE user_id=? AND status='active'").all(u.id);
+    const totCopy = copies.reduce((s, c) => s + c.amount_cents, 0);
+    if (totCopy > 0) {
+      let remaining = ac;
+      copies.forEach((c, i) => {
+        const share = (i === copies.length - 1) ? remaining : Math.round(ac * c.amount_cents / totCopy);
+        remaining -= share;
+        db.prepare('UPDATE copies SET profit_cents=profit_cents+?,daily_pnl_cents=?,updated_at=unixepoch() WHERE id=?').run(share, share, c.id);
+      });
+    }
     cnt++; tot += ac;
   }
   return { count: cnt, totalApplied: tot };

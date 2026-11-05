@@ -19,6 +19,17 @@ router.get('/me', auth, (req,res)=>{
   const db=getDb();
   const user=req.user;
   const bal=getBalance(user.id);
+  // Showcase (demo) accounts: the admin-set DISPLAY balances live on the
+  // users row (showcase_*_cents), not in the real balances table — the
+  // account must show those display values everywhere.
+  if(user.is_showcase===1){
+    bal.main_cents=user.showcase_main_cents||0;
+    bal.copy_cents=user.showcase_copy_cents||0;
+    bal.profit_cents=user.showcase_profit_cents||0;
+    bal.referral_cents=0;
+    bal.total_deposited_cents=(user.showcase_main_cents||0)+(user.showcase_copy_cents||0);
+    bal.total_withdrawn_cents=0;
+  }
   const total=bal.main_cents+bal.copy_cents+bal.profit_cents;
   const s=getMoneySettings();
   const feeCents=calcMainWithdrawFee(user.id,bal.main_cents,s);
