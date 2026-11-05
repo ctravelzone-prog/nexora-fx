@@ -7,6 +7,7 @@ const App = {
     try { App.state.settings = await api.getSettings(); } catch(e) {}
     utils.applySiteFont(App.state.settings.site_font || 'Plus Jakarta Sans');
     utils.applyLoaderSetting(App.state.settings.site_loader || '1');
+    utils.applyFavicon(App.state.settings.favicon_url);
 
     // Maintenance mode — only block non-logged-in visitors
     if (App.state.settings.maintenance_mode === '1' && !utils.isLoggedIn()) {

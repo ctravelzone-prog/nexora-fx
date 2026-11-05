@@ -39,7 +39,7 @@ const AdminApp = {
     try {
       const a = await adminApi.me();
       AdminApp.state.admin = a;
-      try { const s = await adminApi.getSettings(); utils.applySiteFont(s.site_font || 'Plus Jakarta Sans'); utils.applyLoaderSetting(s.site_loader || '1'); } catch(e) {}
+      try { const s = await adminApi.getSettings(); utils.applySiteFont(s.site_font || 'Plus Jakarta Sans'); utils.applyLoaderSetting(s.site_loader || '1'); utils.applyFavicon(s.favicon_url); } catch(e) {}
       AdminApp.route(window.location.pathname);
     } catch(e) {
       api.clearAdminToken();

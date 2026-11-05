@@ -256,7 +256,7 @@ Pages.landing = async function() {
       <footer class="border-t border-gray-100 py-10 mt-6">
         <div class="nx-container">
           <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div class="flex items-center gap-2"><img src="/assets/logo-nx-mark-transparent.png" style="height:28px" alt="NX"><span class="font-bold">Nexora <span class="text-orange-500">FX</span></span></div>
+            <div class="flex items-center gap-2"><img src="${s.logo_url||'/assets/logo-nx-mark-transparent.png'}" style="height:28px" alt="NX"><span class="font-bold">${Components.brandNameHtml()}</span></div>
             <div class="flex gap-6 text-sm text-gray-500">
               <a href="/risk-terms" class="hover:text-orange-500">Risk Disclosure</a>
               <a href="/risk-terms" class="hover:text-orange-500">Terms</a>

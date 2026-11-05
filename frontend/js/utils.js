@@ -38,6 +38,14 @@ const utils = {
   applyLoaderSetting(enabled) {
     document.body.classList.toggle('no-loader', String(enabled) === '0');
   },
+  applyFavicon(url) {
+    // Browser tab icon from Admin > Site Settings / CMS > Media Library > Favicon.
+    // Empty url = keep the default /assets/favicon.ico from the HTML.
+    if (!url) return;
+    let l = document.querySelector('link[rel="icon"]');
+    if (!l) { l = document.createElement('link'); l.rel = 'icon'; document.head.appendChild(l); }
+    l.href = String(url);
+  },
   statusBadge(status) {
     const map = {
       pending: 'badge badge-gray', approved: 'badge badge-green', paid: 'badge badge-green',

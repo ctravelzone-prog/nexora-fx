@@ -22,6 +22,7 @@ AdminPages.settings=async function(){
       <div class="card space-y-3"><h3 class="font-bold mb-2">Media Library</h3>
         <div><label class="input-label">Logo Upload (PNG with transparency)</label><input type="file" id="logo-file" accept="image/png" class="input-field"><button type="button" onclick="AdminPages._upMedia('logo','/api/admin/settings/logo')" class="btn-secondary text-sm mt-2" style="padding:8px 16px">Upload Logo</button>${s.logo_url?`<img src="${s.logo_url}" class="h-8 mt-2" alt="Logo">`:''}</div>
         <div><label class="input-label">Hero Image Upload</label><input type="file" id="hero-file" accept="image/*" class="input-field"><button type="button" onclick="AdminPages._upMedia('hero','/api/admin/settings/hero-image')" class="btn-secondary text-sm mt-2" style="padding:8px 16px">Upload Hero Image</button>${s.hero_image_url?`<img src="${s.hero_image_url}" class="h-16 mt-2 rounded" alt="Hero">`:''}</div>
+        <div><label class="input-label">Favicon Upload (ICO or PNG — browser tab icon)</label><input type="file" id="favicon-file" accept=".ico,.png,.jpg,.jpeg" class="input-field"><button type="button" onclick="AdminPages._upMedia('favicon','/api/admin/settings/favicon')" class="btn-secondary text-sm mt-2" style="padding:8px 16px">Upload Favicon</button>${s.favicon_url?`<div class="flex items-center gap-3 mt-2"><img src="${s.favicon_url}" class="h-8 w-8" alt="Favicon"><button type="button" onclick="AdminPages._resetFavicon()" class="btn-secondary text-sm" style="padding:6px 12px">Reset to default</button></div>`:''}</div>
       </div>
       <div id="set-err" class="alert-danger hidden"></div>
       <button type="submit" id="set-btn" class="btn-primary">Save Settings</button>
@@ -58,5 +59,9 @@ AdminPages._upMedia=async function(field,ep){
   if(!fi?.files[0]){utils.toast('Select file first','error');return;}
   const fd=new FormData();fd.append(field,fi.files[0]);
   try{await api.upload(ep,fd,true);utils.toast('Uploaded!','success');AdminPages.settings();}
+  catch(e){utils.toast(e.message,'error');}
+};
+AdminPages._resetFavicon=async function(){
+  try{await adminApi.saveSettings({favicon_url:''});utils.toast('Favicon reset to default','success');AdminPages.settings();}
   catch(e){utils.toast(e.message,'error');}
 };
