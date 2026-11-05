@@ -112,7 +112,7 @@ Pages.landing = async function() {
         <span style="--x:56.6%;--y:71.9%;--s:4px;--d:16.6s;--t:4.1s"></span>
         <span style="--x:87.7%;--y:62.8%;--s:9px;--d:15.1s;--t:0.6s"></span>
       </div>
-        <div class="hero-smoke" aria-hidden="true"><span style="--x:68%;--y:35%;--w:320px;--h:200px;--d:18s;--t:0s;--dx:-420px;--dy:-120px"></span><span style="--x:78%;--y:55%;--w:380px;--h:240px;--d:20s;--t:4s;--dx:-500px;--dy:-80px"></span><span style="--x:62%;--y:65%;--w:280px;--h:180px;--d:16s;--t:8s;--dx:-380px;--dy:-160px"></span><span style="--x:85%;--y:25%;--w:340px;--h:210px;--d:22s;--t:2s;--dx:-460px;--dy:-60px"></span><span style="--x:72%;--y:45%;--w:300px;--h:190px;--d:19s;--t:6s;--dx:-520px;--dy:-140px"></span><span style="--x:80%;--y:70%;--w:260px;--h:170px;--d:17s;--t:10s;--dx:-400px;--dy:-100px"></span></div>
+        <div class="hero-smoke" aria-hidden="true"><span style="--x:68%;--y:35%;--w:380px;--h:240px;--d:18s;--t:0s;--dx:-460px;--dy:-120px"></span><span style="--x:78%;--y:55%;--w:440px;--h:280px;--d:20s;--t:4s;--dx:-540px;--dy:-80px"></span><span style="--x:62%;--y:65%;--w:340px;--h:220px;--d:16s;--t:8s;--dx:-420px;--dy:-160px"></span><span style="--x:85%;--y:25%;--w:400px;--h:250px;--d:22s;--t:2s;--dx:-500px;--dy:-60px"></span><span style="--x:72%;--y:45%;--w:360px;--h:230px;--d:19s;--t:6s;--dx:-560px;--dy:-140px"></span><span style="--x:80%;--y:70%;--w:320px;--h:210px;--d:17s;--t:10s;--dx:-440px;--dy:-100px"></span><span style="--x:58%;--y:20%;--w:360px;--h:220px;--d:21s;--t:12s;--dx:-480px;--dy:-90px"></span><span style="--x:88%;--y:80%;--w:340px;--h:220px;--d:15s;--t:14s;--dx:-520px;--dy:-130px"></span></div>
         <div class="flex flex-col lg:grid lg:grid-cols-2 gap-8 lg:gap-10 2xl:gap-16 items-center hero-grid">
           <div>
             <h1 class="text-4xl sm:text-5xl 2xl:text-6xl font-extrabold text-gray-900 leading-tight mb-4">
@@ -156,10 +156,11 @@ Pages.landing = async function() {
         .hero-particles span{position:absolute;left:var(--x);top:var(--y);width:var(--s);height:var(--s);border-radius:9999px;background:radial-gradient(circle,#FDE68A 0%,#F59E0B 70%,transparent 100%);opacity:0;animation:particleFloat var(--d) ease-in-out infinite;animation-delay:var(--t)}
         @keyframes particleFloat{0%{transform:translateY(0) scale(.6);opacity:0}25%{opacity:.9}50%{transform:translateY(-90px) scale(1);opacity:.5}75%{opacity:.25}100%{transform:translateY(-160px) scale(.6);opacity:0}}
         /* Animated smoke from the coins: soft golden wisps rise out of the coin
-           stack and drift across the WHOLE hero section (behind the content),
+           stack and drift across the WHOLE hero section, ABOVE the content (z-2,
+           pointer-events none) so the haze is clearly visible over text + image,
            expanding and fading like real smoke. Fire sparks stay on the image. */
-        .hero-smoke{position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:0}
-        .hero-smoke span{position:absolute;left:var(--x);top:var(--y);width:var(--w);height:var(--h);border-radius:50%;background:radial-gradient(ellipse at center,rgba(245,158,11,.30) 0%,rgba(249,115,22,.14) 45%,transparent 70%);filter:blur(26px);opacity:0;animation:smokeDrift var(--d) ease-in-out infinite;animation-delay:var(--t)}
+        .hero-smoke{position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:2}
+        .hero-smoke span{position:absolute;left:var(--x);top:var(--y);width:var(--w);height:var(--h);border-radius:50%;background:radial-gradient(ellipse at center,rgba(245,158,11,.50) 0%,rgba(249,115,22,.25) 45%,transparent 70%);filter:blur(26px);opacity:0;animation:smokeDrift var(--d) ease-in-out infinite;animation-delay:var(--t)}
         @keyframes smokeDrift{0%{transform:translate(0,0) scale(.65);opacity:0}25%{opacity:.85}60%{opacity:.5}100%{transform:translate(var(--dx),var(--dy)) scale(1.45);opacity:0}}
         @media (prefers-reduced-motion: reduce){.hero-smoke span{animation:none}}
         @media (prefers-reduced-motion: reduce){.hero-particles span{animation:none}}
