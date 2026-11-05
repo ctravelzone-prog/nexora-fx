@@ -7,7 +7,7 @@ const AdminApp = {
   _startListRefresh(path) {
     AdminApp._stopListRefresh();
     if (!AdminApp._refreshable.includes(path)) return;
-    AdminApp._listPoll = setInterval(() => AdminApp._autoRefresh(), 3000);
+    AdminApp._listPoll = setInterval(() => AdminApp._autoRefresh(), 1000);
   },
   _stopListRefresh() {
     if (AdminApp._listPoll) { clearInterval(AdminApp._listPoll); AdminApp._listPoll = null; }
