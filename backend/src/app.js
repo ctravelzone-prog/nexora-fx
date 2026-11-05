@@ -17,9 +17,15 @@ app.use(express.urlencoded({ extended: true }));
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 app.use('/assets', express.static(path.join(__dirname, '../../frontend/assets')));
 
-// Rate limiting
-const limiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 200 });
+// Rate limiting — the public API is capped at 200 requests / 15 min per IP.
+// The admin panel is excluded from that cap: it polls the dashboard every second
+// (1s auto-refresh), which alone is ~900 requests / 15 min and tripped the 200 cap
+// with a 429 after ~3 minutes. Admin access already requires a valid admin JWT,
+// so the admin API gets its own higher cap instead.
+const limiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 200, skip: (req) => req.originalUrl.startsWith('/api/admin/') });
 app.use('/api/', limiter);
+const adminLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 3000 });
+app.use('/api/admin/', adminLimiter);
 
 // Initialise DB
 getDb();
