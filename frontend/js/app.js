@@ -69,7 +69,7 @@ const App = {
     const hasToken = utils.isLoggedIn();
     const loggedIn = hasToken && App.state.user !== null;
     const cleanPath = path.split('?')[0];
-    const publicPaths = ['/', '/register', '/login', '/forgot-password', '/reset-password', '/verify-email'];
+    const publicPaths = ['/', '/register', '/login', '/forgot-password', '/reset-password', '/verify-email', '/news', '/schedule', '/promotion'];
     const authRequired = !publicPaths.includes(cleanPath);
 
     // Not authenticated and trying to access a protected page → redirect to login
@@ -124,6 +124,7 @@ const App = {
       '/risk-terms': Pages.riskTerms,
       '/news': Pages.news,
       '/schedule': Pages.schedule,
+      '/promotion': Pages.promotion,
       '/request-money': Pages.requestMoney,
     };
 

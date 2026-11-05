@@ -4,7 +4,8 @@
 // FOMC, GDP...), always live, in Dhaka time. If TradingView cannot load, a
 // plain notice is shown, never a fake calendar.
 Pages.news=function(){
-  Components.layout(`
+  var loggedIn=utils.isLoggedIn()&&App.state.user!==null;
+  var pageHtml=`
     <div class="mb-5">
       <h2 class="text-xl font-bold">📰 Forex News</h2>
       <p class="text-sm text-gray-500 mt-1">Daily economic calendar — market-moving events for the currencies you trade. Times in Dhaka (GMT+6). Red = high impact.</p>
@@ -14,7 +15,9 @@ Pages.news=function(){
     </div>
     <div id="nx-news-fallback" style="display:none" class="card mt-4 text-sm text-gray-500">Live calendar unavailable right now — please check your connection and reload the page.</div>
     <p class="text-xs text-gray-400 mt-3">Source: TradingView Economic Calendar (same daily events as Forex Factory). High-impact USD news can move gold sharply — check before you trade.</p>
-  `,'Forex News','Daily economic calendar');
+  `;
+  if(loggedIn) Components.layout(pageHtml,'Forex News','Daily economic calendar');
+  else Components.publicLayout(pageHtml);
   var container=document.querySelector('#nx-news-holder .tradingview-widget-container');
   var script=document.createElement('script');
   script.type='text/javascript';

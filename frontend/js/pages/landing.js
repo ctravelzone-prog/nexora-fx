@@ -186,7 +186,7 @@ Pages.landing = async function() {
       <section class="max-w-7xl mx-auto px-4 sm:px-6 py-10">
         <h2 class="text-xl font-bold mb-6">Quick actions</h2>
         <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          ${[['⭐','Promotion','NEW',"App.navigate('/referred-users')"],['📰','News','',"App.navigate('/news')"],['📅','Schedule','',"App.navigate('/schedule')"],['📹','Webinar','',"window.open('https://www.youtube.com/@nexorafx00','_blank')"]].map(([e,l,b,a])=>`<div onclick="${a}" class="card hover:shadow-md transition-shadow cursor-pointer flex flex-col items-center gap-2 py-6 relative">${b?`<span class="absolute top-3 right-3 orange-tag">${b}</span>`:''}<span class="text-3xl">${e}</span><span class="text-sm font-semibold text-gray-600">${l}</span></div>`).join('')}
+          ${[['⭐','Promotion','NEW',"App.navigate('/promotion')"],['📰','News','',"App.navigate('/news')"],['📅','Schedule','',"App.navigate('/schedule')"],['📹','Webinar','',"window.open('https://www.youtube.com/@nexorafx00','_blank')"]].map(([e,l,b,a])=>`<div onclick="${a}" class="card hover:shadow-md transition-shadow cursor-pointer flex flex-col items-center gap-2 py-6 relative">${b?`<span class="absolute top-3 right-3 orange-tag">${b}</span>`:''}<span class="text-3xl">${e}</span><span class="text-sm font-semibold text-gray-600">${l}</span></div>`).join('')}
         </div>
       </section>
       <!-- Download app -->

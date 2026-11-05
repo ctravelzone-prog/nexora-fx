@@ -66,7 +66,7 @@ Pages._renderHol=function(){
     return '<div class="flex items-center gap-3 py-2.5" style="border-top:1px solid var(--border)"><span style="width:8px;height:8px;border-radius:50%;background:#FF6A00;flex-shrink:0"></span><div class="flex-1 min-w-0"><div class="font-semibold text-sm">'+h.name+'</div><div class="text-xs text-gray-400">'+h.country+'</div></div><span class="text-xs font-semibold text-gray-500 whitespace-nowrap">'+lbl+'</span></div>';
   }).join(''):'<p class="text-sm text-gray-400 py-3">No upcoming holidays.</p>';
   var opts=Pages._holCountries().map(function(c){return '<option value="'+c[0]+'"'+(Pages._holFilter===c[0]?' selected':'')+'>'+c[1]+'</option>';}).join('');
-  Components.layout(`
+  var _html=`
     <div class="mb-5">
       <h2 class="text-xl font-bold">📅 Market Holidays</h2>
       <p class="text-sm text-gray-500 mt-1">International calendar — public holidays in major financial markets, when exchanges are closed. Tap a day to see its holidays.</p>
@@ -84,7 +84,9 @@ Pages._renderHol=function(){
     ${selHtml}
     <div class="card"><h3 class="font-bold text-base mb-1">Upcoming holidays</h3>${upHtml}</div>
     <p class="text-xs text-gray-400 mt-3">Source: Nager.Date public holidays. Market closures can differ by exchange — check your broker for trading hours on a holiday.</p>
-  `,'Market Holidays','International calendar');
+  `;
+  if(utils.isLoggedIn()&&App.state.user!==null) Components.layout(_html,'Market Holidays','International calendar');
+  else Components.publicLayout(_html);
 };
 Pages._holNav=function(dir){
   Pages._holM+=dir;
