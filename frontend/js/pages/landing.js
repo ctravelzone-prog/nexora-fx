@@ -151,7 +151,7 @@ Pages.landing = async function() {
         .hero-particles span{position:absolute;left:var(--x);top:var(--y);width:var(--s);height:var(--s);border-radius:9999px;background:radial-gradient(circle,#FDE68A 0%,#F59E0B 70%,transparent 100%);opacity:0;animation:particleFloat var(--d) ease-in-out infinite;animation-delay:var(--t)}
         @keyframes particleFloat{0%{transform:translateY(0) scale(.6);opacity:0}25%{opacity:.9}50%{transform:translateY(-90px) scale(1);opacity:.5}75%{opacity:.25}100%{transform:translateY(-160px) scale(.6);opacity:0}}
         @media (prefers-reduced-motion: reduce){.hero-particles span{animation:none}}
-        .nx-ticker-wrap{display:flex;align-items:stretch;background:#111827;color:#fff;overflow:hidden}
+        .nx-ticker-wrap{display:flex;align-items:stretch;background:#111827;color:#fff;overflow:hidden;border-radius:12px}
         .nx-ticker-scroll{flex:1;min-width:0}
         .nx-ticker-scroll .tradingview-widget-container__widget{height:46px}
         .nx-streaming{flex-shrink:0;display:flex;align-items:center;gap:6px;padding:0 16px;color:#4ADE80;font-size:13px;font-weight:700;white-space:nowrap;border-left:1px solid #374151}
@@ -159,6 +159,7 @@ Pages.landing = async function() {
         .nx-fallback-track:hover{animation-play-state:paused}
         @keyframes nxTickerScroll{from{transform:translateX(0)}to{transform:translateX(-50%)}}
       </style>
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 py-4">
       <div class="nx-ticker-wrap">
         <div class="nx-ticker-scroll">
           <div class="tradingview-widget-container">
@@ -179,6 +180,7 @@ Pages.landing = async function() {
           </div>
         </div>
         <div class="nx-streaming"><span style="width:8px;height:8px;background:#4ADE80;border-radius:50%;display:inline-block" class="animate-pulse"></span>STREAMING</div>
+      </div>
       </div>
       <!-- Quick actions -->
       <section class="max-w-7xl mx-auto px-4 sm:px-6 py-10">
