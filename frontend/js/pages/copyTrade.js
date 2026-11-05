@@ -1,5 +1,6 @@
 // pages/copyTrade.js — Copy Trade page (screenshot design, real trader data)
-Pages._flagCountry={'🇬🇧':'United Kingdom','🇺🇸':'United States','🇧🇷':'Brazil','🇯🇵':'Japan','🇮🇳':'India','🇧🇩':'Bangladesh','🇩🇪':'Germany','🇫🇷':'France','🇦🇺':'Australia','🇨🇦':'Canada','🇦🇪':'UAE','🇸🇬':'Singapore','🇭🇰':'Hong Kong','🇳🇬':'Nigeria','🇿🇦':'South Africa','🇹🇷':'Turkey','🇮🇹':'Italy','🇪🇸':'Spain','🇳🇱':'Netherlands','🇨🇭':'Switzerland','🇦🇹':'Austria'};
+Pages._flagInfo={'🇬🇧':{c:'gb',n:'United Kingdom'},'🇺🇸':{c:'us',n:'United States'},'🇧🇷':{c:'br',n:'Brazil'},'🇯🇵':{c:'jp',n:'Japan'},'🇮🇳':{c:'in',n:'India'},'🇧🇩':{c:'bd',n:'Bangladesh'},'🇩🇪':{c:'de',n:'Germany'},'🇫🇷':{c:'fr',n:'France'},'🇦🇺':{c:'au',n:'Australia'},'🇨🇦':{c:'ca',n:'Canada'},'🇦🇪':{c:'ae',n:'UAE'},'🇸🇬':{c:'sg',n:'Singapore'},'🇭🇰':{c:'hk',n:'Hong Kong'},'🇳🇬':{c:'ng',n:'Nigeria'},'🇿🇦':{c:'za',n:'South Africa'},'🇹🇷':{c:'tr',n:'Turkey'},'🇮🇹':{c:'it',n:'Italy'},'🇪🇸':{c:'es',n:'Spain'},'🇳🇱':{c:'nl',n:'Netherlands'},'🇨🇭':{c:'ch',n:'Switzerland'},'🇦🇹':{c:'at',n:'Austria'}};
+Pages._flagImg=function(emoji,px,round){var f=Pages._flagInfo[emoji];if(!f)return '';var st=round?('width:'+px+'px;height:'+px+'px;border-radius:50%;object-fit:cover'):('width:'+px+'px;height:auto;border-radius:2px');return '<img src="https://flagcdn.com/w40/'+f.c+'.png" alt="'+f.n+'" style="'+st+'" onerror="this.remove()">';};
 Pages.copyTrade=async function(){
   try{
     const traders=await api.getTraders();
@@ -68,14 +69,14 @@ Pages._tCard=function(t,copies,rank){
   const rankBg={1:'border-color:#86EFAC;background:#F0FDF4',2:'border-color:#BFDBFE;background:#EFF6FF',3:'border-color:#FED7AA;background:#FFF7ED'}[rank]||'';
   const riskBadge={Low:['#ECFDF5','#059669'],Medium:['#FFFBEB','#D97706'],High:['#FEF2F2','#DC2626']}[t.risk_level]||['#F3F4F6','#374151'];
   const copying=copies&&copies.some(c=>c.trader_id===t.id);
-  const country=Pages._flagCountry[t.flag_emoji]||'';
-  const flagBadgeHtml=t.flag_emoji?`<span style="position:absolute;right:0;bottom:0;width:20px;height:20px;border-radius:50%;background:#fff;border:1px solid #E5E7EB;display:grid;place-items:center;font-size:11px;z-index:3;box-shadow:0 1px 3px rgba(0,0,0,.2)">${t.flag_emoji}</span>`:'';
+  const country=(Pages._flagInfo[t.flag_emoji]||{}).n||'';
+  const flagBadgeHtml=t.flag_emoji?`<span style="position:absolute;right:0;bottom:0;width:20px;height:20px;border-radius:50%;background:#fff;border:1px solid #E5E7EB;display:grid;place-items:center;z-index:3;box-shadow:0 1px 3px rgba(0,0,0,.2);overflow:hidden">${Pages._flagImg(t.flag_emoji,20,true)}</span>`:'';
   const avatarHtml=rank&&rankStyle?`<div style="position:relative;width:110px;height:110px;flex-shrink:0"><div style="position:absolute;left:50%;top:54.9%;transform:translate(-50%,-50%);width:46px;height:46px;border-radius:50%;overflow:hidden">${utils.avatar(t.name,t.avatar,46)}</div><img src="${rankStyle.frame}" style="position:absolute;inset:0;width:110px;height:110px;pointer-events:none;z-index:2" alt="">${flagBadgeHtml}</div>`:`<span style="position:relative;width:44px;height:44px;flex-shrink:0;display:inline-block"><span style="width:44px;height:44px;border-radius:50%;overflow:hidden;display:block">${utils.avatar(t.name,t.avatar,44)}</span>${flagBadgeHtml}</span>`;
   const crownBadge=rank&&rankStyle?`<span class="pill text-xs mt-1" style="background:${rankStyle.c};color:${rankStyle.txt};font-weight:800;letter-spacing:.5px;display:inline-block">👑 ${rankStyle.tier} #${rank}</span>`:'';
   return `<div class="card" style="${rankBg}">
     <div class="flex items-center gap-3 mb-3">
       ${avatarHtml}
-      <div class="flex-1 min-w-0"><div class="flex items-center gap-1.5 font-bold truncate">${t.name}${t.verified?'<span class="text-blue-500 text-sm">✓</span>':''}</div>${country?`<div class="text-xs text-gray-500 mt-0.5">${t.flag_emoji} ${country}</div>`:''}<div class="text-xs text-gray-400 truncate">${t.strategy||''}</div>${crownBadge}</div>
+      <div class="flex-1 min-w-0"><div class="flex items-center gap-1.5 font-bold truncate">${t.name}${t.verified?'<span class="text-blue-500 text-sm">✓</span>':''}</div>${country?`<div class="text-xs text-gray-500 mt-0.5" style="display:flex;align-items:center;gap:4px">${Pages._flagImg(t.flag_emoji,16,false)}<span>${country}</span></div>`:''}<div class="text-xs text-gray-400 truncate">${t.strategy||''}</div>${crownBadge}</div>
       <div class="text-right flex-shrink-0"><div class="font-extrabold text-green-500 text-lg leading-none">+${(t.roi_percent||0).toFixed(1)}%</div><div class="text-[11px] text-gray-400 mt-1">ROI</div></div>
     </div>
     <div class="grid grid-cols-4 gap-2 py-3 border-t border-b border-gray-100 text-center mb-3">
