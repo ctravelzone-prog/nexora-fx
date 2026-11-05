@@ -125,9 +125,6 @@ Pages.landing = async function() {
               <a href="/register" class="btn-primary text-center text-lg py-4" style="max-width:320px">Sign Up</a>
             </div>
             <p class="text-sm text-gray-500">Already have an account? <a href="/login" class="text-orange-500 font-semibold">Log In</a></p>
-            <a href="#" class="mt-4 inline-flex items-center gap-3 bg-gray-900 text-white rounded-2xl px-5 py-3 text-sm font-semibold" style="max-width:280px">
-              <span>📱</span> Download Android App
-            </a>
             <div class="flex gap-4 mt-8">
               ${['SECURE|Account security|🛡️','FAST|Instant execution|⚡','TRUSTED|Trader profiles|🏆'].map(x=>{const[t,s,e]=x.split('|');return`<div class="flex items-center gap-2 text-sm"><span class="w-8 h-8 rounded-full bg-orange-100 text-orange-500 flex items-center justify-center text-base">${e}</span><div><div class="font-bold text-xs">${t}</div><div class="text-gray-400 text-xs">${s}</div></div></div>`;}).join('')}
             </div>
@@ -187,7 +184,15 @@ Pages.landing = async function() {
       <section class="max-w-7xl mx-auto px-4 sm:px-6 py-10">
         <h2 class="text-xl font-bold mb-6">Quick actions</h2>
         <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          ${[['⭐','Promotion','NEW'],['📰','News',''],['📅','Schedule',''],['📹','Webinar','']].map(([e,l,b])=>`<div class="card hover:shadow-md transition-shadow cursor-pointer flex flex-col items-center gap-2 py-6 relative">${b?`<span class="absolute top-3 right-3 orange-tag">${b}</span>`:''}<span class="text-3xl">${e}</span><span class="text-sm font-semibold text-gray-600">${l}</span></div>`).join('')}
+          ${[['⭐','Promotion','NEW',"App.navigate('/referred-users')"],['📰','News','',"App.navigate('/news')"],['📅','Schedule','',"App.navigate('/schedule')"],['📹','Webinar','',"window.open('https://www.youtube.com/@nexorafx00','_blank')"]].map(([e,l,b,a])=>`<div onclick="${a}" class="card hover:shadow-md transition-shadow cursor-pointer flex flex-col items-center gap-2 py-6 relative">${b?`<span class="absolute top-3 right-3 orange-tag">${b}</span>`:''}<span class="text-3xl">${e}</span><span class="text-sm font-semibold text-gray-600">${l}</span></div>`).join('')}
+        </div>
+      </section>
+      <!-- Download app -->
+      <section class="max-w-7xl mx-auto px-4 sm:px-6 pb-10">
+        <div class="flex justify-center">
+          <a href="#" class="inline-flex items-center gap-3 bg-gray-900 text-white rounded-2xl px-5 py-3 text-sm font-semibold" style="max-width:280px">
+            <span>📱</span> Download Android App
+          </a>
         </div>
       </section>
       <!-- Footer -->

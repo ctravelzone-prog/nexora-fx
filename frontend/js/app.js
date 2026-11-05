@@ -122,6 +122,8 @@ const App = {
       '/kyc': Pages.kyc,
       '/notifications': Pages.notifications,
       '/risk-terms': Pages.riskTerms,
+      '/news': Pages.news,
+      '/schedule': Pages.schedule,
       '/request-money': Pages.requestMoney,
     };
 

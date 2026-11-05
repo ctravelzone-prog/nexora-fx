@@ -88,4 +88,49 @@ router.get('/quotes', async (req, res) => {
   }
 });
 
+// International market holidays (Nager.Date, free, no key) — 24h server cache.
+// Major financial markets so traders see when exchanges are closed.
+const HOLIDAY_COUNTRIES = [
+  ['US', 'United States'], ['GB', 'United Kingdom'], ['DE', 'Germany'],
+  ['FR', 'France'], ['JP', 'Japan'], ['CN', 'China'], ['AU', 'Australia'],
+  ['CA', 'Canada'], ['CH', 'Switzerland'], ['HK', 'Hong Kong'],
+  ['SG', 'Singapore'], ['IN', 'India'], ['BR', 'Brazil'], ['AE', 'UAE'],
+];
+let holCache = null; // {at, data}
+const HOL_CACHE_MS = 24 * 60 * 60 * 1000;
+
+async function getHolidays() {
+  const now = new Date();
+  const years = [now.getFullYear()];
+  if (now.getMonth() === 11) years.push(now.getFullYear() + 1); // Dec: also fetch next year
+  const all = [];
+  await Promise.all(years.flatMap(y => HOLIDAY_COUNTRIES.map(async ([code, name]) => {
+    try {
+      const list = await fetchJson(`https://date.nager.at/api/v3/publicholidays/${y}/${code}`, {}, 10000);
+      (list || []).forEach(h => {
+        if (h.global !== false) all.push({ date: h.date, name: h.localName || h.name, country: name, code });
+      });
+    } catch (e) { /* one country failing must not break the rest */ }
+  })));
+  all.sort((a, b) => a.date < b.date ? -1 : a.date > b.date ? 1 : 0);
+  return { years, holidays: all };
+}
+
+router.get('/holidays', async (req, res) => {
+  const now = Date.now();
+  if (holCache && now - holCache.at < HOL_CACHE_MS) return res.json({ ...holCache.data, cached: true });
+  try {
+    const data = await getHolidays();
+    if (!data.holidays.length) {
+      if (holCache) return res.json({ ...holCache.data, cached: true, stale: true });
+      return res.status(502).json({ error: 'Holidays unavailable right now' });
+    }
+    holCache = { at: now, data };
+    res.json({ ...data, cached: false });
+  } catch (e) {
+    if (holCache) return res.json({ ...holCache.data, cached: true, stale: true });
+    res.status(502).json({ error: 'Holidays unavailable right now' });
+  }
+});
+
 module.exports = router;
