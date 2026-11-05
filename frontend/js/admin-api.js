@@ -31,6 +31,7 @@ const adminApi = {
   getUsers:(p)=>api.request('GET',`/api/admin/users?${new URLSearchParams(p||{})}`,null,true),
   getUser:(id)=>api.request('GET',`/api/admin/users/${id}`,null,true),
   toggleUser:(id)=>api.request('PUT',`/api/admin/users/${id}/toggle-active`,{},true),
+  deleteUser:(id)=>api.request('DELETE',`/api/admin/users/${id}`,null,true),
   addBalance:(id,d)=>api.request('POST',`/api/admin/users/${id}/add-balance`,d,true),
   setTempPassword:(id,d)=>api.request('POST',`/api/admin/users/${id}/set-temp-password`,d,true),
   setUserProfitTarget:(id,d)=>api.request('POST',`/api/admin/users/${id}/profit-target`,d,true),

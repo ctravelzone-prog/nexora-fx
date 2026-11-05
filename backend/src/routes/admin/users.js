@@ -25,6 +25,41 @@ router.get('/:id', authAdmin, (req,res)=>{
   res.json({...user,copies});
 });
 
+// Delete a user (fake/spam accounts). Super Admin only. Removes the user AND all
+// their data in one transaction: balances, copies (+ daily PnL), deposits,
+// withdrawals, transactions, tickets (+ messages), referrals, KYC, forget/money
+// requests, notifications, sessions and audit rows. Demo/showcase accounts are
+// protected (they are intentional demo data, not fake users).
+router.delete('/:id', authAdmin, superAdminOnly, (req,res)=>{
+  const db=getDb();
+  const u=db.prepare('SELECT * FROM users WHERE id=?').get(req.params.id);
+  if(!u) return res.status(404).json({error:'User not found'});
+  if(u.is_showcase) return res.status(400).json({error:'Showcase/demo users cannot be deleted'});
+  if(u.username==='nexora_fx') return res.status(400).json({error:'The demo account cannot be deleted'});
+  const del=db.transaction(()=>{
+    const id=u.id;
+    db.prepare('DELETE FROM daily_pnl_log WHERE user_id=?').run(id);
+    db.prepare('DELETE FROM copies WHERE user_id=?').run(id);
+    db.prepare('DELETE FROM ticket_messages WHERE ticket_id IN (SELECT id FROM support_tickets WHERE user_id=?)').run(id);
+    db.prepare('DELETE FROM support_tickets WHERE user_id=?').run(id);
+    db.prepare('DELETE FROM referrals WHERE referrer_user_id=? OR referred_user_id=?').run(id,id);
+    db.prepare('DELETE FROM transactions WHERE user_id=?').run(id);
+    db.prepare('DELETE FROM deposits WHERE user_id=?').run(id);
+    db.prepare('DELETE FROM withdrawals WHERE user_id=?').run(id);
+    db.prepare('DELETE FROM kyc_submissions WHERE user_id=?').run(id);
+    db.prepare('DELETE FROM forget_requests WHERE user_id=?').run(id);
+    db.prepare('DELETE FROM money_requests WHERE user_id=?').run(id);
+    db.prepare('DELETE FROM notifications WHERE user_id=?').run(id);
+    db.prepare('DELETE FROM impersonation_sessions WHERE user_id=?').run(id);
+    db.prepare('DELETE FROM audit_log WHERE user_id=?').run(id);
+    db.prepare('DELETE FROM balances WHERE user_id=?').run(id);
+    db.prepare('UPDATE users SET referred_by_user_id=NULL WHERE referred_by_user_id=?').run(id);
+    db.prepare('DELETE FROM users WHERE id=?').run(id);
+  });
+  try{ del(); res.json({success:true,deleted_user_id:u.id}); }
+  catch(e){ res.status(500).json({error:'Delete failed: '+e.message}); }
+});
+
 router.put('/:id/toggle-active', authAdmin, (req,res)=>{
   const db=getDb(); const u=db.prepare('SELECT * FROM users WHERE id=?').get(req.params.id);
   if(!u) return res.status(404).json({error:'Not found'});
