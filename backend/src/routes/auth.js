@@ -8,28 +8,54 @@ const { getOrCreateBalance } = require('../services/moneyHelpers');
 const emailSvc = require('../services/emailService');
 function mkT(p){return jwt.sign(p,process.env.JWT_SECRET,{expiresIn:'7d'});}
 
+// Normalize a phone number to digits-only with country code, so the same number
+// in different formats (+8801712..., 01712..., 01712-345678) matches as one.
+// A leading trunk 0 is dropped when a country code is present; an explicit
+// leading + is trusted as-is.
+function normalizePhone(countryCode, phone){
+  if(!phone) return null;
+  const raw=String(phone).trim();
+  const ccDigits=(countryCode||'').replace(/\D/g,'');
+  let digits=raw.replace(/\D/g,'');
+  if(!digits) return null;
+  if(raw.startsWith('+')) return digits;
+  if(ccDigits && digits.startsWith(ccDigits)) return digits;
+  if(ccDigits && digits.startsWith('0')) digits=digits.slice(1);
+  return ccDigits ? ccDigits+digits : digits;
+}
+
 router.post('/register', async (req,res)=>{
   try{
     const {full_name,username,email,phone,country_code,password,referral_code}=req.body;
     if(!full_name||!username||!email||!password) return res.status(400).json({error:'Required fields missing'});
     if(password.length<8) return res.status(400).json({error:'Password must be at least 8 characters'});
     const db=getDb();
-    if(db.prepare('SELECT id FROM users WHERE email=?').get(email)) return res.status(400).json({error:'Email already registered'});
+    // One account per email (case-insensitive: Test@x.com == test@x.com)
+    const emailNorm=String(email).trim().toLowerCase();
+    if(db.prepare('SELECT id FROM users WHERE LOWER(email)=?').get(emailNorm)) return res.status(400).json({error:'Email already registered'});
     if(db.prepare('SELECT id FROM users WHERE username=?').get(username)) return res.status(400).json({error:'Username already taken'});
+    // One account per phone number (normalized, so +8801712..., 01712... match).
+    // Phone is optional — only checked when provided.
+    const phoneNorm=normalizePhone(country_code,phone);
+    if(phoneNorm){
+      const dup=db.prepare('SELECT phone,country_code FROM users WHERE phone IS NOT NULL AND phone<>?').all('')
+        .some(u=>normalizePhone(u.country_code,u.phone)===phoneNorm);
+      if(dup) return res.status(400).json({error:'Phone number already registered'});
+    }
     const hash=await bcrypt.hash(password,12);
     const vt=uuidv4(), ve=Math.floor(Date.now()/1000)+86400;
     let refById=null;
     if(referral_code){const r=db.prepare('SELECT id FROM users WHERE referral_code=? OR username=?').get(referral_code,referral_code);if(r)refById=r.id;}
     const rc=Math.random().toString(36).substring(2,10).toUpperCase();
     const uid=db.prepare('INSERT INTO users (full_name,username,email,phone,country_code,password_hash,referral_code,referred_by_user_id,email_verify_token,email_verify_expires) VALUES (?,?,?,?,?,?,?,?,?,?)')
-      .run(full_name,username,email,phone||null,country_code||'+44',hash,rc,refById,vt,ve).lastInsertRowid;
+      .run(full_name,username,emailNorm,phone||null,country_code||'+44',hash,rc,refById,vt,ve).lastInsertRowid;
     getOrCreateBalance(uid);
     if(refById) db.prepare('INSERT OR IGNORE INTO referrals (referrer_user_id,referred_user_id) VALUES (?,?)').run(refById,uid);
     const su=process.env.SITE_URL||'http://localhost:3000';
-    if(emailSvc.isSmtpConfigured()) await emailSvc.sendVerifyEmail(email,vt,su);
+    if(emailSvc.isSmtpConfigured()) await emailSvc.sendVerifyEmail(emailNorm,vt,su);
     else console.log(`[DEV] Email verify: ${su}/verify-email?token=${vt}`);
     db.prepare('INSERT INTO admin_notifications (type,title,message,reference_id,reference_type,destination_pane) VALUES (?,?,?,?,?,?)')
-      .run('new_user',`New User Joined — ${full_name} (@${username})`,`New registration · ${email}`,uid,'user','users');
+      .run('new_user',`New User Joined — ${full_name} (@${username})`,`New registration · ${emailNorm}`,uid,'user','users');
     res.json({success:true,message:'Registration successful.'});
   }catch(e){res.status(500).json({error:e.message});}
 });
@@ -39,7 +65,7 @@ router.post('/login', async (req,res)=>{
     const {username,password,totp_code}=req.body;
     if(!username||!password) return res.status(400).json({error:'Username and password required'});
     const db=getDb();
-    const user=db.prepare('SELECT * FROM users WHERE username=? OR email=?').get(username,username);
+    const user=db.prepare('SELECT * FROM users WHERE username=? OR LOWER(email)=LOWER(?)').get(username,username);
     if(!user) return res.status(401).json({error:"Credentials doesn't match"});
     if(!user.is_active) return res.status(401).json({error:'Account is disabled'});
     let ok=false, forcePC=false;
