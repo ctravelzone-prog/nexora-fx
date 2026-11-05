@@ -63,14 +63,15 @@ Pages._ctSet=function(key,val){
   if(myBtn){myBtn.style.background=Pages._ct.my?'#EA580C':'';myBtn.style.color=Pages._ct.my?'#fff':'';myBtn.style.borderColor=Pages._ct.my?'#EA580C':'';}
 };
 Pages._tCard=function(t,copies,rank){
-  const medal={1:{bg:'#F59E0B',fg:'#fff'},2:{bg:'#9CA3AF',fg:'#fff'},3:{bg:'#B45309',fg:'#fff'},4:{bg:'#E5E7EB',fg:'#374151'},5:{bg:'#E5E7EB',fg:'#374151'}}[rank]||null;
+  const rankStyle={1:{tier:'PLATINUM',c:'#38BDF8',txt:'#fff',frame:'/assets/frames/frame-platinum.png'},2:{tier:'GOLD',c:'#FFB800',txt:'#1F2937',frame:'/assets/frames/frame-gold.png'},3:{tier:'SILVER',c:'#9CA3AF',txt:'#1F2937',frame:'/assets/frames/frame-silver.png'},4:{tier:'BRONZE',c:'#B45309',txt:'#fff',frame:'/assets/frames/frame-bronze.png'},5:{tier:'EMERALD',c:'#059669',txt:'#fff',frame:'/assets/frames/frame-emerald.png'}}[rank]||null;
   const riskBadge={Low:['#ECFDF5','#059669'],Medium:['#FFFBEB','#D97706'],High:['#FEF2F2','#DC2626']}[t.risk_level]||['#F3F4F6','#374151'];
   const copying=copies&&copies.some(c=>c.trader_id===t.id);
+  const avatarHtml=rank&&rankStyle?`<div style="position:relative;width:110px;height:110px;flex-shrink:0"><div style="position:absolute;left:50%;top:54.9%;transform:translate(-50%,-50%);width:46px;height:46px;border-radius:50%;overflow:hidden">${utils.avatar(t.name,t.avatar,46)}</div><img src="${rankStyle.frame}" style="position:absolute;inset:0;width:110px;height:110px;pointer-events:none;z-index:2" alt=""></div>`:`<span style="width:44px;height:44px;border-radius:50%;overflow:hidden;flex-shrink:0">${utils.avatar(t.name,t.avatar,44)}</span>`;
+  const crownBadge=rank&&rankStyle?`<span class="pill text-xs mt-1" style="background:${rankStyle.c};color:${rankStyle.txt};font-weight:800;letter-spacing:.5px;display:inline-block">👑 ${rankStyle.tier} #${rank}</span>`:'';
   return `<div class="card" style="${rank===1?'border-color:#86EFAC;background:#F0FDF4':''}">
-    <div class="flex items-start gap-3 mb-3">
-      ${medal?`<span class="flex-shrink-0 font-extrabold text-sm" style="width:26px;height:26px;border-radius:50%;background:${medal.bg};color:${medal.fg};display:grid;place-items:center;margin-top:9px">${rank}</span>`:''}
-      <span style="width:44px;height:44px;border-radius:50%;overflow:hidden;flex-shrink:0">${utils.avatar(t.name,t.avatar,44)}</span>
-      <div class="flex-1 min-w-0"><div class="flex items-center gap-1.5 font-bold truncate">${t.name} <span>${t.flag_emoji||''}</span>${t.verified?'<span class="text-blue-500 text-sm">✓</span>':''}</div><div class="text-xs text-gray-400 truncate">${t.strategy||''}</div></div>
+    <div class="flex items-center gap-3 mb-3">
+      ${avatarHtml}
+      <div class="flex-1 min-w-0"><div class="flex items-center gap-1.5 font-bold truncate">${t.name} <span>${t.flag_emoji||''}</span>${t.verified?'<span class="text-blue-500 text-sm">✓</span>':''}</div><div class="text-xs text-gray-400 truncate">${t.strategy||''}</div>${crownBadge}</div>
       <div class="text-right flex-shrink-0"><div class="font-extrabold text-green-500 text-lg leading-none">+${(t.roi_percent||0).toFixed(1)}%</div><div class="text-[11px] text-gray-400 mt-1">ROI</div></div>
     </div>
     <div class="grid grid-cols-4 gap-2 py-3 border-t border-b border-gray-100 text-center mb-3">
