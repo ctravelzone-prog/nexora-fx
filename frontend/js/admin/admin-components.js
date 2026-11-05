@@ -9,6 +9,7 @@ const AdminComponents = {
       </div>
       <div class="admin-overlay" id="admin-ov" onclick="AdminComponents.closeSidebar()"></div>`;
     AdminComponents.loadBadges();
+    AdminComponents.syncGroups();
   },
   openSidebar(){
     document.getElementById('admin-sidebar')?.classList.add('open');
@@ -74,7 +75,8 @@ const AdminComponents = {
         ${link('/admin/referrals','Referral')}
         ${link('/admin/profit','Profit System')}
         ${link('/admin/money-settings','Money Settings')}
-        <div class="admin-nav-group" onclick="AdminComponents.toggleGroup('general')">GENERAL SETTINGS</div>
+        <div class="admin-nav-drop" onmouseenter="AdminComponents.openGroup('general')" onmouseleave="AdminComponents.maybeCloseGroup('general')">
+        <div class="admin-nav-group" onclick="AdminComponents.toggleGroup('general')" style="cursor:pointer">GENERAL SETTINGS</div>
         <div class="admin-nav-sub" id="general-group">
           ${link('/admin/settings','Logo')}
           ${link('/admin/settings','Favicon')}
@@ -83,7 +85,9 @@ const AdminComponents = {
           ${link('/admin/settings','Website Contents')}
           ${link('/admin/countries','Manage Countries')}
         </div>
-        <div class="admin-nav-group" onclick="AdminComponents.toggleGroup('team')">TEAM &amp; SYSTEM</div>
+        </div>
+        <div class="admin-nav-drop" onmouseenter="AdminComponents.openGroup('team')" onmouseleave="AdminComponents.maybeCloseGroup('team')">
+        <div class="admin-nav-group" onclick="AdminComponents.toggleGroup('team')" style="cursor:pointer">TEAM &amp; SYSTEM</div>
         <div class="admin-nav-sub" id="team-group">
           ${link('/admin/roles','Manage Roles')}
           ${link('/admin/staff','Manage Staff')}
@@ -92,7 +96,9 @@ const AdminComponents = {
           ${link('/admin/email','Email Settings')}
           ${link('/admin/sms','SMS Settings')}
         </div>
-        <div class="admin-nav-group" onclick="AdminComponents.toggleGroup('content')">CONTENT</div>
+        </div>
+        <div class="admin-nav-drop" onmouseenter="AdminComponents.openGroup('content')" onmouseleave="AdminComponents.maybeCloseGroup('content')">
+        <div class="admin-nav-group" onclick="AdminComponents.toggleGroup('content')" style="cursor:pointer">CONTENT</div>
         <div class="admin-nav-sub" id="content-group">
           ${link('/admin/blog','Manage Blog')}
           ${link('/admin/pages','Website Contents')}
@@ -103,13 +109,16 @@ const AdminComponents = {
           ${link('/admin/footer','Footer')}
           ${link('/admin/error-banner','Error Banner')}
         </div>
-        <div class="admin-nav-group" onclick="AdminComponents.toggleGroup('payment')">PAYMENT SETTINGS</div>
+        </div>
+        <div class="admin-nav-drop" onmouseenter="AdminComponents.openGroup('payment')" onmouseleave="AdminComponents.maybeCloseGroup('payment')">
+        <div class="admin-nav-group" onclick="AdminComponents.toggleGroup('payment')" style="cursor:pointer">PAYMENT SETTINGS</div>
         <div class="admin-nav-sub" id="payment-group">
           ${link('/admin/deposit-wallet','Deposit Wallet Settings')}
           ${link('/admin/currencies','Currencies')}
           ${link('/admin/payment-gateways','Payment Gateways')}
           ${link('/admin/menu-page-settings','Menu Page Settings')}
           ${link('/admin/holidays','Holiday Settings')}
+        </div>
         </div>
         <div class="admin-nav-group" style="cursor:default">TRADING</div>
         ${link('/admin/traders','Traders')}
@@ -129,6 +138,43 @@ const AdminComponents = {
   toggleGroup(id) {
     const el=document.getElementById(`${id}-group`);
     if(el) el.classList.toggle('open');
+  },
+
+  // Which admin routes live inside each collapsible sidebar group
+  _groupRoutes: {
+    general: ['/settings','/loader','/breadcrumb','/countries'],
+    team: ['/roles','/staff','/audit-log','/reports','/email','/sms'],
+    content: ['/blog','/pages','/menu-builder','/seo','/fonts','/language','/footer','/error-banner'],
+    payment: ['/deposit-wallet','/currencies','/payment-gateways','/menu-page-settings','/holidays'],
+  },
+  // The group that holds the current page (null when the page is outside all groups)
+  _activeGroup() {
+    const p=(window.location.pathname||'').replace('/admin','')||'/dashboard';
+    for (const [g,routes] of Object.entries(AdminComponents._groupRoutes)) {
+      if (routes.includes(p)) return g;
+    }
+    return null;
+  },
+  // Hover in: open the group
+  openGroup(id) {
+    const el=document.getElementById(`${id}-group`);
+    if(el) el.classList.add('open');
+  },
+  closeGroup(id) {
+    const el=document.getElementById(`${id}-group`);
+    if(el) el.classList.remove('open');
+  },
+  // Hover out: close it again, unless the current page lives inside it
+  maybeCloseGroup(id) {
+    if(AdminComponents._activeGroup()!==id) AdminComponents.closeGroup(id);
+  },
+  // After every render: keep exactly the active group open, close the rest
+  syncGroups() {
+    const active=AdminComponents._activeGroup();
+    ['general','team','content','payment'].forEach(id=>{
+      const el=document.getElementById(`${id}-group`);
+      if(el) el.classList.toggle('open', id===active);
+    });
   },
 
   async loadBadges() {

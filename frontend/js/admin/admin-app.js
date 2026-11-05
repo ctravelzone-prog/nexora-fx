@@ -132,6 +132,13 @@ const AdminApp = {
           <p class="text-center text-xs text-gray-400 mt-4">Nexora FX Admin Panel — authorised access only</p>
         </div>
       </div>`;
+    try{
+      if(sessionStorage.getItem('nx_admin_expired')==='1'){
+        sessionStorage.removeItem('nx_admin_expired');
+        const _e=document.getElementById('admin-login-err');
+        if(_e){ _e.textContent='Your session expired — please log in again.'; _e.classList.remove('hidden'); }
+      }
+    }catch(e){}
     document.getElementById('admin-login-form').onsubmit = async (e) => {
       e.preventDefault();
       const f=e.target, err=document.getElementById('admin-login-err'), btn=document.getElementById('admin-login-btn');

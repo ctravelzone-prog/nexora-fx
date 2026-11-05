@@ -12,7 +12,8 @@ AdminPages.settings=async function(){
       </div>
       <div class="card space-y-3"><h3 class="font-bold mb-2">Header / Top Bar</h3>
         <p class="text-xs text-gray-400">Controls the top header bar (logo, brand name, Log In / Sign Up buttons) on the landing and public pages.</p>
-        <div><label class="input-label">Brand Name</label><input name="header_brand_name" type="text" value="${(s.header_brand_name||'Nexora FX').replace(/"/g,'&quot;')}" class="input-field" placeholder="Nexora FX"></div>
+        <div><label class="input-label">Brand Name</label><input name="header_brand_name" type="text" value="${(s.header_brand_name||'Nexora FX').replace(/"/g,'&quot;')}" class="input-field" placeholder="Nexora FX" oninput="AdminPages._renderBrandColors()"></div>
+        <div><label class="input-label">Brand Name Word Colors — pick a color for each word</label><div id="brand-colors" class="space-y-2"></div></div>
         <div><label class="input-label">Tagline (under brand name — leave empty to hide)</label><input name="header_tagline" type="text" value="${(s.header_tagline===undefined?'COPY TRADING PLATFORM':s.header_tagline).replace(/"/g,'&quot;')}" class="input-field" placeholder="COPY TRADING PLATFORM"></div>
         <div><label class="input-label">Header Background Color</label><input name="header_bg" type="color" value="${s.header_bg||'#ffffff'}" class="input-field" style="height:44px;padding:4px"></div>
         <label class="flex items-center gap-2 text-sm cursor-pointer"><input type="checkbox" name="header_show_login" ${s.header_show_login!=='0'?'checked':''} class="accent-orange-500"> Show Log In button</label>
@@ -25,14 +26,32 @@ AdminPages.settings=async function(){
       <div id="set-err" class="alert-danger hidden"></div>
       <button type="submit" id="set-btn" class="btn-primary">Save Settings</button>
     </form>`,'Site Settings / CMS');
+    // Brand word colors: one color picker per word of the brand name.
+    // First render uses the saved colors; typing a new brand name keeps picks by index.
+    let _savedColors=null;
+    try{ _savedColors=JSON.parse(s.header_brand_word_colors||'null'); }catch(e){ _savedColors=null; }
+    AdminPages._renderBrandColors(_savedColors);
     document.getElementById('settings-form').onsubmit=async(e)=>{
       e.preventDefault();const f=e.target,err=document.getElementById('set-err'),btn=document.getElementById('set-btn');
       err.classList.add('hidden');utils.loading(btn,true);
-      try{await adminApi.saveSettings({hero_title:f.hero_title.value,hero_subtitle:f.hero_subtitle.value,announcement_bar:f.announcement_bar.value,footer_about:f.footer_about.value,header_brand_name:f.header_brand_name.value,header_tagline:f.header_tagline.value,header_bg:f.header_bg.value,header_show_login:f.header_show_login.checked?'1':'0',header_show_signup:f.header_show_signup.checked?'1':'0'});utils.toast('Settings saved!','success');}
+      const _cols=[...document.querySelectorAll('#brand-colors input[type="color"]')].map(c=>c.value);
+      try{await adminApi.saveSettings({hero_title:f.hero_title.value,hero_subtitle:f.hero_subtitle.value,announcement_bar:f.announcement_bar.value,footer_about:f.footer_about.value,header_brand_name:f.header_brand_name.value,header_brand_word_colors:JSON.stringify(_cols),header_tagline:f.header_tagline.value,header_bg:f.header_bg.value,header_show_login:f.header_show_login.checked?'1':'0',header_show_signup:f.header_show_signup.checked?'1':'0'});utils.toast('Settings saved!','success');}
       catch(ex){err.textContent=ex.message;err.classList.remove('hidden');}
       utils.loading(btn,false);
     };
   }catch(e){document.getElementById('admin-app').innerHTML=`<p class="p-8 text-red-500">${e.message}</p>`;}
+};
+AdminPages._renderBrandColors=function(saved){
+  const inp=document.querySelector('#settings-form input[name="header_brand_name"]');
+  const box=document.getElementById('brand-colors');
+  if(!inp||!box) return;
+  const words=(inp.value.trim()||'Nexora FX').split(/\s+/);
+  const prev=Array.isArray(saved)&&saved.length===words.length?saved.map(c=>String(c||'').toLowerCase()):[...box.querySelectorAll('input[type="color"]')].map(c=>c.value);
+  box.innerHTML=words.map((w,i)=>{
+    const def=i===words.length-1?'#f97316':'#111827';
+    const val=(prev[i]&&/^#[0-9a-f]{6}$/.test(prev[i]))?prev[i]:def;
+    return '<label class="flex items-center gap-3 text-sm"><span class="w-24 font-medium truncate">'+w.replace(/</g,'&lt;')+'</span><input type="color" value="'+val+'" class="w-12 h-8 cursor-pointer" style="padding:2px" oninput="this.nextElementSibling.textContent=this.value"><span class="text-gray-400 text-xs">'+val+'</span></label>';
+  }).join('');
 };
 AdminPages._upMedia=async function(field,ep){
   const fi=document.getElementById(`${field}-file`);

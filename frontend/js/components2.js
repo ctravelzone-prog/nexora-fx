@@ -4,7 +4,15 @@ const Components={
   brandNameHtml(){
     const s=(typeof App!=='undefined'&&App.state&&App.state.settings)||{};
     const brand=(((s.header_brand_name||'Nexora FX').trim())||'Nexora FX');
-    const parts=brand.split(/\s+/);const last=parts.pop();const first=parts.join(' ');
+    const parts=brand.split(/\s+/);
+    // Per-word colors (set in Admin > Site Settings / CMS > Header / Top Bar).
+    // Stored as a JSON array of hex colors, one per word. Fallback: last word orange.
+    let colors=null;
+    try{ colors=JSON.parse(s.header_brand_word_colors||'null'); }catch(e){ colors=null; }
+    if(Array.isArray(colors)&&colors.length===parts.length&&colors.every(c=>/^#[0-9a-fA-F]{6}$/.test(c||''))){
+      return parts.map((w,i)=>'<span style="color:'+colors[i]+'">'+w+'</span>').join(' ');
+    }
+    const last=parts.pop();const first=parts.join(' ');
     return first?first+' <span class="text-orange-500">'+last+'</span>':'<span class="text-orange-500">'+last+'</span>';
   },
   topbarPublic(page){

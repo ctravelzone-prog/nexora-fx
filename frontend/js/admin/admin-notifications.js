@@ -40,8 +40,9 @@ AdminPages.sendNotification=async function(){
     e.preventDefault();const f=e.target,err=document.getElementById('notif-err'),btn=document.getElementById('notif-btn');
     err.classList.add('hidden');utils.loading(btn,true);
     const uid=document.getElementById('nu-uid').value;
-    const payload={title:f.title.value,message:f.message.value,type:f.type.value,action_url:f.action_url.value||null,action_label:f.action_label.value||null};
-    if(f.target.value==='user'){if(!uid){err.textContent='Please search and select a user';err.classList.remove('hidden');utils.loading(btn,false);return;}payload.user_id=parseInt(uid);}
+    const q=n=>f.querySelector('[name="'+n+'"]').value;
+    const payload={title:q('title'),message:q('message'),type:q('type'),action_url:q('action_url')||null,action_label:q('action_label')||null};
+    if(q('target')==='user'){if(!uid){err.textContent='Please search and select a user';err.classList.remove('hidden');utils.loading(btn,false);return;}payload.user_id=parseInt(uid);}
     try{await adminApi.sendNotif(payload);utils.toast('Notification sent!','success');f.reset();document.getElementById('user-search-row').style.display='none';document.getElementById('nu-result').innerHTML='';}
     catch(ex){err.textContent=ex.message;err.classList.remove('hidden');}
     utils.loading(btn,false);

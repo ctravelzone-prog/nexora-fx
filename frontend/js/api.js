@@ -7,6 +7,16 @@ const api = {
   clearToken(){ localStorage.removeItem('nx_token'); },
   clearAdminToken(){ localStorage.removeItem('nx_admin_token'); },
 
+  // If an admin call fails with 401 (token expired/invalid), send the admin back to
+  // the login page with a clear message instead of a confusing "Invalid token" error.
+  // The login endpoint itself is excluded (a wrong password must not redirect).
+  _adminAuthFail(path){
+    if(path.includes('/api/admin/auth/login')) return;
+    api.clearAdminToken();
+    try{ sessionStorage.setItem('nx_admin_expired','1'); }catch(e){}
+    window.location.href='/admin';
+  },
+
   async request(method,path,data,admin=false){
     const token=admin?this.getAdminToken():this.getToken();
     const headers={'Content-Type':'application/json'};
@@ -15,7 +25,7 @@ const api = {
     if(data&&method!=='GET') opts.body=JSON.stringify(data);
     const res=await fetch(path,opts);
     const json=await res.json().catch(()=>({}));
-    if(!res.ok) throw new Error(json.error||`HTTP ${res.status}`);
+    if(!res.ok){ if(res.status===401&&admin) api._adminAuthFail(path); throw new Error(json.error||`HTTP ${res.status}`); }
     return json;
   },
 
@@ -25,7 +35,7 @@ const api = {
     if(token) headers['Authorization']=`Bearer ${token}`;
     const res=await fetch(path,{method:'POST',headers,body:formData});
     const json=await res.json().catch(()=>({}));
-    if(!res.ok) throw new Error(json.error||`HTTP ${res.status}`);
+    if(!res.ok){ if(res.status===401&&admin) api._adminAuthFail(path); throw new Error(json.error||`HTTP ${res.status}`); }
     return json;
   },
 
@@ -35,7 +45,7 @@ const api = {
     if(token) headers['Authorization']=`Bearer ${token}`;
     const res=await fetch(path,{method:'PUT',headers,body:formData});
     const json=await res.json().catch(()=>({}));
-    if(!res.ok) throw new Error(json.error||`HTTP ${res.status}`);
+    if(!res.ok){ if(res.status===401&&admin) api._adminAuthFail(path); throw new Error(json.error||`HTTP ${res.status}`); }
     return json;
   },
 

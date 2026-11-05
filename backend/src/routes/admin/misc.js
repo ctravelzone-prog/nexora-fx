@@ -34,6 +34,11 @@ router.post('/blog', authAdmin, (req,res)=>{
   const id=getDb().prepare('INSERT INTO blog_posts (title,slug,content,excerpt,status,author_id) VALUES (?,?,?,?,?,?)').run(title,slug+'-'+Date.now(),content||'',excerpt||'',status||'draft',req.adminId).lastInsertRowid;
   res.json({success:true,id});
 });
+router.delete('/blog/:id', authAdmin, (req,res)=>{
+  const info=getDb().prepare('DELETE FROM blog_posts WHERE id=?').run(req.params.id);
+  if(!info.changes) return res.status(404).json({error:'Post not found'});
+  res.json({success:true});
+});
 
 // Holidays
 router.get('/holidays', authAdmin, (req,res)=>{

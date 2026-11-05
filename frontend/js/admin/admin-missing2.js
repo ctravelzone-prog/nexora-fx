@@ -26,8 +26,13 @@ AdminPages.loaderSettings=async function(){
   }catch(e){document.getElementById('admin-app').innerHTML='<p class="p-8 text-red-500">'+e.message+'</p>';}
 };
 AdminPages._toggleLoader=async function(on){try{await adminApi.saveSettings({site_loader:on?'1':'0'});utils.applyLoaderSetting(on?'1':'0');const pv=document.getElementById('loader-preview');if(pv)pv.style.display=on?'flex':'none';utils.toast(on?'Site loader ON':'Site loader OFF','success');}catch(ex){utils.toast(ex.message,'error');}};
-AdminPages.breadcrumbBanner=function(){
-  AdminComponents.layout('<h2 class="font-bold text-lg mb-4">Breadcrumb Banner</h2><div class="panel" style="margin-top:0;display:grid;gap:14px"><div><label class="input-label">Background Color</label><input type="color" class="input-field" value="#1E2329" style="height:48px;padding:4px"></div><div><label class="input-label">Text Color</label><input type="color" class="input-field" value="#ffffff" style="height:48px;padding:4px"></div><button class="btn-primary" onclick="utils.toast(\'Saved!\',\'success\')">Save</button></div>','Breadcrumb Banner');
+AdminPages.breadcrumbBanner=async function(){
+  try{
+    const s=await adminApi.getSettings();
+    const bg=(s.breadcrumb_bg||'#1E2329'),tx=(s.breadcrumb_text||'#ffffff');
+    AdminComponents.layout(`<h2 class="font-bold text-lg mb-4">Breadcrumb Banner</h2><form id="bc-form" class="panel" style="margin-top:0;display:grid;gap:14px"><div><label class="input-label">Background Color</label><input name="bg" type="color" class="input-field" value="${bg}" style="height:48px;padding:4px"></div><div><label class="input-label">Text Color</label><input name="tx" type="color" class="input-field" value="${tx}" style="height:48px;padding:4px"></div><button type="submit" id="bc-btn" class="btn-primary">Save</button></form>`,'Breadcrumb Banner');
+    document.getElementById('bc-form').onsubmit=async(e)=>{e.preventDefault();const f=e.target,btn=document.getElementById('bc-btn');utils.loading(btn,true);try{await adminApi.saveSettings({breadcrumb_bg:f.querySelector('[name="bg"]').value,breadcrumb_text:f.querySelector('[name="tx"]').value});utils.toast('Saved!','success');}catch(ex){utils.toast(ex.message,'error');}utils.loading(btn,false);};
+  }catch(e){document.getElementById('admin-app').innerHTML='<p class="p-8 text-red-500">'+e.message+'</p>';}
 };
 AdminPages.errorBanner=async function(){
   try{const s=await adminApi.getSettings();

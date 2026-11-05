@@ -6,7 +6,7 @@ const { getDb } = require('../../models/database');
 const { authAdmin, superAdminOnly } = require('../../middleware/auth');
 
 function mkAdminToken(adminId){
-  return jwt.sign({type:'admin',adminId},process.env.JWT_SECRET,{expiresIn:'8h'});
+  return jwt.sign({type:'admin',adminId},process.env.JWT_SECRET,{expiresIn:'7d'});
 }
 
 router.post('/login', async (req,res)=>{
