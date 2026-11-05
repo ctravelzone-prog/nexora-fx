@@ -234,7 +234,7 @@ Pages.landing = async function() {
               {name:'Exness',type:'Forex Broker',logo:'/assets/brokers/exness.svg',box:'bg-white',accent:'#141D22',features:['Ultra-tight spreads','Instant withdrawals','Regulated & trusted','Lightning-fast execution']},
               {name:'Bybit',type:'Crypto Exchange',logo:'/assets/brokers/bybit.svg',box:'bg-white',accent:'#F6A500',features:['Top crypto derivatives exchange','Low fees & deep liquidity','Advanced trading tools','Fast, reliable platform']},
               {name:'XM',type:'Forex Broker',logo:'/assets/brokers/xm.jpg',box:'bg-black',accent:'#E11D2E',features:['Regulated in multiple regions','Wide range of instruments','Tight spreads','Trusted by traders worldwide']},
-            ].map(b=>`<div class="broker-card p-5 flex flex-col">
+            ].map(b=>`<div class="broker-card p-5 pb-8 flex flex-col">
               <div class="rounded-xl h-16 flex items-center justify-center p-3 shadow-sm mb-4 ${b.box}">
                 <img src="${b.logo}" alt="${b.name} logo" class="max-h-10 max-w-full object-contain" loading="lazy" onerror="this.style.display='none';this.parentElement.querySelector('.logo-fallback').style.display='flex'">
                 <span class="logo-fallback hidden items-center justify-center w-10 h-10 rounded-full text-white text-lg font-bold" style="background:${b.accent}">${b.name[0]}</span>
