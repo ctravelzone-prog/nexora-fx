@@ -2,7 +2,8 @@
 AdminPages.tickets=async function(){
   AdminPages._stopTicketPoll();
   try{
-    const tickets=await adminApi.getTickets({limit:50});
+    const _gen=AdminApp._gen;
+    const tickets=await adminApi.getTickets({limit:50});if(_gen!==AdminApp._gen)return;
     AdminComponents.layout(`<h2 class="font-bold text-lg mb-4">Support Tickets</h2>
     <div class="overflow-x-auto"><table class="data-table"><thead><tr><th>ID</th><th>User</th><th>Subject</th><th>Priority</th><th>Status</th><th>Date</th><th>Actions</th></tr></thead><tbody>
       ${tickets.map(t=>`<tr><td>#${t.id}</td><td>${t.full_name} (@${t.username})</td><td class="font-semibold max-w-xs truncate">${t.subject}</td><td>${t.priority==='high'?'<span class="badge badge-red">High</span>':'<span class="badge badge-gray">Normal</span>'}</td><td>${utils.statusBadge(t.status)}</td><td class="text-xs">${utils.fmtDate(t.created_at)}</td><td><button onclick="AdminPages.viewTicket(${t.id})" class="btn-secondary text-xs" style="padding:4px 8px">View</button></td></tr>`).join('')}

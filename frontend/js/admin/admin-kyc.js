@@ -1,7 +1,8 @@
 // admin-kyc.js — KYC review
 AdminPages.kyc=async function(){
   try{
-    const kycs=await adminApi.getKYCList({status:'pending',limit:50});
+    const _gen=AdminApp._gen;
+    const kycs=await adminApi.getKYCList({status:'pending',limit:50});if(_gen!==AdminApp._gen)return;
     AdminComponents.layout(`<h2 class="font-bold text-lg mb-4">KYC Submissions</h2>
     <div class="alert-info mb-4 text-sm">To request KYC from one specific user, go to <button onclick="AdminApp.navigate('/admin/kyc-control')" class="text-orange-500 font-semibold">Manage KYC Form \u2192</button></div>
     <div class="overflow-x-auto"><table class="data-table"><thead><tr><th>User</th><th>Status</th><th>Submitted</th><th>Documents</th><th>Actions</th></tr></thead><tbody>

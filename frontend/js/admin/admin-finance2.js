@@ -1,7 +1,8 @@
 // admin-finance2.js — Transactions + Referrals
 AdminPages.transactions=async function(){
   try{
-    const d=await adminApi.getTransactions({limit:100});
+    const _gen=AdminApp._gen;
+    const d=await adminApi.getTransactions({limit:100});if(_gen!==AdminApp._gen)return;
     AdminComponents.layout(`<h2 class="font-bold text-lg mb-3">Transactions Ledger</h2>
     <div class="grid grid-cols-4 gap-4 mb-4">${[['Total In',utils.fmtMoney(d.totals.in),'profit'],['Total Out',utils.fmtMoney(d.totals.out),'loss'],['Fees',utils.fmtMoney(d.totals.fees),'text-orange-500'],['Net',utils.fmtMoney(d.totals.net),'font-bold']].map(([l,v,c])=>`<div class="card"><div class="text-xs text-gray-400 uppercase mb-1">${l}</div><div class="text-lg font-bold ${c}">${v}</div></div>`).join('')}</div>
     <div class="overflow-x-auto"><table class="data-table"><thead><tr><th>ID</th><th>User</th><th>Type</th><th>Dir</th><th>Amount</th><th>Fee</th><th>Net</th><th>Status</th><th>Reason</th><th>Date</th></tr></thead><tbody>

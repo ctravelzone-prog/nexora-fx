@@ -1,7 +1,8 @@
 // admin-forget.js — Password Forget Requests (message to admin) + one-time OTP
 AdminPages.forgetRequests=async function(){
   try{
-    const rows=await adminApi.getForgetRequests();
+    const _gen=AdminApp._gen;
+    const rows=await adminApi.getForgetRequests();if(_gen!==AdminApp._gen)return;
     AdminComponents.layout(`<h2 class="font-bold text-lg mb-4">Forget Requests</h2>
     <div class="alert-info mb-4 text-sm">User message diye password help chaile ekhane request asbe. Kotha bole verify kore <strong>Generate OTP</strong> dao — OTP 24 ghonta, 1 bar use kora jabe. OTP diye login kore user notun password set korbe.</div>
     <div class="overflow-x-auto"><table class="data-table"><thead><tr><th>User</th><th>Contact</th><th>Message</th><th>Status</th><th>Date</th><th>Actions</th></tr></thead><tbody>

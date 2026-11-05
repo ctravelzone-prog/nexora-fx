@@ -1,6 +1,6 @@
 // admin-missing.js — Request Money + Blog + Pages editor
 AdminPages.requestMoney=async function(){
-  try{const rs=await adminApi.getMoneyRequests();
+  try{const _gen=AdminApp._gen;const rs=await adminApi.getMoneyRequests();if(_gen!==AdminApp._gen)return;
   const pend=rs.filter(r=>r.status==='pending'),done=rs.filter(r=>r.status!=='pending');
   AdminComponents.layout('<div class="admin-head"><div><h2>Request Money</h2><p style="color:var(--muted);font-size:13px">Money requests from users. Approve to add the amount to Main Balance, reject with a reason.</p></div></div>'
   +'<div class="panel" style="margin-top:0"><h3 style="font-weight:800;margin-bottom:10px">Pending ('+pend.length+')</h3>'

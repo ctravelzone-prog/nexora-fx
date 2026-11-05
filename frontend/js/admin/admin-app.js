@@ -1,5 +1,9 @@
 // admin-app.js — Admin SPA router
 const AdminApp = {
+  // Navigation generation: bumped on every route(). Async page handlers capture it
+  // before their API call and skip rendering if it changed — so a stale auto-refresh
+  // can never overwrite a page the admin just navigated to (first click looked dead).
+  _gen: 0,
   state: { admin: null, notifCount: 0 },
   _listPoll: null,
   // Request-list pages that auto-refresh so new user requests appear without a manual reload
@@ -98,6 +102,7 @@ const AdminApp = {
   },
 
   route(path) {
+    AdminApp._gen++;
     if (!api.getAdminToken()) { AdminApp.showLogin(); return; }
     const p = path.replace('/admin','') || '/dashboard';
     const routes = AdminApp._routes();

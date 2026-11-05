@@ -1,7 +1,8 @@
 // admin-dashboard.js — Admin Dashboard + Notifications
 AdminPages.dashboard=async function(){
   try{
-    const d=await adminApi.dashboard();const s=d.stats;
+    const _gen=AdminApp._gen;
+    const d=await adminApi.dashboard();if(_gen!==AdminApp._gen)return;const s=d.stats;
     AdminComponents.layout(`
       <div class="flex items-center justify-between mb-6">
         <div><h2 class="text-xl font-bold">Admin Dashboard</h2><p class="text-sm text-gray-400">Platform totals at a glance — all figures are sample design data.</p></div>
@@ -28,7 +29,8 @@ AdminPages.dashboard=async function(){
 
 AdminPages.notifications=async function(){
   try{
-    const d=await adminApi.notifications();
+    const _gen=AdminApp._gen;
+    const d=await adminApi.notifications();if(_gen!==AdminApp._gen)return;
     AdminComponents.layout(`
       <div class="flex items-center justify-between mb-4">
         <h2 class="font-bold text-lg">Admin Notifications ${d.unread>0?`<span class="badge badge-orange ml-2">${d.unread}</span>`:''}</h2>
