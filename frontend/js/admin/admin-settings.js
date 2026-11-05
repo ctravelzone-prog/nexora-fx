@@ -10,6 +10,14 @@ AdminPages.settings=async function(){
         <div><label class="input-label">Announcement Bar</label><input name="announcement_bar" type="text" value="${s.announcement_bar||''}" class="input-field" placeholder="Leave empty to hide"></div>
         <div><label class="input-label">Footer About Text</label><textarea name="footer_about" class="input-field" rows="2">${s.footer_about||''}</textarea></div>
       </div>
+      <div class="card space-y-3"><h3 class="font-bold mb-2">Header / Top Bar</h3>
+        <p class="text-xs text-gray-400">Controls the top header bar (logo, brand name, Log In / Sign Up buttons) on the landing and public pages.</p>
+        <div><label class="input-label">Brand Name</label><input name="header_brand_name" type="text" value="${(s.header_brand_name||'Nexora FX').replace(/"/g,'&quot;')}" class="input-field" placeholder="Nexora FX"></div>
+        <div><label class="input-label">Tagline (under brand name — leave empty to hide)</label><input name="header_tagline" type="text" value="${(s.header_tagline===undefined?'COPY TRADING PLATFORM':s.header_tagline).replace(/"/g,'&quot;')}" class="input-field" placeholder="COPY TRADING PLATFORM"></div>
+        <div><label class="input-label">Header Background Color</label><input name="header_bg" type="color" value="${s.header_bg||'#ffffff'}" class="input-field" style="height:44px;padding:4px"></div>
+        <label class="flex items-center gap-2 text-sm cursor-pointer"><input type="checkbox" name="header_show_login" ${s.header_show_login!=='0'?'checked':''} class="accent-orange-500"> Show Log In button</label>
+        <label class="flex items-center gap-2 text-sm cursor-pointer"><input type="checkbox" name="header_show_signup" ${s.header_show_signup!=='0'?'checked':''} class="accent-orange-500"> Show Sign Up button</label>
+      </div>
       <div class="card space-y-3"><h3 class="font-bold mb-2">Media Library</h3>
         <div><label class="input-label">Logo Upload (PNG with transparency)</label><input type="file" id="logo-file" accept="image/png" class="input-field"><button type="button" onclick="AdminPages._upMedia('logo','/api/admin/settings/logo')" class="btn-secondary text-sm mt-2" style="padding:8px 16px">Upload Logo</button>${s.logo_url?`<img src="${s.logo_url}" class="h-8 mt-2" alt="Logo">`:''}</div>
         <div><label class="input-label">Hero Image Upload</label><input type="file" id="hero-file" accept="image/*" class="input-field"><button type="button" onclick="AdminPages._upMedia('hero','/api/admin/settings/hero-image')" class="btn-secondary text-sm mt-2" style="padding:8px 16px">Upload Hero Image</button>${s.hero_image_url?`<img src="${s.hero_image_url}" class="h-16 mt-2 rounded" alt="Hero">`:''}</div>
@@ -20,7 +28,7 @@ AdminPages.settings=async function(){
     document.getElementById('settings-form').onsubmit=async(e)=>{
       e.preventDefault();const f=e.target,err=document.getElementById('set-err'),btn=document.getElementById('set-btn');
       err.classList.add('hidden');utils.loading(btn,true);
-      try{await adminApi.saveSettings({hero_title:f.hero_title.value,hero_subtitle:f.hero_subtitle.value,announcement_bar:f.announcement_bar.value,footer_about:f.footer_about.value});utils.toast('Settings saved!','success');}
+      try{await adminApi.saveSettings({hero_title:f.hero_title.value,hero_subtitle:f.hero_subtitle.value,announcement_bar:f.announcement_bar.value,footer_about:f.footer_about.value,header_brand_name:f.header_brand_name.value,header_tagline:f.header_tagline.value,header_bg:f.header_bg.value,header_show_login:f.header_show_login.checked?'1':'0',header_show_signup:f.header_show_signup.checked?'1':'0'});utils.toast('Settings saved!','success');}
       catch(ex){err.textContent=ex.message;err.classList.remove('hidden');}
       utils.loading(btn,false);
     };

@@ -1,13 +1,27 @@
 // components2.js Part 1 — topbar + sidebar helpers
 const Components={
+  // Brand name from admin settings: last word in orange (the Nexora FX style).
+  brandNameHtml(){
+    const s=(typeof App!=='undefined'&&App.state&&App.state.settings)||{};
+    const brand=(((s.header_brand_name||'Nexora FX').trim())||'Nexora FX');
+    const parts=brand.split(/\s+/);const last=parts.pop();const first=parts.join(' ');
+    return first?first+' <span class="text-orange-500">'+last+'</span>':'<span class="text-orange-500">'+last+'</span>';
+  },
   topbarPublic(page){
     const s=App.state.settings;
     const logo='<img src="'+(s.logo_url||'/assets/logo-nx-mark-transparent.png')+'" style="height:32px" alt="NX">';
+    const tagline=s.header_tagline===undefined?'COPY TRADING PLATFORM':s.header_tagline;
+    const showLogin=s.header_show_login!=='0';
+    const showSignup=s.header_show_signup!=='0';
+    const bg=s.header_bg||'#FFFFFF';
     let right='';
-    if(page==='login') right='<a href="/register" class="btn-primary text-sm" style="padding:8px 20px;width:auto">Sign Up</a>';
-    else if(page==='register') right='<a href="/login" class="font-semibold text-sm text-gray-700">Log In</a>';
-    else right='<a href="/login" class="font-semibold text-sm text-gray-700 mr-3">Log In</a><a href="/register" class="btn-primary text-sm" style="padding:8px 20px;width:auto">Sign Up</a>';
-    return '<header class="bg-white border-b border-gray-100 sticky top-0 z-30"><div class="nx-container py-3 flex items-center justify-between"><a href="/" class="flex items-center gap-2">'+logo+'<div><div class="font-bold text-base">Nexora <span class="text-orange-500">FX</span></div><div class="text-xs text-gray-400 hidden sm:block">COPY TRADING PLATFORM</div></div></a><div class="flex items-center gap-2">'+right+'</div></div></header>';
+    if(page==='login'){ if(showSignup) right='<a href="/register" class="btn-primary text-sm" style="padding:8px 20px;width:auto">Sign Up</a>'; }
+    else if(page==='register'){ if(showLogin) right='<a href="/login" class="font-semibold text-sm text-gray-700">Log In</a>'; }
+    else{
+      if(showLogin) right+='<a href="/login" class="font-semibold text-sm text-gray-700 mr-3">Log In</a>';
+      if(showSignup) right+='<a href="/register" class="btn-primary text-sm" style="padding:8px 20px;width:auto">Sign Up</a>';
+    }
+    return '<header class="border-b border-gray-100 sticky top-0 z-30" style="background:'+bg+'"><div class="nx-container py-3 flex items-center justify-between"><a href="/" class="flex items-center gap-2">'+logo+'<div><div class="font-bold text-base">'+Components.brandNameHtml()+'</div>'+(tagline?'<div class="text-xs text-gray-400 hidden sm:block">'+tagline+'</div>':'')+'</div></a><div class="flex items-center gap-2">'+right+'</div></div></header>';
   },
   // Public page layout (no login needed): public header + content + back link.
   // Used by News / Schedule / Promotion so visitors can open them from the landing page.
@@ -66,8 +80,8 @@ const Components={
     }
     return '<aside class="sidebar" id="sidebar">'
       +'<div class="p-4 border-b border-gray-100 flex items-center gap-3">'
-      +'<img src="/assets/logo-nx-mark-transparent.png" style="height:40px;width:40px;object-fit:contain" alt="Nexora FX">'
-      +'<div class="min-w-0 flex-1"><div class="font-extrabold text-xl leading-none">Nexora <span class="text-orange-500">FX</span></div></div>'
+      +'<img src="'+(App.state.settings.logo_url||'/assets/logo-nx-mark-transparent.png')+'" style="height:40px;width:40px;object-fit:contain" alt="Nexora FX">'
+      +'<div class="min-w-0 flex-1"><div class="font-extrabold text-xl leading-none">'+Components.brandNameHtml()+'</div></div>'
       +xbtn+'</div>'
       +'<nav class="flex-1 py-2 overflow-y-auto text-sm">'+nav+'</nav>'
       +'<div class="p-3 border-t border-gray-100"><button onclick="App.logout()" class="sidebar-link w-full" style="color:#EF4444">'+svgIcons.logout+'<span>Sign Out</span></button></div>'
