@@ -2,7 +2,7 @@
 Pages.landing = async function() {
   const s = App.state.settings;
   const heroImg = s.hero_image_url ? `<img src="${s.hero_image_url}" class="w-full h-full object-cover rounded-2xl" alt="Trading">` :
-    `<div class="w-full h-full rounded-2xl flex items-center justify-center" style="background:linear-gradient(135deg,#1E2329,#2D3748)"><img src="/assets/hero-trading.png" class="w-full h-full object-cover rounded-2xl" alt="Trading" onerror="this.style.display='none'"><div class="absolute inset-0 flex items-center justify-center text-white text-opacity-30 text-6xl">📈</div></div>`;
+    `<div class="w-full h-full rounded-2xl flex items-center justify-center" style="background:linear-gradient(135deg,#1E2329,#2D3748)"><picture class="w-full h-full"><source srcset="/assets/hero-trading.webp" type="image/webp"><img src="/assets/hero-trading.png" class="w-full h-full object-cover rounded-2xl" alt="Trading" fetchpriority="high" onerror="this.style.display='none'"></picture><div class="absolute inset-0 flex items-center justify-center text-white text-opacity-30 text-6xl">📈</div></div>`;
 
   document.getElementById('app').innerHTML = `
     ${Components.topbarPublic('')}
