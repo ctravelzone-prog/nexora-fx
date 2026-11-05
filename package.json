@@ -1,0 +1,16 @@
+{
+  "name": "nexora-fx",
+  "version": "1.0.0",
+  "description": "Nexora Fx \u2014 UK-based copy trading platform",
+  "scripts": {
+    "start": "node backend/src/app.js",
+    "dev": "cd backend && npm run dev",
+    "install:backend": "cd backend && npm install",
+    "seed": "cd backend && npm run seed",
+    "change-admin-password": "cd backend && npm run change-admin-password",
+    "setup": "cd backend && npm install && npm run seed"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

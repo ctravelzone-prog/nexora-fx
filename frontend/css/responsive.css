@@ -1,0 +1,96 @@
+/* responsive.css — Nexora Fx layout + media queries */
+
+/* ── Sidebar layout ───────────────────────────── */
+.sidebar{width:260px;background:#fff;border-right:1px solid #F1F5F9;height:100vh;position:fixed;top:0;left:0;overflow-y:auto;z-index:40;display:flex;flex-direction:column;transition:transform .25s;}
+.sidebar-link{display:flex;align-items:center;gap:10px;padding:9px 16px;border-radius:10px;color:#334155;font-size:14px;font-weight:500;text-decoration:none;cursor:pointer;margin:1px 8px;transition:background .15s;}
+.sidebar-link:hover,.sidebar-link.active{background:#FFF7ED;color:#FF6A00;}
+.sidebar-link.active{font-weight:600;}
+.sidebar-group{font-size:10px;font-weight:700;letter-spacing:.1em;color:#94A3B8;text-transform:uppercase;padding:10px 24px 3px;}
+.with-sidebar{min-height:100vh;}
+.page-header{background:#fff;border-bottom:1px solid #F1F5F9;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:30;}
+
+/* ── Bottom nav ───────────────────────────────── */
+.bottom-nav{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid #F1F5F9;display:flex;z-index:40;padding-bottom:env(safe-area-inset-bottom,0px);}
+.bottom-nav-item{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:8px 4px 10px;font-size:10px;font-weight:600;color:#94A3B8;cursor:pointer;gap:3px;transition:color .15s;text-decoration:none;}
+.bottom-nav-item.active{color:#FF6A00;}
+.bottom-nav svg{width:20px;height:20px;}
+.sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(15,23,42,.4);z-index:39;}
+.sidebar-overlay.show{display:block;}
+
+/* ── Desktop (≥1024px) ───────────────────────── */
+@media(min-width:1024px){
+  .sidebar{transform:none !important;}
+  .with-sidebar{margin-left:260px;}
+  .bottom-nav{display:none;}
+  .page-header{padding:14px 24px;}
+  .mobile-only{display:none !important;}
+}
+
+/* ── Mobile (<1024px) ────────────────────────── */
+@media(max-width:1023px){
+  .sidebar{transform:translateX(-100%);}
+  .sidebar.open{transform:translateX(0);box-shadow:4px 0 24px rgba(0,0,0,.15);}
+  .with-sidebar{margin-left:0;}
+  /* Add padding to main content for bottom nav */
+  .with-sidebar main{padding-bottom:80px;}
+  .modal{border-radius:16px;padding:20px;max-height:95vh;}
+  .desktop-only{display:none !important;}
+}
+
+/* ── Tablet (≥640px <1024px) ─────────────────── */
+@media(min-width:640px) and (max-width:1023px){
+  .page-header{padding:13px 20px;}
+}
+
+/* ── Phone (<640px) ──────────────────────────── */
+@media(max-width:639px){
+  body{font-size:15px;}
+  .page-header h1{font-size:15px;}
+  /* Auth pages: hide left panel */
+  .auth-left-panel{display:none !important;}
+  /* Full-width primary buttons in modals */
+  .modal .btn-primary,.modal .btn-secondary,.modal .btn-danger{width:100%;}
+  /* Landing hero: stack vertically */
+  .hero-grid{flex-direction:column !important;}
+  .hero-image-col{width:100%;height:200px;margin-top:20px;order:2;}
+  /* Dashboard total band: stack stats */
+  .total-band-stats{grid-template-columns:1fr 1fr !important;gap:10px !important;}
+  /* My Copies: stack buttons */
+  .copy-btn-row{flex-direction:column !important;gap:8px !important;}
+  .copy-btn-row > button,.copy-btn-row > a{width:100% !important;}
+  /* Withdraw/Deposit: single column */
+  .two-col-layout{flex-direction:column !important;gap:16px !important;}
+  /* Trader card stats: 2 col */
+  .trader-stats-grid{grid-template-columns:1fr 1fr !important;}
+  /* Quick actions: 2 col */
+  .quick-actions-grid{grid-template-columns:1fr 1fr !important;}
+  /* Profile photo section */
+  .profile-photo-section{flex-direction:column !important;align-items:center !important;text-align:center !important;}
+  /* Tables: horizontal scroll */
+  .table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+  /* Shrink headings */
+  h1{font-size:1.4rem !important;}
+  /* Tighter padding on small screens */
+  main.p-4{padding:12px !important;}
+  /* Stats grid: 2-col on phone */
+  .stats-2col{grid-template-columns:1fr 1fr !important;}
+  /* Deposit layout */
+  .deposit-layout{flex-direction:column !important;}
+  .deposit-qr-col{order:-1;margin-bottom:16px;}
+  /* Sidebar phone header */
+  .phone-header{display:flex;align-items:center;gap:12px;padding:12px 16px;background:#fff;border-bottom:1px solid #F1F5F9;position:sticky;top:0;z-index:30;}
+  .phone-header-title{font-size:15px;font-weight:700;flex:1;}
+}
+
+/* ── Very small phones (<380px) ──────────────── */
+@media(max-width:379px){
+  .bottom-nav-item{font-size:9px;padding:6px 2px 8px;}
+  .bottom-nav svg{width:18px;height:18px;}
+  main{padding:10px !important;}
+}
+
+/* ── Safe area for notched phones ────────────── */
+@supports(padding:max(0px)){
+  .bottom-nav{padding-bottom:max(env(safe-area-inset-bottom),8px);}
+  .with-sidebar main{padding-bottom:max(80px,calc(64px + env(safe-area-inset-bottom)));}
+}

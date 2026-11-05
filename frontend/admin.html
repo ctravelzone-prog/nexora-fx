@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nexora Fx Admin</title>
+  <link rel="icon" href="/assets/favicon.ico">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>tailwind.config={theme:{extend:{colors:{orange:{DEFAULT:'#FF6A00',500:'#FF6A00',600:'#FF7A00'}},fontFamily:{sans:['Inter','ui-sans-serif']}}}}</script>
+  <link rel="stylesheet" href="/css/app.css">
+  <link rel="stylesheet" href="/css/responsive.css">
+  <link rel="stylesheet" href="/css/nexora-theme.css">
+  <link rel="stylesheet" href="/css/nexora-theme2.css">
+  <style>
+    .admin-sidebar{width:260px;background:#fff;border-right:1px solid #F1F5F9;height:100vh;position:fixed;top:0;left:0;overflow-y:auto;z-index:40;display:flex;flex-direction:column;transition:transform .25s;}
+    .admin-main{margin-left:260px;min-height:100vh;background:#F8F9FA;}
+    .admin-nav-link{display:flex;align-items:center;gap:8px;padding:10px 14px;border-radius:8px;color:#334155;font-size:15px;font-weight:600;cursor:pointer;margin:1px 8px;transition:background 0.15s;}
+    .admin-nav-link:hover,.admin-nav-link.active{background:#FFF7ED;color:#FF6A00;}
+    .admin-nav-group{font-size:12px;font-weight:600;letter-spacing:0.1em;color:#94A3B8;text-transform:uppercase;padding:12px 22px 4px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;}
+    .admin-nav-sub{padding-left:8px;overflow:hidden;max-height:0;transition:max-height 0.2s;}
+    .admin-nav-sub.open{max-height:500px;}
+    .admin-overlay{display:none;position:fixed;inset:0;background:rgba(15,23,42,.4);z-index:39;}
+    .admin-overlay.show{display:block;}
+    @media(max-width:1023px){
+      .admin-sidebar{transform:translateX(-100%);}
+      .admin-sidebar.open{transform:none;box-shadow:4px 0 24px rgba(0,0,0,.15);}
+      .admin-main{margin-left:0;}
+    }
+  </style>
+</head>
+<body class="font-sans bg-gray-50">
+  <div id="admin-app"></div>
+  <div id="modal-root"></div>
+  <div id="toast-root" class="fixed bottom-4 right-4 z-50 flex flex-col gap-2 max-w-sm"></div>
+  <script src="/js/api.js?v=v10"></script>
+  <script src="/js/admin-api.js?v=v10"></script>
+  <script src="/js/utils.js?v=v10"></script>
+  <script src="/js/admin/admin-app.js?v=v10"></script>
+  <script src="/js/admin/admin-components.js?v=v10"></script>
+  <script src="/js/admin/admin-dashboard.js?v=v10"></script>
+  <script src="/js/admin/admin-finance.js?v=v10"></script>
+  <script src="/js/admin/admin-finance2.js?v=v10"></script>
+  <script src="/js/admin/admin-users.js?v=v10"></script>
+  <script src="/js/admin/admin-users2.js?v=v10"></script>
+  <script src="/js/admin/admin-users3.js?v=v10"></script>
+  <script src="/js/admin/admin-traders.js?v=v10"></script>
+  <script src="/js/admin/admin-profit.js?v=v10"></script>
+  <script src="/js/admin/admin-settings.js?v=v10"></script>
+  <script src="/js/admin/admin-settings2.js?v=v10"></script>
+  <script src="/js/admin/admin-settings3.js?v=v10"></script>
+  <script src="/js/admin/admin-kyc.js?v=v10"></script>
+  <script src="/js/admin/admin-tickets.js?v=v10"></script>
+  <script src="/js/admin/admin-forget.js?v=v10"></script>
+  <script src="/js/admin/admin-notifications.js?v=v10"></script>
+  <script src="/js/admin/admin-missing.js?v=v10"></script>
+  <script src="/js/admin/admin-missing2.js?v=v10"></script>
+  <script src="/js/admin/admin-missing3.js?v=v10"></script>
+  <script src="/js/admin/admin-missing4.js?v=v10"></script>
+  <script src="/js/admin/admin-missing5.js?v=v10"></script>
+  <script src="/js/admin/admin-missing6.js?v=v10"></script>
+  <script src="/js/admin/admin-missing7.js?v=v10"></script>
+</body>
+</html>

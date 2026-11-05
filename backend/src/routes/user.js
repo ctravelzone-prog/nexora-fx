@@ -1,0 +1,124 @@
+// user.js — user profile, balance, transactions, notifications, 2FA
+const router = require('express').Router();
+const bcrypt = require('bcrypt');
+const { getDb } = require('../models/database');
+const { authUser, authImpersonation } = require('../middleware/auth');
+const { getBalance, getMoneySettings, calcMainWithdrawFee, fmtC } = require('../services/moneyHelpers');
+const multer = require('multer');
+const path = require('path');
+const storage = multer.diskStorage({
+  destination: (req,file,cb)=>cb(null,path.join(__dirname,'../../uploads')),
+  filename: (req,file,cb)=>cb(null,`profile_${req.userId||Date.now()}_${file.originalname}`)
+});
+const upload = multer({storage,limits:{fileSize:5*1024*1024}});
+
+const auth = authImpersonation; // allow both normal and impersonation tokens
+
+// GET /api/user/me
+router.get('/me', auth, (req,res)=>{
+  const db=getDb();
+  const user=req.user;
+  const bal=getBalance(user.id);
+  const total=bal.main_cents+bal.copy_cents+bal.profit_cents;
+  const s=getMoneySettings();
+  const feeCents=calcMainWithdrawFee(user.id,bal.main_cents,s);
+  res.json({user:{id:user.id,full_name:user.full_name,username:user.username,
+    email:user.email,phone:user.phone,country_code:user.country_code,
+    profile_photo:user.profile_photo,kyc_status:user.kyc_status,kyc_requested:user.kyc_requested||0,
+    email_verified:user.email_verified,two_fa_enabled:user.two_fa_enabled,
+    referral_code:user.referral_code,created_at:user.created_at},
+    balance:{main_cents:bal.main_cents,copy_cents:bal.copy_cents,
+      profit_cents:bal.profit_cents,referral_cents:bal.referral_cents,
+      total_cents:total,total_deposited_cents:bal.total_deposited_cents,
+      total_withdrawn_cents:bal.total_withdrawn_cents,
+      first_deposit_at:bal.first_deposit_at},
+    early_fee_cents:feeCents,is_impersonation:req.isImpersonation||false});
+});
+
+// PUT /api/user/profile
+router.put('/profile', auth, (req,res)=>{
+  if(req.isImpersonation) return res.status(403).json({error:'Not allowed during Login as User session'});
+  const {full_name,phone,country_code}=req.body;
+  const db=getDb();
+  db.prepare('UPDATE users SET full_name=COALESCE(?,full_name),phone=COALESCE(?,phone),country_code=COALESCE(?,country_code),updated_at=unixepoch() WHERE id=?')
+    .run(full_name||null,phone||null,country_code||null,req.userId);
+  res.json({success:true});
+});
+
+// POST /api/user/profile-photo
+router.post('/profile-photo', auth, upload.single('photo'), (req,res)=>{
+  if(req.isImpersonation) return res.status(403).json({error:'Not allowed during Login as User session'});
+  if(!req.file) return res.status(400).json({error:'No file uploaded'});
+  const url=`/uploads/${req.file.filename}`;
+  getDb().prepare('UPDATE users SET profile_photo=? WHERE id=?').run(url,req.userId);
+  res.json({success:true,url});
+});
+
+// DELETE /api/user/profile-photo
+router.delete('/profile-photo', auth, (req,res)=>{
+  if(req.isImpersonation) return res.status(403).json({error:'Not allowed during Login as User session'});
+  getDb().prepare('UPDATE users SET profile_photo=NULL WHERE id=?').run(req.userId);
+  res.json({success:true});
+});
+
+// POST /api/user/change-password
+router.post('/change-password', auth, async (req,res)=>{
+  if(req.isImpersonation) return res.status(403).json({error:'Not allowed during Login as User session'});
+  try{
+    const {current_password,new_password}=req.body;
+    if(!current_password||!new_password) return res.status(400).json({error:'Both fields required'});
+    if(new_password.length<8) return res.status(400).json({error:'Password must be at least 8 characters'});
+    const db=getDb();
+    const user=db.prepare('SELECT * FROM users WHERE id=?').get(req.userId);
+    let currentOk=await bcrypt.compare(current_password,user.password_hash);let viaOtp=false;
+    if(!currentOk&&user.temp_password_hash){const now=Math.floor(Date.now()/1000);const tempOk=(user.temp_password_status==='active'||user.temp_password_status==='used')&&(!user.temp_password_expires||now<=user.temp_password_expires);if(tempOk&&await bcrypt.compare(current_password,user.temp_password_hash)){currentOk=true;viaOtp=true;}}
+    if(!currentOk) return res.status(400).json({error:'Current password is incorrect'});
+    const hash=await bcrypt.hash(new_password,12);
+    db.prepare('UPDATE users SET password_hash=?,updated_at=unixepoch() WHERE id=?').run(hash,req.userId);
+    if(viaOtp){db.prepare("UPDATE users SET temp_password_hash=NULL,temp_password_status='none',temp_password_used=0,temp_password_expires=NULL WHERE id=?").run(user.id);db.prepare("UPDATE forget_requests SET status='completed',updated_at=unixepoch() WHERE user_id=? AND status='otp_sent'").run(user.id);}
+    res.json({success:true,message:'Password changed successfully'});
+  }catch(e){res.status(500).json({error:e.message});}
+});
+
+// GET /api/user/transactions
+router.get('/transactions', auth, (req,res)=>{
+  const db=getDb();
+  const {type,limit=50,offset=0}=req.query;
+  let q='SELECT * FROM transactions WHERE user_id=?';
+  const p=[req.userId];
+  if(type){q+=' AND type=?';p.push(type);}
+  q+=' ORDER BY created_at DESC LIMIT ? OFFSET ?';
+  p.push(parseInt(limit),parseInt(offset));
+  res.json(db.prepare(q).all(...p));
+});
+
+// GET /api/user/notifications
+router.get('/notifications', auth, (req,res)=>{
+  const db=getDb();
+  const notifs=db.prepare('SELECT * FROM notifications WHERE user_id=? OR user_id IS NULL ORDER BY created_at DESC LIMIT 50').all(req.userId);
+  const unread=notifs.filter(n=>!n.is_read).length;
+  res.json({notifications:notifs,unread_count:unread});
+});
+
+// PUT /api/user/notifications/read-all
+router.put('/notifications/read-all', auth, (req,res)=>{
+  getDb().prepare('UPDATE notifications SET is_read=1 WHERE user_id=? OR user_id IS NULL').run(req.userId);
+  res.json({success:true});
+});
+
+// PUT /api/user/notifications/:id/read
+router.put('/notifications/:id/read', auth, (req,res)=>{
+  getDb().prepare('UPDATE notifications SET is_read=1 WHERE id=? AND (user_id=? OR user_id IS NULL)').run(req.params.id,req.userId);
+  res.json({success:true});
+});
+
+// GET /api/user/settings (public site settings)
+router.get('/settings', (req,res)=>{
+  const db=getDb();
+  const rows=db.prepare('SELECT key,value FROM site_settings').all();
+  const settings={};
+  for(const r of rows) settings[r.key]=r.value;
+  res.json(settings);
+});
+
+module.exports = router;

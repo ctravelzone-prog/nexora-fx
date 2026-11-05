@@ -1,0 +1,18 @@
+Nexora Fx — Chalano (2 step)
+
+1. Node.js install koro (jodi na thake):
+   nodejs.org-e jao, boro green button (LTS) download kore install koro.
+
+2. START.bat double-click koro.
+   Prothom bar ektu time nibe (dependency install hobe).
+   Tarpor browser-e site khule jabe: http://localhost:3000
+   Admin: http://localhost:3000/admin
+
+Login:
+  User:  nexora_fx / demo1234
+  Admin: admin@nexorafxuk / admin1234
+
+Server-er window-ta bondho koro na — bondho korle site bondho hoye jabe.
+Bondho korte chaile server-er window-e Ctrl+C chapbe.
+
+.env file age thekei ready ache — kichu korte hobe na.

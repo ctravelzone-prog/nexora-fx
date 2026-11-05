@@ -1,0 +1,45 @@
+// pages/deposit.js — Create Deposit
+Pages.deposit=async function(){
+  try{
+    const wallet=await api.getDepositWallet();
+    const enabled=App.state.settings?.deposit_enabled!=='0';
+    Components.layout(`
+      <div class="max-w-3xl">
+        <div class="flex items-center gap-3 mb-6"><button onclick="history.back()" class="p-2 rounded-lg hover:bg-gray-100">${svgIcons.arrow_left}</button><div><h1 class="text-xl font-bold">Create Deposit</h1><p class="text-sm text-gray-400">Fund your account with Binance Pay (USDT)</p></div><button onclick="App.navigate('/history')" class="ml-auto btn-secondary text-sm" style="padding:8px 16px">Deposit History →</button></div>
+        ${!enabled?'<div class="alert-warning">Deposits are currently disabled. Please contact support.</div>':''}
+        ${enabled?`<div class="card">
+          <div class="flex items-center justify-between mb-4"><h2 class="font-bold text-lg">Deposit in 3 steps</h2><span class="orange-tag">BINANCE PAY</span></div>
+          <div class="flex flex-col-reverse sm:flex-col lg:grid lg:grid-cols-2 gap-4 lg:gap-6 deposit-layout">
+            <div>
+              ${[['1','Scan the QR in Binance app','Open Binance → Pay → Scan, and scan the code shown here.'],['2','Send your payment','Send USDT only, and double-check the Pay ID before you confirm.'],['3','Enter Transaction ID and amount','Submit the form so your deposit can be verified and credited.']].map(([n,t,d])=>`<div class="flex gap-3 mb-4"><div class="w-7 h-7 rounded-full bg-orange-500 text-white font-bold text-sm flex items-center justify-center flex-shrink-0">${n}</div><div><div class="font-semibold text-sm">${t}</div><div class="text-xs text-gray-400">${d}</div></div></div>`).join('')}
+              <div class="alert-warning text-sm mb-3">⚠️ <strong>USDT only, via Binance app.</strong> Check the Pay ID — wrong-account payments can't be recovered.</div>
+              <div class="alert-warning text-sm">⚠️ Risk warning: profit is a target, never guaranteed, and Main Balance has a 3-month lock (15% early fee). <a href="/risk-terms" class="text-orange-600 font-semibold">Read the Risk Disclosure →</a></div>
+            </div>
+            <div>
+              <div class="border border-gray-100 rounded-xl p-4 text-center mb-4">
+                <div class="text-xs font-bold text-gray-400 uppercase mb-3">BINANCE PAY</div>
+                ${wallet.qr?`<img src="${wallet.qr}" class="w-40 h-40 mx-auto mb-2" alt="QR Code">`:
+                  `<div class="w-40 h-40 mx-auto mb-2 bg-gray-100 rounded-xl flex items-center justify-center text-gray-300 text-sm">QR not set</div>`}
+                ${wallet.address?`<div class="text-xs text-gray-400 break-all">${wallet.address}</div>`:''}
+                <p class="text-xs text-gray-300 mt-2">QR comes from admin — not a static file</p>
+              </div>
+              <form id="dep-form" class="space-y-4">
+                <div><label class="input-label">Transaction ID</label><input name="txid" type="text" placeholder="Paste Transaction ID / Order ID" class="input-field" required><p class="text-xs text-gray-400 mt-1">Find it in Binance: Pay history, then open the payment you just sent.</p></div>
+                <div><label class="input-label">Amount (USDT)</label><input name="amount" type="number" step="0.01" min="0.01" placeholder="0.00" class="input-field" required></div>
+                <div id="dep-err" class="alert-danger hidden"></div>
+                <button type="submit" id="dep-btn" class="btn-primary">Submit Deposit</button>
+              </form>
+            </div>
+          </div>
+        </div>`:''}
+      </div>
+    `,'Create Deposit','Fund your account with Binance Pay (USDT)');
+    if(enabled) document.getElementById('dep-form').onsubmit=async(e)=>{
+      e.preventDefault();const f=e.target,err=document.getElementById('dep-err'),btn=document.getElementById('dep-btn');
+      err.classList.add('hidden');utils.loading(btn,true);
+      try{await api.submitDeposit({txid:f.txid.value,amount:parseFloat(f.amount.value)});utils.toast('Deposit submitted! Awaiting admin approval.','success');App.navigate('/history');}
+      catch(ex){err.textContent=ex.message;err.classList.remove('hidden');}
+      utils.loading(btn,false);
+    };
+  }catch(e){document.getElementById('app').innerHTML=`<p class="p-8 text-red-500">${e.message}</p>`;}
+};
