@@ -48,7 +48,12 @@ const AdminComponents = {
   sidebar() {
     const path = window.location.pathname;
     const link = (href,label,badge)=>{
-      const active=path===href||path.startsWith(href+'/');
+      // Hash-aware active state: links that share one page (Logo / Favicon /
+      // Website Contents all go to /admin/settings) must not all light up at once.
+      // A link with a hash is active only when the URL hash matches it; a link
+      // without a hash is active only when the URL has no hash.
+      const _h=href.indexOf('#');const _lp=_h>=0?href.slice(0,_h):href;const _lh=_h>=0?href.slice(_h):'';
+      const active=(path===_lp||path.startsWith(_lp+'/'))&&(_lh?window.location.hash===_lh:!window.location.hash);
       const bdg=badge>0?`<span class="ml-auto badge badge-orange text-xs">${badge}</span>`:'';
       return `<div class="admin-nav-link ${active?'active':''}" onclick="AdminComponents.closeSidebar();AdminApp.navigate('${href}')">${label}${bdg}</div>`;
     };
@@ -79,10 +84,10 @@ const AdminComponents = {
         <div class="admin-nav-group" onclick="AdminComponents.toggleGroup('general')" style="cursor:pointer">GENERAL SETTINGS</div>
         <div class="admin-nav-sub" id="general-group">
           ${link('/admin/settings','Logo')}
-          ${link('/admin/settings','Favicon')}
+          ${link('/admin/settings#favicon','Favicon')}
           ${link('/admin/loader','Loader')}
           ${link('/admin/breadcrumb','Breadcrumb Banner')}
-          ${link('/admin/settings','Website Contents')}
+          ${link('/admin/settings#contents','Website Contents')}
           ${link('/admin/countries','Manage Countries')}
         </div>
         </div>

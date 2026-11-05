@@ -104,7 +104,7 @@ const AdminApp = {
   route(path) {
     AdminApp._gen++;
     if (!api.getAdminToken()) { AdminApp.showLogin(); return; }
-    const p = path.replace('/admin','') || '/dashboard';
+    const p = (path.split('#')[0].split('?')[0].replace('/admin','')) || '/dashboard';
     const routes = AdminApp._routes();
     AdminApp._startListRefresh(p);
     // User detail route
