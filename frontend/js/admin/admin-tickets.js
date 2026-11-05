@@ -56,7 +56,7 @@ AdminPages.viewTicket=async function(id){
           <div id="ar-err" class="alert-danger hidden"></div>
           <div class="flex gap-3">
             <button type="submit" id="ar-btn" class="btn-primary flex-1">Send Reply</button>
-            <button type="button" onclick="adminApi.updateTicketStatus(${t.id},{status:t.status==='closed'?'open':'closed'}).then(()=>{utils.toast('Status updated','success');AdminPages.viewTicket(${t.id});})" class="btn-secondary" style="padding:10px 16px">${t.status==='closed'?'Reopen':'Close'} Ticket</button>
+            <button type="button" onclick="adminApi.updateTicketStatus(${t.id},{status:'${t.status==='closed'?'open':'closed'}'}).then(()=>{utils.toast('Status updated','success');AdminPages.viewTicket(${t.id});}).catch(e=>utils.toast(e.message,'error'))" class="btn-secondary" style="padding:10px 16px">${t.status==='closed'?'Reopen':'Close'} Ticket</button>
           </div>
         </form>
       </div>

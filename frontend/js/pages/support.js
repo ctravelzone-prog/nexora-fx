@@ -2,7 +2,7 @@
 Pages.support=async function(){
   Pages._stopTicketPoll();
   try{
-    const tickets=await api.getTickets();
+    const tickets=(await api.getTickets()).filter(t=>t.status!=='closed');
     Components.layout(`
       <div class="flex items-center justify-between mb-6"><h2 class="font-bold text-lg">Support Tickets</h2><button onclick="Pages._newTicket()" class="btn-primary" style="width:auto;padding:10px 20px">+ New Ticket</button></div>
       <div class="grid gap-3">
