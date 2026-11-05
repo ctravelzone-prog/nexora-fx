@@ -138,4 +138,46 @@ router.post('/showcase/create', authAdmin, superAdminOnly, async (req,res)=>{
   }catch(e){res.status(500).json({error:e.message});}
 });
 
+// Edit a showcase account (name, username, email, display balances, optional new password).
+router.put('/showcase/:id', authAdmin, superAdminOnly, async (req,res)=>{
+  try{
+    const db=getDb();
+    const u=db.prepare('SELECT * FROM users WHERE id=? AND is_showcase=1').get(req.params.id);
+    if(!u) return res.status(404).json({error:'Showcase account not found'});
+    const {full_name,username,email,password,main_cents,copy_cents,profit_cents}=req.body;
+    if(username && username!==u.username && db.prepare('SELECT id FROM users WHERE username=?').get(username))
+      return res.status(400).json({error:'Username already taken'});
+    if(email && email.toLowerCase()!==u.email.toLowerCase() && db.prepare('SELECT id FROM users WHERE LOWER(email)=LOWER(?)').get(email))
+      return res.status(400).json({error:'Email already registered'});
+    const sets=[], vals=[];
+    if(full_name!==undefined){sets.push('full_name=?');vals.push(full_name);}
+    if(username!==undefined){sets.push('username=?');vals.push(username);}
+    if(email!==undefined){sets.push('email=?');vals.push(email.toLowerCase());}
+    if(main_cents!==undefined){sets.push('showcase_main_cents=?');vals.push(Math.round(main_cents)||0);}
+    if(copy_cents!==undefined){sets.push('showcase_copy_cents=?');vals.push(Math.round(copy_cents)||0);}
+    if(profit_cents!==undefined){sets.push('showcase_profit_cents=?');vals.push(Math.round(profit_cents)||0);}
+    if(password){ if(String(password).length<8) return res.status(400).json({error:'Password min 8 chars'}); sets.push('password_hash=?'); vals.push(await bcrypt.hash(password,12)); }
+    if(!sets.length) return res.status(400).json({error:'Nothing to update'});
+    sets.push('updated_at=unixepoch()');
+    db.prepare(`UPDATE users SET ${sets.join(',')} WHERE id=?`).run(...vals, u.id);
+    res.json({success:true});
+  }catch(e){res.status(500).json({error:e.message});}
+});
+
+// Delete a showcase account (+ its display-profit log; showcase accounts hold no
+// real balances/copies, so there is nothing real to cascade — the delete route
+// for real users stays blocked for showcase).
+router.delete('/showcase/:id', authAdmin, superAdminOnly, (req,res)=>{
+  const db=getDb();
+  const u=db.prepare('SELECT * FROM users WHERE id=? AND is_showcase=1').get(req.params.id);
+  if(!u) return res.status(404).json({error:'Showcase account not found'});
+  const del=db.transaction(()=>{
+    db.prepare('DELETE FROM showcase_profit_log WHERE user_id=?').run(u.id);
+    db.prepare('DELETE FROM notifications WHERE user_id=?').run(u.id);
+    db.prepare('DELETE FROM users WHERE id=?').run(u.id);
+  });
+  try{ del(); res.json({success:true,deleted_user_id:u.id}); }
+  catch(e){ res.status(500).json({error:'Delete failed: '+e.message}); }
+});
+
 module.exports = router;

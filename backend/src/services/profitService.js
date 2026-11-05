@@ -53,6 +53,29 @@ function getSchedule(year, month) {
   return getDb().prepare('SELECT * FROM profit_schedule WHERE cycle_year=? AND cycle_month=? ORDER BY day_number').all(year,month);
 }
 
+// Showcase profit: display-only profit for showcase accounts, 10% target over the
+// same 22-day schedule, computed on the DISPLAY copy balance (showcase_copy_cents)
+// and added to the DISPLAY profit (showcase_profit_cents). No real transactions,
+// no daily_pnl_log rows, no balances rows — so showcase money never appears in
+// admin totals, ledgers or reports. Idempotent via showcase_profit_log (one row
+// per showcase user per schedule day). Runs only on a FULL apply (not a
+// single-user manual apply).
+function applyShowcasePnl(db, rateBp, yr, mo, day) {
+  const users = db.prepare('SELECT id, showcase_copy_cents FROM users WHERE is_showcase=1 AND showcase_copy_cents>0').all();
+  let cnt = 0, tot = 0;
+  const has = db.prepare('SELECT id FROM showcase_profit_log WHERE user_id=? AND cycle_year=? AND cycle_month=? AND day_number=?');
+  const ins = db.prepare('INSERT INTO showcase_profit_log (user_id,cycle_year,cycle_month,day_number,rate_bp,amount_cents) VALUES (?,?,?,?,?,?)');
+  const upd = db.prepare('UPDATE users SET showcase_profit_cents=showcase_profit_cents+? WHERE id=?');
+  for (const u of users) {
+    if (has.get(u.id, yr, mo, day)) continue;
+    const ac = Math.round((u.showcase_copy_cents || 0) * rateBp / 10000);
+    ins.run(u.id, yr, mo, day, rateBp, ac);
+    upd.run(ac, u.id);
+    cnt++; tot += ac;
+  }
+  return { count: cnt, totalApplied: tot };
+}
+
 function applyDailyPnl(rateBp, yr, mo, day, targetUserId) {
   const db = getDb();
   return db.transaction(()=>{
@@ -77,8 +100,12 @@ function applyDailyPnl(rateBp, yr, mo, day, targetUserId) {
           `Profit ${ac>=0?'+=':'-='} ${Math.abs(rateBpEff)/100}% x $${H.fmtC(copy.amount_cents)} = $${H.fmtC(Math.abs(ac))}${ac<0?' (loss)':''}`);
       cnt++;tot+=ac;
     }
+    // Showcase accounts earn the same daily rate on their DISPLAY copy balance.
+    // Only on a full apply — a single-user manual apply must not touch showcase.
+    let sc = { count: 0, totalApplied: 0 };
+    if (!targetUserId) sc = applyShowcasePnl(db, rateBp, yr, mo, day);
     db.prepare('UPDATE profit_schedule SET applied=1,applied_at=unixepoch() WHERE cycle_year=? AND cycle_month=? AND day_number=?').run(yr,mo,day);
-    return {count:cnt,totalApplied:tot};
+    return {count:cnt,totalApplied:tot,showcaseCount:sc.count,showcaseTotalApplied:sc.totalApplied};
   })();
 }
 

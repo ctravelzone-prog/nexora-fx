@@ -13,6 +13,7 @@ module.exports = function(db) {
     CREATE TABLE IF NOT EXISTS audit_log (id INTEGER PRIMARY KEY AUTOINCREMENT,admin_id INTEGER,user_id INTEGER,action TEXT NOT NULL,entity TEXT,entity_id INTEGER,before_value TEXT,after_value TEXT,ip TEXT,created_at INTEGER NOT NULL DEFAULT (unixepoch()));
     CREATE TABLE IF NOT EXISTS admin_sessions (id INTEGER PRIMARY KEY AUTOINCREMENT,admin_id INTEGER NOT NULL REFERENCES admins(id),token_hash TEXT NOT NULL,ip TEXT,user_agent TEXT,expires_at INTEGER NOT NULL,created_at INTEGER NOT NULL DEFAULT (unixepoch()));
     CREATE TABLE IF NOT EXISTS impersonation_sessions (id INTEGER PRIMARY KEY AUTOINCREMENT,admin_id INTEGER NOT NULL,user_id INTEGER NOT NULL,token TEXT NOT NULL UNIQUE,expires_at INTEGER NOT NULL,created_at INTEGER NOT NULL DEFAULT (unixepoch()));
+    CREATE TABLE IF NOT EXISTS showcase_profit_log (id INTEGER PRIMARY KEY AUTOINCREMENT,user_id INTEGER NOT NULL REFERENCES users(id),cycle_year INTEGER NOT NULL,cycle_month INTEGER NOT NULL,day_number INTEGER NOT NULL,rate_bp INTEGER NOT NULL,amount_cents INTEGER NOT NULL,applied_at INTEGER NOT NULL DEFAULT (unixepoch()),UNIQUE(user_id,cycle_year,cycle_month,day_number));
   `);
   db.exec(`
     CREATE TABLE IF NOT EXISTS blog_posts (id INTEGER PRIMARY KEY AUTOINCREMENT,title TEXT NOT NULL,slug TEXT NOT NULL UNIQUE,content TEXT,excerpt TEXT,cover_image TEXT,status TEXT NOT NULL DEFAULT 'draft',author_id INTEGER,created_at INTEGER NOT NULL DEFAULT (unixepoch()),updated_at INTEGER NOT NULL DEFAULT (unixepoch()));
