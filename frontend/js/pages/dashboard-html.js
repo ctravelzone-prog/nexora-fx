@@ -11,6 +11,6 @@ Pages._db=function(b,u,dailyPnl,total,mPct,cPct,copies,kycNeeded){
   html+='<div class="card" style="padding:20px;margin-bottom:16px"><h3 style="font-size:15px;font-weight:800;color:var(--ink);margin-bottom:10px">Balance Breakdown</h3>';
   html+='<div class="bb-eq"><span class="eq-chip">Main <b>'+f(b.main_cents)+'</b></span><span class="eq-arrow">+</span><span class="eq-chip">Copy <b>'+f(b.copy_cents)+'</b></span><span class="eq-arrow">=</span><span class="eq-chip" style="background:var(--dark2);color:#fff;border-color:var(--dark2)">Total <b>'+f(total)+'</b></span></div>';
   html+='<div class="alloc" style="margin-top:14px"><div class="alloc-bar"><span class="a-main" style="width:'+mPct+'%"></span><span class="a-copy" style="width:'+cPct+'%"></span></div><div class="alloc-legend"><span><b>Main</b> '+f(b.main_cents)+' · '+mPct+'%</span><span><b>Copy</b> '+f(b.copy_cents)+' · '+cPct+'%</span></div></div>';
-  html+='<div class="bb-note" style="margin-top:12px"><b>Daily PnL rule:</b> profit applies only to Copy Invested. Stop a copy to withdraw.</div></div>';
+  html+='</div>';
   return html+Pages._db2(b,u,copies,f);
 };
