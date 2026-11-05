@@ -2,7 +2,7 @@
 Pages.landing = async function() {
   const s = App.state.settings;
   const heroImg = s.hero_image_url ? `<img src="${s.hero_image_url}" class="w-full h-full object-cover rounded-2xl" alt="Trading">` :
-    `<div class="w-full h-full rounded-2xl flex items-center justify-center" style="background:linear-gradient(135deg,#1E2329,#2D3748)"><picture class="w-full h-full"><source srcset="/assets/hero-trading.webp" type="image/webp"><img src="/assets/hero-trading.png" class="w-full h-full object-cover rounded-2xl" alt="Trading" fetchpriority="high" onerror="this.style.display='none'"></picture><div class="absolute inset-0 flex items-center justify-center text-white text-opacity-30 text-6xl">📈</div></div>`;
+    `<div class="w-full h-full rounded-2xl flex items-center justify-center" style="background:linear-gradient(135deg,#1E2329,#2D3748)"><picture class="w-full h-full"><source srcset="/assets/hero-trading.webp" type="image/webp"><img src="/assets/hero-trading.png" class="w-full h-full object-cover rounded-2xl" alt="Trading" fetchpriority="high" onerror="this.style.display='none'"></picture></div>`;
 
   document.getElementById('app').innerHTML = `
     ${Components.topbarPublic('')}
@@ -127,7 +127,9 @@ Pages.landing = async function() {
             </div>
           </div>
           <div class="relative h-80 lg:h-96 2xl:h-[28rem]">${heroImg}
-            <div class="absolute bottom-4 left-4 right-4 grid grid-cols-2 gap-3">
+            <div class="hero-img-anim" aria-hidden="true"><span style="--x:8%;--y:12%;--s:7px;--d:9s;--t:0.4s"></span><span style="--x:18%;--y:30%;--s:5px;--d:11s;--t:2.1s"></span><span style="--x:28%;--y:8%;--s:8px;--d:10s;--t:4.5s"></span><span style="--x:38%;--y:45%;--s:6px;--d:12s;--t:1.2s"></span><span style="--x:48%;--y:18%;--s:5px;--d:9s;--t:3.3s"></span><span style="--x:58%;--y:35%;--s:7px;--d:11s;--t:5.8s"></span><span style="--x:66%;--y:10%;--s:6px;--d:10s;--t:0.9s"></span><span style="--x:74%;--y:28%;--s:5px;--d:12s;--t:2.7s"></span><span style="--x:82%;--y:15%;--s:8px;--d:9s;--t:4.1s"></span><span style="--x:90%;--y:40%;--s:6px;--d:11s;--t:1.6s"></span><span style="--x:14%;--y:55%;--s:5px;--d:10s;--t:3.8s"></span><span style="--x:44%;--y:60%;--s:7px;--d:12s;--t:0.2s"></span><span style="--x:70%;--y:52%;--s:5px;--d:9s;--t:5.1s"></span><span style="--x:86%;--y:62%;--s:6px;--d:10s;--t:2.4s"></span></div>
+            <div class="hero-img-shine" aria-hidden="true"></div>
+            <div class="absolute bottom-4 left-4 right-4 grid grid-cols-2 gap-3" style="z-index:2">
               <div class="bg-white rounded-xl p-3 shadow-lg"><div class="text-xs text-gray-400 font-semibold">BITCOIN · BTC/USD</div><div class="text-lg font-bold" id="hero-btc-price">$75,907</div><div class="text-xs text-green-500 font-semibold" id="hero-btc-change">▲ Live market</div></div>
               <div class="bg-white rounded-xl p-3 shadow-lg"><div class="text-xs text-gray-400 font-semibold">GOLD · XAU/USD</div><div class="text-lg font-bold" id="hero-xau-price">$3,936.10</div><div class="text-xs text-red-500 font-semibold" id="hero-xau-change">▼ −0.37% today</div></div>
             </div>
@@ -154,6 +156,15 @@ Pages.landing = async function() {
         .hero-particles span{position:absolute;left:var(--x);top:var(--y);width:var(--s);height:var(--s);border-radius:9999px;background:radial-gradient(circle,#FDE68A 0%,#F59E0B 70%,transparent 100%);opacity:0;animation:particleFloat var(--d) ease-in-out infinite;animation-delay:var(--t)}
         @keyframes particleFloat{0%{transform:translateY(0) scale(.6);opacity:0}25%{opacity:.9}50%{transform:translateY(-90px) scale(1);opacity:.5}75%{opacity:.25}100%{transform:translateY(-160px) scale(.6);opacity:0}}
         @media (prefers-reduced-motion: reduce){.hero-particles span{animation:none}}
+        /* Animation ON the hero image: golden sparkles float up + a soft shine
+           sweeps across. Layer order: image (bottom) < animation < BTC/XAU
+           price cards (top, z-index 2). */
+        .hero-img-anim{position:absolute;inset:0;overflow:hidden;border-radius:1rem;pointer-events:none;z-index:1}
+        .hero-img-anim span{position:absolute;left:var(--x);bottom:var(--y);width:var(--s);height:var(--s);border-radius:9999px;background:radial-gradient(circle,#FDE68A 0%,#F59E0B 70%,transparent 100%);opacity:0;animation:imgFloat var(--d) ease-in-out infinite;animation-delay:var(--t)}
+        @keyframes imgFloat{0%{transform:translateY(0) scale(.5);opacity:0}20%{opacity:.95}60%{opacity:.5}100%{transform:translateY(-170px) scale(1);opacity:0}}
+        .hero-img-shine{position:absolute;inset:0;overflow:hidden;border-radius:1rem;pointer-events:none;z-index:1;background:linear-gradient(115deg,transparent 30%,rgba(255,255,255,.16) 48%,rgba(255,255,255,.05) 52%,transparent 70%);background-size:250% 100%;animation:imgShine 6s ease-in-out infinite}
+        @keyframes imgShine{0%{background-position:120% 0}60%,100%{background-position:-120% 0}}
+        @media (prefers-reduced-motion: reduce){.hero-img-anim span,.hero-img-shine{animation:none}}
         .nx-ticker-wrap{display:flex;align-items:stretch;background:#111827;color:#fff;overflow:hidden;border-radius:12px}
         .nx-ticker-scroll{flex:1;min-width:0}
         .nx-ticker-scroll .tradingview-widget-container__widget{height:46px}
