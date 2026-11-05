@@ -47,6 +47,7 @@ Pages.twoFA=async function(){
       };
     }
   }catch(e){document.getElementById('app').innerHTML='<p class="p-8" style="color:var(--red)">'+e.message+'</p>';}
+};
 
 Pages._setup2FA=async function(){
   try{
@@ -87,6 +88,4 @@ Pages.riskTerms=function(){
     +'<h2 style="font-size:17px;font-weight:800;margin-top:16px;margin-bottom:8px">4 · Terms &amp; Conditions</h2>'
     +'<p style="font-size:13.5px;color:var(--body);line-height:1.7">By using Nexora FX you agree to our terms of service. All amounts shown are sample design data. Nexora FX is a UK-based platform.</p>'
     +'</div>','Risk Disclosure &amp; Terms','');
-};
-
 };
