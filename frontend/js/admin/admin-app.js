@@ -1,6 +1,34 @@
 // admin-app.js — Admin SPA router
 const AdminApp = {
   state: { admin: null, notifCount: 0 },
+  _listPoll: null,
+  // Request-list pages that auto-refresh so new user requests appear without a manual reload
+  _refreshable: ['/dashboard','/notifications','/transactions','/deposits','/withdrawals','/request-money','/tickets','/forget-requests','/kyc'],
+  _startListRefresh(path) {
+    AdminApp._stopListRefresh();
+    if (!AdminApp._refreshable.includes(path)) return;
+    AdminApp._listPoll = setInterval(() => AdminApp._autoRefresh(), 15000);
+  },
+  _stopListRefresh() {
+    if (AdminApp._listPoll) { clearInterval(AdminApp._listPoll); AdminApp._listPoll = null; }
+  },
+  async _autoRefresh() {
+    // Skip while the admin is busy: a modal is open, typing in a field,
+    // a ticket detail is open (its own 3s poll handles it), or the tab is hidden.
+    const modal = document.getElementById('modal-root');
+    if (modal && modal.innerHTML.trim()) return;
+    const ae = document.activeElement;
+    if (ae && /^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName)) return;
+    if (typeof AdminPages !== 'undefined' && AdminPages._activeTicketId) return;
+    if (document.hidden) return;
+    const p = window.location.pathname.replace('/admin','') || '/dashboard';
+    if (!AdminApp._refreshable.includes(p)) return;
+    const handler = AdminApp._routes()[p];
+    if (!handler) return;
+    const y = window.scrollY;
+    try { await handler(); } catch(e) {}
+    window.scrollTo(0, y);
+  },
 
   async init() {
     if (!api.getAdminToken()) { AdminApp.showLogin(); return; }
@@ -21,10 +49,8 @@ const AdminApp = {
     AdminApp.route(path);
   },
 
-  route(path) {
-    if (!api.getAdminToken()) { AdminApp.showLogin(); return; }
-    const p = path.replace('/admin','') || '/dashboard';
-    const routes = {
+  _routes() {
+    return {
       '/': AdminPages.dashboard,
       '/dashboard': AdminPages.dashboard,
       '/notifications': AdminPages.notifications,
@@ -69,6 +95,13 @@ const AdminApp = {
       '/currencies': AdminPages.currencies,
       '/payment-gateways': AdminPages.paymentGateways,
     };
+  },
+
+  route(path) {
+    if (!api.getAdminToken()) { AdminApp.showLogin(); return; }
+    const p = path.replace('/admin','') || '/dashboard';
+    const routes = AdminApp._routes();
+    AdminApp._startListRefresh(p);
     // User detail route
     if (p.startsWith('/users/')) { AdminPages.viewUser(p.split('/')[2]); return; }
     const handler = routes[p];
@@ -77,6 +110,7 @@ const AdminApp = {
   },
 
   showLogin() {
+    AdminApp._stopListRefresh();
     document.getElementById('admin-app').innerHTML = `
       <div class="min-h-screen bg-gray-900 flex items-center justify-center p-4">
         <div class="w-full max-w-sm bg-white rounded-2xl shadow-xl p-8">
