@@ -114,9 +114,6 @@ Pages.landing = async function() {
       </div>
         <div class="flex flex-col lg:grid lg:grid-cols-2 gap-8 lg:gap-10 2xl:gap-16 items-center hero-grid">
           <div>
-            <div class="inline-flex items-center gap-2 bg-gray-900 text-white text-xs font-semibold px-4 py-2 rounded-full mb-6">
-              <span class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span> LIVE MARKETS
-            </div>
             <h1 class="text-4xl sm:text-5xl 2xl:text-6xl font-extrabold text-gray-900 leading-tight mb-4">
               Trade <span class="text-orange-500">Smarter</span>,<br>Not Harder.
             </h1>
@@ -137,6 +134,12 @@ Pages.landing = async function() {
           </div>
         </div>
       </section>
+      <!-- LIVE MARKETS pill: centered between hero and streaming ticker -->
+      <div class="flex justify-center py-2">
+        <div class="inline-flex items-center gap-2 bg-gray-900 text-white text-xs font-semibold px-4 py-2 rounded-full">
+          <span class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span> LIVE MARKETS
+        </div>
+      </div>
       <!-- Ticker: official TradingView Ticker Tape, real-time + auto-scrolling.
            The script tag is NOT put in innerHTML (it would not execute), it is
            appended dynamically at the end of Pages.landing. If TradingView
