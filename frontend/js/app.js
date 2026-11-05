@@ -52,6 +52,14 @@ const App = {
     App.route(path);
   },
 
+  logout() {
+    api.clearToken();
+    App.state.user = null;
+    localStorage.removeItem('nx_prev_user_token');
+    document.getElementById('impersonation-banner')?.remove();
+    window.location.href = '/';
+  },
+
   route(path) {
     // loggedIn = has valid token AND user loaded (or just token for public page routing)
     const hasToken = utils.isLoggedIn();
