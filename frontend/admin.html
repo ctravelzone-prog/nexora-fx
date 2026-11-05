@@ -18,8 +18,8 @@
     .admin-nav-link{display:flex;align-items:center;gap:8px;padding:10px 14px;border-radius:8px;color:#334155;font-size:15px;font-weight:600;cursor:pointer;margin:1px 8px;transition:background 0.15s;}
     .admin-nav-link:hover,.admin-nav-link.active{background:#FFF7ED;color:#FF6A00;}
     .admin-nav-group{font-size:12px;font-weight:600;letter-spacing:0.1em;color:#94A3B8;text-transform:uppercase;padding:12px 22px 4px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;}
-    .admin-nav-sub{padding-left:8px;overflow:hidden;max-height:0;transition:max-height 0.2s;}
-    .admin-nav-sub.open{max-height:500px;}
+    .admin-nav-sub{padding-left:8px;overflow:hidden;max-height:0;transition:max-height 0.28s ease,opacity 0.2s ease;opacity:0;}
+    .admin-nav-sub.open{max-height:500px;opacity:1;}
     .admin-overlay{display:none;position:fixed;inset:0;background:rgba(15,23,42,.4);z-index:39;}
     .admin-overlay.show{display:block;}
     @media(max-width:1023px){
@@ -33,32 +33,32 @@
   <div id="admin-app"></div>
   <div id="modal-root"></div>
   <div id="toast-root" class="fixed bottom-4 right-4 z-50 flex flex-col gap-2 max-w-sm"></div>
-  <script src="/js/api.js?v=v49"></script>
-  <script src="/js/admin-api.js?v=v49"></script>
-  <script src="/js/utils.js?v=v49"></script>
-  <script src="/js/admin/admin-app.js?v=v49"></script>
-  <script src="/js/admin/admin-components.js?v=v49"></script>
-  <script src="/js/admin/admin-dashboard.js?v=v49"></script>
-  <script src="/js/admin/admin-finance.js?v=v49"></script>
-  <script src="/js/admin/admin-finance2.js?v=v49"></script>
-  <script src="/js/admin/admin-users.js?v=v49"></script>
-  <script src="/js/admin/admin-users2.js?v=v49"></script>
-  <script src="/js/admin/admin-users3.js?v=v49"></script>
-  <script src="/js/admin/admin-traders.js?v=v49"></script>
-  <script src="/js/admin/admin-profit.js?v=v49"></script>
-  <script src="/js/admin/admin-settings.js?v=v49"></script>
-  <script src="/js/admin/admin-settings2.js?v=v49"></script>
-  <script src="/js/admin/admin-settings3.js?v=v49"></script>
-  <script src="/js/admin/admin-kyc.js?v=v49"></script>
-  <script src="/js/admin/admin-tickets.js?v=v49"></script>
-  <script src="/js/admin/admin-forget.js?v=v49"></script>
-  <script src="/js/admin/admin-notifications.js?v=v49"></script>
-  <script src="/js/admin/admin-missing.js?v=v49"></script>
-  <script src="/js/admin/admin-missing2.js?v=v49"></script>
-  <script src="/js/admin/admin-missing3.js?v=v49"></script>
-  <script src="/js/admin/admin-missing4.js?v=v49"></script>
-  <script src="/js/admin/admin-missing5.js?v=v49"></script>
-  <script src="/js/admin/admin-missing6.js?v=v49"></script>
-  <script src="/js/admin/admin-missing7.js?v=v49"></script>
+  <script src="/js/api.js?v=v50"></script>
+  <script src="/js/admin-api.js?v=v50"></script>
+  <script src="/js/utils.js?v=v50"></script>
+  <script src="/js/admin/admin-app.js?v=v50"></script>
+  <script src="/js/admin/admin-components.js?v=v50"></script>
+  <script src="/js/admin/admin-dashboard.js?v=v50"></script>
+  <script src="/js/admin/admin-finance.js?v=v50"></script>
+  <script src="/js/admin/admin-finance2.js?v=v50"></script>
+  <script src="/js/admin/admin-users.js?v=v50"></script>
+  <script src="/js/admin/admin-users2.js?v=v50"></script>
+  <script src="/js/admin/admin-users3.js?v=v50"></script>
+  <script src="/js/admin/admin-traders.js?v=v50"></script>
+  <script src="/js/admin/admin-profit.js?v=v50"></script>
+  <script src="/js/admin/admin-settings.js?v=v50"></script>
+  <script src="/js/admin/admin-settings2.js?v=v50"></script>
+  <script src="/js/admin/admin-settings3.js?v=v50"></script>
+  <script src="/js/admin/admin-kyc.js?v=v50"></script>
+  <script src="/js/admin/admin-tickets.js?v=v50"></script>
+  <script src="/js/admin/admin-forget.js?v=v50"></script>
+  <script src="/js/admin/admin-notifications.js?v=v50"></script>
+  <script src="/js/admin/admin-missing.js?v=v50"></script>
+  <script src="/js/admin/admin-missing2.js?v=v50"></script>
+  <script src="/js/admin/admin-missing3.js?v=v50"></script>
+  <script src="/js/admin/admin-missing4.js?v=v50"></script>
+  <script src="/js/admin/admin-missing5.js?v=v50"></script>
+  <script src="/js/admin/admin-missing6.js?v=v50"></script>
+  <script src="/js/admin/admin-missing7.js?v=v50"></script>
 </body>
 </html>

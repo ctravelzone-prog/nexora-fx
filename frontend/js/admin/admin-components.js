@@ -136,6 +136,9 @@ const AdminComponents = {
   },
 
   toggleGroup(id) {
+    // If the mouse opened this group by hovering, a click must not close it while
+    // the cursor is still over it. Click-toggle is only for touch / non-hover use.
+    if(AdminComponents._hoverGroup===id) return;
     const el=document.getElementById(`${id}-group`);
     if(el) el.classList.toggle('open');
   },
@@ -155,25 +158,32 @@ const AdminComponents = {
     }
     return null;
   },
-  // Hover in: open the group
+  // The group the mouse is currently over (survives re-renders, so a hover-opened
+  // group is not closed by the dashboard's 1s auto-refresh re-rendering the sidebar).
+  _hoverGroup: null,
+  // Hover in: open the group and remember it
   openGroup(id) {
+    AdminComponents._hoverGroup=id;
     const el=document.getElementById(`${id}-group`);
     if(el) el.classList.add('open');
   },
   closeGroup(id) {
+    if(AdminComponents._hoverGroup===id) AdminComponents._hoverGroup=null;
     const el=document.getElementById(`${id}-group`);
     if(el) el.classList.remove('open');
   },
   // Hover out: close it again, unless the current page lives inside it
   maybeCloseGroup(id) {
+    if(AdminComponents._hoverGroup===id) AdminComponents._hoverGroup=null;
     if(AdminComponents._activeGroup()!==id) AdminComponents.closeGroup(id);
   },
-  // After every render: keep exactly the active group open, close the rest
+  // After every render: keep the active group AND the hovered group open, close the rest
   syncGroups() {
     const active=AdminComponents._activeGroup();
+    const hover=AdminComponents._hoverGroup;
     ['general','team','content','payment'].forEach(id=>{
       const el=document.getElementById(`${id}-group`);
-      if(el) el.classList.toggle('open', id===active);
+      if(el) el.classList.toggle('open', id===active||id===hover);
     });
   },
 
