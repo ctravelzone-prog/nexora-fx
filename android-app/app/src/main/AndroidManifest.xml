@@ -4,8 +4,14 @@
      The app icon comes from res/mipmap-*/ic_launcher.png (the NX mark). -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.nexorafx.app"
-    android:versionCode="1"
-    android:versionName="1.0">
+    android:versionCode="2"
+    android:versionName="1.1">
+
+    <!-- Target Android 14 (API 34). WITHOUT targetSdkVersion the APK
+         defaults to target 1 and Google Play Protect blocks the install
+         as "Unsafe app blocked / built for an older version of Android".
+         minSdk 24 = Android 7.0 and newer. -->
+    <uses-sdk android:minSdkVersion="24" android:targetSdkVersion="34" />
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
