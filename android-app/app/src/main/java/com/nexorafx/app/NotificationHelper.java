@@ -56,6 +56,130 @@ public class NotificationHelper {
         if (nm != null) nm.createNotificationChannel(ch);
     }
 
+    // v1.4.2: immediate check (the 15-min job alone made notifications
+    // arrive up to 15 min late — a deposit reject showed nothing until
+    // the next job tick). The app checks when it opens, when it comes
+    // back to the foreground, and right after a fresh login syncs a
+    // token. Throttled to once a minute for plain opens/resumes so page
+    // loads don't hammer the server; a fresh login bypasses the throttle.
+    public static final String KEY_LAST_CHECK_AT = "last_check_at";
+    private static final Object CHECK_LOCK = new Object();
+
+    public static void checkNow(Context ctx) { checkNow(ctx, false); }
+
+    public static void checkNow(Context ctx, boolean force) {
+        SharedPreferences p = prefs(ctx);
+        long now = System.currentTimeMillis();
+        if (!force && now - p.getLong(KEY_LAST_CHECK_AT, 0) < 60 * 1000) return;
+        p.edit().putLong(KEY_LAST_CHECK_AT, now).apply();
+        final Context app = ctx.getApplicationContext();
+        new Thread(() -> { try { runCheck(app); } catch (Exception ignored) {} }).start();
+    }
+
+    // Same check the 15-min job runs: update check + new notification
+    // rows -> phone notifications. Synchronized so an immediate check
+    // and a job tick can't post the same row twice.
+    public static void runCheck(Context ctx) throws Exception {
+        synchronized (CHECK_LOCK) {
+            checkForUpdate(ctx);
+            SharedPreferences prefs = prefs(ctx);
+            String token = prefs.getString(KEY_TOKEN, null);
+            if (token == null || token.isEmpty()) return; // not logged in yet
+            long lastSeen = prefs.getLong(KEY_LAST_SEEN_ID, 0);
+
+            java.net.HttpURLConnection c = (java.net.HttpURLConnection) new java.net.URL(
+                    BASE_URL + "/api/user/notifications").openConnection();
+            c.setRequestMethod("GET");
+            c.setRequestProperty("Authorization", "Bearer " + token);
+            c.setRequestProperty("Accept", "application/json");
+            c.setConnectTimeout(10000);
+            c.setReadTimeout(10000);
+            int code = c.getResponseCode();
+            if (code == 401) {
+                // Token expired (user tokens last 7 days) — clear it; the next
+                // app open syncs a fresh one from the WebView.
+                prefs.edit().remove(KEY_TOKEN).apply();
+                return;
+            }
+            if (code != 200) return;
+            String body = readAll(c.getInputStream());
+            c.disconnect();
+
+            org.json.JSONArray arr = new org.json.JSONObject(body).optJSONArray("notifications");
+            if (arr == null) return;
+            // Rows come newest-first; collect the new ones (id > lastSeen).
+            java.util.List<org.json.JSONObject> fresh = new java.util.ArrayList<>();
+            long maxId = lastSeen;
+            for (int i = 0; i < arr.length(); i++) {
+                org.json.JSONObject n = arr.optJSONObject(i);
+                if (n == null) continue;
+                long id = n.optLong("id", 0);
+                if (id > maxId) maxId = id;
+                if (id > lastSeen) fresh.add(n);
+            }
+            if (fresh.isEmpty()) {
+                if (maxId > lastSeen) prefs.edit().putLong(KEY_LAST_SEEN_ID, maxId).apply();
+                return;
+            }
+            // Oldest first, newest 5 at most (avoid a flood after a long absence).
+            int start = Math.max(0, fresh.size() - 5);
+            for (int i = fresh.size() - 1; i >= start; i--) {
+                org.json.JSONObject n = fresh.get(i);
+                postNotification(ctx,
+                        (int) n.optLong("id", 0),
+                        n.optString("title", "Nexora FX"),
+                        n.optString("message", ""),
+                        n.optString("action_url", null));
+            }
+            prefs.edit().putLong(KEY_LAST_SEEN_ID, maxId).apply();
+        }
+    }
+
+    // Asks the server which app version is current. If a newer one
+    // exists, remembers it (so the app shows the update dialog on
+    // launch) and notifies once per version.
+    private static void checkForUpdate(Context ctx) {
+        try {
+            java.net.HttpURLConnection c = (java.net.HttpURLConnection) new java.net.URL(
+                    BASE_URL + "/api/app/version").openConnection();
+            c.setRequestMethod("GET");
+            c.setRequestProperty("Accept", "application/json");
+            c.setConnectTimeout(10000);
+            c.setReadTimeout(10000);
+            if (c.getResponseCode() != 200) return;
+            String body = readAll(c.getInputStream());
+            c.disconnect();
+            org.json.JSONObject j = new org.json.JSONObject(body);
+            int serverCode = j.optInt("version_code", 0);
+            if (serverCode <= 0) return;
+            int ownCode = ctx.getPackageManager().getPackageInfo(ctx.getPackageName(), 0).versionCode;
+            if (serverCode <= ownCode) return; // up to date
+            SharedPreferences prefs = prefs(ctx);
+            prefs.edit()
+                    .putInt(KEY_UPDATE_CODE, serverCode)
+                    .putString(KEY_UPDATE_URL, j.optString("download_url", ""))
+                    .putString(KEY_UPDATE_NAME, j.optString("version_name", ""))
+                    .apply();
+            if (prefs.getInt(KEY_LAST_UPDATE_NOTIFIED, 0) == serverCode) return;
+            prefs.edit().putInt(KEY_LAST_UPDATE_NOTIFIED, serverCode).apply();
+            postUpdateNotification(ctx,
+                    j.optString("version_name", ""),
+                    j.optString("download_url", ""),
+                    j.optString("changelog", ""));
+        } catch (Exception ignored) {
+            // Server asleep, no network — try again next run.
+        }
+    }
+
+    private static String readAll(java.io.InputStream in) throws Exception {
+        java.io.BufferedReader r = new java.io.BufferedReader(new java.io.InputStreamReader(in, "UTF-8"));
+        StringBuilder sb = new StringBuilder();
+        String line;
+        while ((line = r.readLine()) != null) sb.append(line);
+        r.close();
+        return sb.toString();
+    }
+
     // Schedule the 15-minute poll. Calling it again replaces the old job
     // (same JOB_ID), so it is safe to call on every app launch.
     public static void scheduleJob(Context ctx) {
