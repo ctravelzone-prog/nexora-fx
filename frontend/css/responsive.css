@@ -77,7 +77,10 @@
   /* Shrink headings */
   h1{font-size:1.4rem !important;}
   /* Tighter padding on small screens */
-  main.p-4{padding:12px !important;}
+  /* Tighter side/top padding on phones — but NEVER the bottom: the
+     shorthand used to wipe out the bottom-nav clearance (12px won
+     over every bottom rule, so the last line hid under the nav). */
+  main.p-4{padding-top:12px !important;padding-left:12px !important;padding-right:12px !important;}
   /* Stats grid: 2-col on phone */
   .stats-2col{grid-template-columns:1fr 1fr !important;}
   /* Deposit layout */
@@ -92,11 +95,18 @@
 @media(max-width:379px){
   .bottom-nav-item{font-size:9px;padding:6px 2px 8px;}
   .bottom-nav svg{width:18px;height:18px;}
-  main{padding:10px !important;}
+  main{padding-top:10px !important;padding-left:10px !important;padding-right:10px !important;}
 }
 
 /* ── Safe area for notched phones ────────────── */
 @supports(padding:max(0px)){
   .bottom-nav{padding-bottom:max(env(safe-area-inset-bottom),8px);}
   .with-sidebar main{padding-bottom:max(80px,calc(64px + env(safe-area-inset-bottom)));}
+}
+
+/* Mobile bottom clearance (v69): 192px so the last line clears the
+   fixed bottom nav (~64px) + the mobile browser toolbar (~70px) +
+   safe-area, with room to spare. Covers user + admin layouts. */
+@media(max-width:1023px){
+  .with-sidebar main,.admin-main main{padding-bottom:192px;}
 }

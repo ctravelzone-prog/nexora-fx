@@ -85,7 +85,11 @@ app.get('/api/settings', (req, res) => {
 
 // Serve frontend
 const frontendPath = path.join(__dirname, '../../frontend');
-app.use(express.static(frontendPath));
+// HTML is never cached: browsers (Safari especially) kept serving a stale
+// index.html with old ?v= script tags after a deploy, so users saw the
+// previous version until the tab was closed. JS/CSS stay cacheable —
+// their ?v= version already busts them.
+app.use(express.static(frontendPath, { setHeaders(res, filePath) { if (filePath.endsWith('.html')) res.setHeader('Cache-Control', 'no-cache'); } }));
 
 // Admin login page route
 // Serves the admin SPA page for the admin login route (see config/admin.js).
