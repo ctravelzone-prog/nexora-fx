@@ -43,11 +43,11 @@ public class MainActivity extends Activity {
     // Live site address. Change this when the site moves to its own
     // domain (VPS) and rebuild the APK — users get the new address
     // with the next app update.
-    private static final String SITE_URL = "https://nexora-fx-uxvy.onrender.com";
+    private static final String SITE_URL = "https://nexorafx.us";
 
     // Hosts that stay INSIDE the app. Any other link (Telegram, YouTube,
     // Facebook, etc.) opens in the phone's browser instead.
-    private static final String SITE_HOST = "nexora-fx-uxvy.onrender.com";
+    private static final String SITE_HOST = "nexorafx.us";
 
     private static final int FILE_CHOOSER_REQUEST_CODE = 100;
 

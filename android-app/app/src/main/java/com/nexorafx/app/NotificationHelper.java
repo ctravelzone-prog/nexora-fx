@@ -23,7 +23,7 @@ import android.os.Build;
 // that notification's page.
 public class NotificationHelper {
 
-    public static final String BASE_URL = "https://nexora-fx-uxvy.onrender.com";
+    public static final String BASE_URL = "https://nexorafx.us";
     public static final String CHANNEL_ID = "nexora_notifications";
     public static final int JOB_ID = 1001;
     // 15 minutes — the JobScheduler minimum. A notification can arrive
