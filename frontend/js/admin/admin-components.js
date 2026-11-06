@@ -29,7 +29,7 @@ const AdminComponents = {
       ${AdminComponents.sidebar()}
       <div class="admin-main">
         ${AdminComponents.topbar(title)}
-        <main class="p-4 pb-24 lg:p-6">${content}</main>
+        <main class="p-4 pb-36 lg:p-6">${content}</main>
       </div>
       <div class="admin-overlay" id="admin-ov" onclick="AdminComponents.closeSidebar()"></div>`;
     AdminComponents.loadBadges();
