@@ -28,8 +28,8 @@ Pages.referredUsers=async function(){
         <button onclick="navigator.clipboard.writeText('${link.link}');utils.toast('Copied!','success')" class="btn-primary text-sm" style="width:auto;padding:10px 16px">Copy Link</button></div>
         <p class="text-xs text-gray-400 mt-2">Your code: <strong>${link.code}</strong> · Share to earn 4% of each referred user's first deposit (one-time).</p>
       </div>
-      <div class="overflow-x-auto"><table class="data-table"><thead><tr><th>Name</th><th>Username</th><th>Joined</th><th>Deposit</th><th>Commission</th><th>Status</th></tr></thead><tbody>
-        ${users.map(u=>`<tr><td>${u.full_name}</td><td>@${u.username}</td><td>${utils.fmtDate(u.created_at)}</td><td>${utils.fmtMoney(u.deposit_amount_cents)}</td><td class="profit">${utils.fmtMoney(u.commission_cents)}</td><td>${utils.statusBadge(u.status)}</td></tr>`).join('')}
+      <div class="overflow-x-auto ref-table"><table class="data-table"><thead><tr><th>Name</th><th>Username</th><th>Joined</th><th>Deposit</th><th>Commission</th><th>Status</th></tr></thead><tbody>
+        ${users.map(u=>`<tr><td data-label="Name">${u.full_name}</td><td data-label="Username">@${u.username}</td><td data-label="Joined">${utils.fmtDate(u.created_at)}</td><td data-label="Deposit">${utils.fmtMoney(u.deposit_amount_cents)}</td><td data-label="Commission" class="profit">${utils.fmtMoney(u.commission_cents)}</td><td data-label="Status">${utils.statusBadge(u.status)}</td></tr>`).join('')}
         ${users.length===0?'<tr><td colspan="6" class="text-center py-8 text-gray-400">No referred users yet</td></tr>':''}
       </tbody></table></div>
     `,'Referred Users','Friends you referred');
@@ -42,8 +42,8 @@ Pages.referralCommissions=async function(){
     const data=await api.getReferralCommissions();
     Components.layout(`
       <div class="card mb-4"><div class="text-xs text-gray-400 uppercase mb-1">Total Commissions Earned</div><div class="text-2xl font-bold text-green-500">${utils.fmtMoney(data.total_cents)}</div></div>
-      <div class="overflow-x-auto"><table class="data-table"><thead><tr><th>Referred User</th><th>Deposit</th><th>Commission (4%)</th><th>Status</th><th>Date</th></tr></thead><tbody>
-        ${data.commissions.map(c=>`<tr><td>${c.full_name} (@${c.username})</td><td>${utils.fmtMoney(c.deposit_amount_cents)}</td><td class="profit font-bold">${utils.fmtMoney(c.commission_cents)}</td><td>${utils.statusBadge(c.status)}</td><td>${utils.fmtDate(c.created_at)}</td></tr>`).join('')}
+      <div class="overflow-x-auto ref-table"><table class="data-table"><thead><tr><th>Referred User</th><th>Deposit</th><th>Commission (4%)</th><th>Status</th><th>Date</th></tr></thead><tbody>
+        ${data.commissions.map(c=>`<tr><td data-label="Referred User">${c.full_name} (@${c.username})</td><td data-label="Deposit">${utils.fmtMoney(c.deposit_amount_cents)}</td><td data-label="Commission (4%)" class="profit font-bold">${utils.fmtMoney(c.commission_cents)}</td><td data-label="Status">${utils.statusBadge(c.status)}</td><td data-label="Date">${utils.fmtDate(c.created_at)}</td></tr>`).join('')}
         ${data.commissions.length===0?'<tr><td colspan="5" class="text-center py-8 text-gray-400">No commissions yet</td></tr>':''}
       </tbody></table></div>
     `,'Referral Commissions','One-time 4% of each referred deposit');

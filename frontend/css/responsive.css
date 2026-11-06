@@ -74,6 +74,16 @@
   .profile-photo-section{flex-direction:column !important;align-items:center !important;text-align:center !important;}
   /* Tables: horizontal scroll */
   .table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+  /* Referral tables: stack rows as cards on phone — every column visible,
+     no horizontal scrollbar (the tables were cutting off columns). */
+  .ref-table{overflow:visible !important;}
+  .ref-table thead{display:none !important;}
+  .ref-table table,.ref-table tbody,.ref-table tr,.ref-table td{display:block !important;width:100% !important;}
+  .ref-table tr{background:#fff;border:1px solid #F1F5F9 !important;border-radius:14px !important;margin-bottom:12px !important;padding:4px 16px !important;}
+  .ref-table td{border-bottom:0 !important;padding:8px 0 !important;display:flex !important;justify-content:space-between !important;align-items:center !important;gap:12px !important;text-align:right !important;}
+  .ref-table td + td{border-top:1px solid #F8FAFC !important;}
+  .ref-table td[data-label]::before{content:attr(data-label);font-size:11px;font-weight:700;letter-spacing:.06em;color:#94A3B8;text-transform:uppercase;text-align:left;flex-shrink:0;}
+  .ref-table td[colspan]{display:block !important;text-align:center !important;}
   /* Shrink headings */
   h1{font-size:1.4rem !important;}
   /* Tighter padding on small screens */
