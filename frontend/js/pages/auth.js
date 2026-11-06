@@ -23,6 +23,12 @@ Pages._pw=function(btn){const i=btn.previousElementSibling;if(i)i.type=i.type===
 // Register page. Validates the form, then calls api.register.
 Pages.register=function(){
   document.getElementById('app').innerHTML=Templates.register();
+  // Referral link: /register?ref=CODE — auto-fill the referral field so
+  // the referrer gets counted (a bare link visit left it empty before).
+  try{
+    const refCode=new URLSearchParams(window.location.search).get('ref')||new URLSearchParams(window.location.search).get('referral_code');
+    if(refCode){const el=document.querySelector('#reg-form [name="ref"]');if(el)el.value=refCode;}
+  }catch(e){}
   document.getElementById('reg-form').onsubmit=async(e)=>{
     e.preventDefault();const f=e.target,err=document.getElementById('reg-err');err.classList.add('hidden');
     if(!document.getElementById('terms-ck').checked){err.textContent='Please accept Terms & Condition';err.classList.remove('hidden');return;}
