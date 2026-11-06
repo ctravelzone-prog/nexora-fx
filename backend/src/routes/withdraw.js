@@ -12,7 +12,7 @@ const router = require('express').Router();
 const { getDb } = require('../models/database');
 const { authImpersonation } = require('../middleware/auth');
 const { requestMainWithdraw, requestProfitWithdraw } = require('../services/withdrawService');
-const { getBalance, getMoneySettings, calcMainWithdrawFee } = require('../services/moneyHelpers');
+const { getBalance, getMoneySettings, calcMainWithdrawFee, getSetting } = require('../services/moneyHelpers');
 
 // GET /api/withdraw/info — get withdraw info for the user
 // GET /info — lock and fee status for the withdraw form. A month is
@@ -49,6 +49,9 @@ router.post('/main', authImpersonation, (req,res)=>{
     if(!wallet_address.startsWith('0x')) return res.status(400).json({error:'USDT BEP20 address must start with 0x'});
     const amountCents=Math.round(parseFloat(amount)*100);
     if(isNaN(amountCents)||amountCents<=0) return res.status(400).json({error:'Invalid amount'});
+    // Global switch (Money Settings) + per-user block (User Access Controls).
+    if(getSetting('withdraw_enabled','1')==='0') return res.status(403).json({error:'Withdrawals are currently disabled'});
+    if(getDb().prepare("SELECT id FROM user_blocks WHERE user_id=? AND kind='withdraw'").get(req.userId)) return res.status(403).json({error:'Withdrawals are disabled for your account'});
     const result=requestMainWithdraw(req.userId,amountCents,wallet_address);
     res.json({success:true,message:'Withdrawal submitted. Awaiting approval.',...result});
   }catch(e){res.status(400).json({error:e.message});}
@@ -65,6 +68,9 @@ router.post('/profit', authImpersonation, (req,res)=>{
     if(!wallet_address.startsWith('0x')) return res.status(400).json({error:'USDT BEP20 address must start with 0x'});
     const amountCents=Math.round(parseFloat(amount)*100);
     if(isNaN(amountCents)||amountCents<=0) return res.status(400).json({error:'Invalid amount'});
+    // Global switch (Money Settings) + per-user block (User Access Controls).
+    if(getSetting('withdraw_enabled','1')==='0') return res.status(403).json({error:'Withdrawals are currently disabled'});
+    if(getDb().prepare("SELECT id FROM user_blocks WHERE user_id=? AND kind='withdraw'").get(req.userId)) return res.status(403).json({error:'Withdrawals are disabled for your account'});
     const result=requestProfitWithdraw(req.userId,amountCents,wallet_address);
     res.json({success:true,message:'Profit withdrawal submitted. Awaiting approval.',...result});
   }catch(e){res.status(400).json({error:e.message});}

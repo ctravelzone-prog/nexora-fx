@@ -29,6 +29,26 @@ Pages.register=function(){
     const refCode=new URLSearchParams(window.location.search).get('ref')||new URLSearchParams(window.location.search).get('referral_code');
     if(refCode){const el=document.querySelector('#reg-form [name="ref"]');if(el)el.value=refCode;}
   }catch(e){}
+  // Live username check: only a-z, 0-9, - and _ are allowed. While the
+  // name is invalid, fetch a free suggestion and show it as a button.
+  const _uname=document.querySelector('#reg-form [name="username"]');
+  const _sugBox=document.getElementById('reg-user-suggest');
+  let _sugTimer=null;
+  if(_uname&&_sugBox){
+    _uname.addEventListener('input',()=>{
+      clearTimeout(_sugTimer);
+      const v=_uname.value;
+      if(!v||/^[a-z0-9_-]+$/.test(v)){_sugBox.classList.add('hidden');_sugBox.innerHTML='';return;}
+      _sugTimer=setTimeout(async()=>{
+        try{
+          const d=await api.suggestUsername(v);
+          if(!d.suggestions||!d.suggestions.length) return;
+          _sugBox.innerHTML='Try: '+d.suggestions.map(s=>`<button type="button" class="text-orange-500 font-semibold" onclick="Pages._useUsername('${s}')">${s}</button>`).join(' &middot; ');
+          _sugBox.classList.remove('hidden');
+        }catch(e){}
+      },300);
+    });
+  }
   document.getElementById('reg-form').onsubmit=async(e)=>{
     e.preventDefault();const f=e.target,err=document.getElementById('reg-err');err.classList.add('hidden');
     if(!document.getElementById('terms-ck').checked){err.textContent='Please accept Terms & Condition';err.classList.remove('hidden');return;}
@@ -39,10 +59,12 @@ Pages.register=function(){
       await api.register({full_name:f.full_name.value,username:f.username.value,email:f.email.value,phone:f.phone.value,country_code:f.country_code.value,password:f.password.value,referral_code:f.ref.value});
       utils.toast('Registration successful! Please check your email.','success');
       App.navigate('/login');
-    }catch(ex){err.textContent=ex.message;err.classList.remove('hidden');}
+    }catch(ex){err.textContent=ex.message;err.classList.remove('hidden');if(ex.suggestion){err.innerHTML=ex.message+' &mdash; Try: <button type="button" class="text-orange-500 font-semibold" onclick="Pages._useUsername(\''+ex.suggestion+'\')">'+ex.suggestion+'</button>';}}
     utils.loading(btn,false);
   };
 };
+// Fills the register username field with a suggested name.
+Pages._useUsername=function(u){const el=document.querySelector('#reg-form [name="username"]');if(el)el.value=u;const b=document.getElementById('reg-user-suggest');if(b){b.classList.add('hidden');b.innerHTML='';}};
 
 // Login page. Calls api.login, handles 2FA, forced password change,
 // then loads the balance and redirects to the saved destination.

@@ -13,6 +13,7 @@ const jwt = require('jsonwebtoken');
 const { v4: uuidv4 } = require('uuid');
 const { getDb } = require('../models/database');
 const { getOrCreateBalance } = require('../services/moneyHelpers');
+const { USERNAME_RE, suggestUsernames } = require('../services/usernameService');
 const emailSvc = require('../services/emailService');
 // Signs a user JWT (type 'user'). All user tokens expire in 7 days.
 function mkT(p){return jwt.sign(p,process.env.JWT_SECRET,{expiresIn:'7d'});}
@@ -44,10 +45,13 @@ router.post('/register', async (req,res)=>{
     if(!full_name||!username||!email||!phone||!password) return res.status(400).json({error:'Required fields missing'});
     if(password.length<8) return res.status(400).json({error:'Password must be at least 8 characters'});
     const db=getDb();
+    // Username rule: lowercase a-z, 0-9, - and _ only. An invalid name
+    // gets a 400 plus one free suggestion derived from what was typed.
+    if(!USERNAME_RE.test(username)) return res.status(400).json({error:'Username can only use lowercase letters, numbers, - and _',suggestion:suggestUsernames(db,username,1)[0]});
     // One account per email (case-insensitive: Test@x.com == test@x.com)
     const emailNorm=String(email).trim().toLowerCase();
     if(db.prepare('SELECT id FROM users WHERE LOWER(email)=?').get(emailNorm)) return res.status(400).json({error:'Email already registered'});
-    if(db.prepare('SELECT id FROM users WHERE username=?').get(username)) return res.status(400).json({error:'Username already taken'});
+    if(db.prepare('SELECT id FROM users WHERE username=?').get(username)) return res.status(400).json({error:'Username already taken',suggestion:suggestUsernames(db,username,1)[0]});
     // One account per phone number (normalized, so +8801712..., 01712... match).
     // Phone is optional — only checked when provided.
     const phoneNorm=normalizePhone(country_code,phone);
@@ -71,6 +75,14 @@ router.post('/register', async (req,res)=>{
     db.prepare('INSERT INTO admin_notifications (type,title,message,reference_id,reference_type,destination_pane) VALUES (?,?,?,?,?,?)')
       .run('new_user',`New User Joined — ${full_name} (@${username})`,`New registration · ${emailNorm}`,uid,'user','users');
     res.json({success:true,message:'Registration successful.'});
+  }catch(e){res.status(500).json({error:e.message});}
+});
+
+// GET /username-suggest?username=X — public. Returns up to 3 available
+// usernames derived from what was typed (normalized, then +1, +2, ...).
+router.get('/username-suggest', (req,res)=>{
+  try{
+    res.json({suggestions:suggestUsernames(getDb(),String(req.query.username||''),3)});
   }catch(e){res.status(500).json({error:e.message});}
 });
 

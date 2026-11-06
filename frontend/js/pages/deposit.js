@@ -20,12 +20,13 @@
 // Create Deposit page: Binance Pay QR + TxID form. See the header above.
 Pages.deposit=async function(){
   try{
-    const wallet=await api.getDepositWallet();
-    const enabled=App.state.settings?.deposit_enabled!=='0';
+    const [wallet,me]=await Promise.all([api.getDepositWallet(),api.getMe()]);
+    const blocked=me.user?.blocks?.includes('deposit');
+    const enabled=App.state.settings?.deposit_enabled!=='0' && !blocked;
     Components.layout(`
       <div class="max-w-3xl">
         <div class="flex items-center gap-3 mb-6"><button onclick="history.back()" class="p-2 rounded-lg hover:bg-gray-100">${svgIcons.arrow_left}</button><div><h1 class="text-xl font-bold">Create Deposit</h1><p class="text-sm text-gray-400">Fund your account with Binance Pay (USDT)</p></div><button onclick="App.navigate('/history')" class="ml-auto btn-secondary text-sm" style="padding:8px 16px">Deposit History →</button></div>
-        ${!enabled?'<div class="alert-warning">Deposits are currently disabled. Please contact support.</div>':''}
+        ${!enabled?`<div class="alert-warning">${blocked?'Deposits are disabled for your account.':'Deposits are currently disabled.'} Please contact support.</div>`:''}
         ${enabled?`<div class="card">
           <div class="flex items-center justify-between mb-4"><h2 class="font-bold text-lg">Deposit in 3 steps</h2><span class="orange-tag">BINANCE PAY</span></div>
           <div class="flex flex-col-reverse sm:flex-col lg:grid lg:grid-cols-2 gap-4 lg:gap-6 deposit-layout">

@@ -58,12 +58,14 @@ Pages.editProfile=async function(){
       e.preventDefault();const f=e.target,err=document.getElementById('profile-err'),btn=document.getElementById('profile-btn');
       err.classList.add('hidden');utils.loading(btn,true);
       try{await api.updateProfile({full_name:f.full_name.value,username:f.username.value});utils.toast('Profile updated!','success');const me2=await api.getMe();App.state.user=me2.user;}
-      catch(ex){err.textContent=ex.message;err.classList.remove('hidden');}
+      catch(ex){err.textContent=ex.message;err.classList.remove('hidden');if(ex.suggestion){err.innerHTML=ex.message+' &mdash; Try: <button type="button" class="text-orange-500 font-semibold" onclick="Pages._useProfileUsername(\''+ex.suggestion+'\')">'+ex.suggestion+'</button>';}}
       utils.loading(btn,false);
     };
     Pages._loadReqList();
   }catch(e){document.getElementById('app').innerHTML=`<p class="p-8 text-red-500">${e.message}</p>`;}
 };
+// Fills the profile username field with a suggested name.
+Pages._useProfileUsername=function(u){const el=document.querySelector('#profile-form [name="username"]');if(el)el.value=u;const e2=document.getElementById('profile-err');if(e2)e2.classList.add('hidden');};
 // Shows or hides one of the email/phone request forms.
 Pages._toggleReq=function(which){const el=document.getElementById('req-'+which);if(el)el.classList.toggle('hidden');};
 // Sends an email/phone change request to the admin.

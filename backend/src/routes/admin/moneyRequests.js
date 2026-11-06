@@ -25,6 +25,10 @@ router.post('/:id/approve', authAdmin, (req, res) => {
   if (r.status !== 'pending') return res.status(400).json({ error: 'Request already ' + r.status });
   adminAddBalance(r.user_id, r.amount_cents, 'main', req.adminId, 'Money request #' + r.id + ' approved');
   db.prepare("UPDATE money_requests SET status='approved',updated_at=unixepoch() WHERE id=?").run(r.id);
+  // One-time enable: if the admin turned Request Money on for this user
+  // just once, it switches off again right after this approval.
+  const rmFlag = db.prepare('SELECT request_money_one_time FROM users WHERE id=?').get(r.user_id);
+  if (rmFlag && rmFlag.request_money_one_time === 1) db.prepare('UPDATE users SET request_money_enabled=0, request_money_one_time=0 WHERE id=?').run(r.user_id);
   db.prepare('INSERT INTO notifications (user_id,title,message,type) VALUES (?,?,?,?)').run(r.user_id, 'Money request approved', `Your $${(r.amount_cents / 100).toFixed(2)} request was approved and added to your Main Balance.`, 'success');
   db.prepare('INSERT INTO audit_log (admin_id,user_id,action) VALUES (?,?,?)').run(req.adminId, r.user_id, 'money_request_approved');
   res.json({ success: true });

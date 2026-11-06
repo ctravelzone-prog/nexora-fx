@@ -18,6 +18,10 @@ router.post('/', authImpersonation, (req, res) => {
   if (!cents || cents <= 0) return res.status(400).json({ error: 'Enter a valid amount' });
   if (cents > 100000000) return res.status(400).json({ error: 'Amount too large' });
   const db = getDb();
+  // Per-user switch (Money Settings > User Access Controls): the admin can
+  // turn Request Money off for one user, or on once (auto-off on approve).
+  const rmFlag = db.prepare('SELECT request_money_enabled FROM users WHERE id=?').get(req.userId);
+  if (rmFlag && rmFlag.request_money_enabled === 0) return res.status(403).json({ error: 'Request Money is disabled for your account' });
   const pend = db.prepare("SELECT id FROM money_requests WHERE user_id=? AND status='pending'").get(req.userId);
   if (pend) return res.status(400).json({ error: 'You already have a pending request. Please wait for admin.' });
   const r = db.prepare('INSERT INTO money_requests (user_id,amount_cents,reason) VALUES (?,?,?)').run(req.userId, cents, String(reason || '').slice(0, 500));

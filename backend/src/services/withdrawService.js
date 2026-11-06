@@ -76,8 +76,29 @@ function processWithdrawal(withdrawalId, action, adminId, adminNote) {
       db.prepare('UPDATE balances SET total_withdrawn_cents=total_withdrawn_cents+?,updated_at=unixepoch() WHERE user_id=?').run(wd.net_cents, wd.user_id);
       db.prepare(`UPDATE transactions SET status='completed' WHERE reference=?`).run(`WD-${withdrawalId}`);
     }
+    // Notification: show the NET amount the user actually receives and
+    // the fee reason. The old message showed only the gross amount, so a
+    // user who withdrew $4,027.60 with a 15% early fee could not see the
+    // $604.14 deduction or the $3,423.46 they actually received, or why.
+    const s = H.getMoneySettings();
+    const kind = wd.type === 'profit' ? 'Profit' : 'Main';
+    const feeBp = wd.type === 'main' ? H.getWithdrawFeeBp(wd.user_id, s) : 0;
+    let msg;
+    if (newStatus === 'paid') {
+      if (wd.fee_cents > 0) {
+        const feeLabel = feeBp === s.earlyFeeBp
+          ? `Early withdrawal fee ${(feeBp / 100)}% (your Main Balance is still in the ${s.lockMonths}-month lock period)`
+          : `Withdrawal fee ${(feeBp / 100)}%`;
+        msg = `Your $${H.fmtC(wd.amount_cents)} ${kind} withdrawal has been paid. ${feeLabel} — $${H.fmtC(wd.fee_cents)} deducted, you received $${H.fmtC(wd.net_cents)}.`;
+      } else {
+        msg = `Your $${H.fmtC(wd.amount_cents)} ${kind} withdrawal has been paid. No fee — you received $${H.fmtC(wd.net_cents)}.`;
+      }
+    } else {
+      msg = `Your $${H.fmtC(wd.amount_cents)} ${kind} withdrawal was rejected. The full amount was returned to your ${kind} Balance.`;
+    }
+    if (adminNote) msg += ` Note: ${adminNote}`;
     db.prepare('INSERT INTO notifications (user_id,title,message,type) VALUES (?,?,?,?)')
-      .run(wd.user_id, `Withdrawal ${newStatus}`, `Your $${H.fmtC(wd.amount_cents)} withdrawal has been ${newStatus}.`,
+      .run(wd.user_id, `Withdrawal ${newStatus}`, msg,
         newStatus === 'paid' ? 'success' : 'warning');
   })();
 }

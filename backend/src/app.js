@@ -78,6 +78,7 @@ app.use('/api/admin/tickets', require('./routes/admin/tickets'));
 app.use('/api/admin/forget-requests', require('./routes/admin/forget'));
 app.use('/api/admin/profile-requests', require('./routes/admin/profileRequests'));
 app.use('/api/admin/money-requests', require('./routes/admin/moneyRequests'));
+app.use('/api/admin/user-blocks', require('./routes/admin/userBlocks'));
 app.use('/api/admin', require('./routes/admin/misc'));
 
 // Public settings API (no auth)

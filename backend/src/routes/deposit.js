@@ -10,6 +10,7 @@
 const router = require('express').Router();
 const { getDb } = require('../models/database');
 const { authImpersonation } = require('../middleware/auth');
+const { getSetting } = require('../services/moneyHelpers');
 
 // POST / — submit a deposit. Body: txid, amount (dollars). Side effects:
 // deposits row (pending) + pending transactions row (reference DEP-<id>)
@@ -22,6 +23,9 @@ router.post('/', authImpersonation, (req,res)=>{
     const amountCents=Math.round(parseFloat(amount)*100);
     if(isNaN(amountCents)||amountCents<=0) return res.status(400).json({error:'Invalid amount'});
     const db=getDb();
+    // Global switch (Money Settings) + per-user block (User Access Controls).
+    if(getSetting('deposit_enabled','1')==='0') return res.status(403).json({error:'Deposits are currently disabled'});
+    if(db.prepare("SELECT id FROM user_blocks WHERE user_id=? AND kind='deposit'").get(req.userId)) return res.status(403).json({error:'Deposits are disabled for your account'});
     const depId=db.prepare(`INSERT INTO deposits (user_id,amount_cents,txid,method,status) VALUES (?,?,?,'Binance Pay','pending')`)
       .run(req.userId,amountCents,txid).lastInsertRowid;
     // Pending row in History right away (same pattern as withdraws): the user

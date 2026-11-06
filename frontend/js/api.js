@@ -40,7 +40,7 @@ const api = {
     if(data&&method!=='GET') opts.body=JSON.stringify(data);
     const res=await fetch(path,opts);
     const json=await res.json().catch(()=>({}));
-    if(!res.ok){ if(res.status===401&&admin) api._adminAuthFail(path); throw new Error(json.error||`HTTP ${res.status}`); }
+    if(!res.ok){ if(res.status===401&&admin) api._adminAuthFail(path); const _e=new Error(json.error||`HTTP ${res.status}`); if(json.suggestion) _e.suggestion=json.suggestion; throw _e; }
     return json;
   },
 
@@ -70,6 +70,7 @@ const api = {
   // Auth
   login:(d)=>api.request('POST','/api/auth/login',d),
   register:(d)=>api.request('POST','/api/auth/register',d),
+  suggestUsername:(u)=>api.request('GET','/api/auth/username-suggest?username='+encodeURIComponent(u||'')),
   forgotPassword:(d)=>api.request('POST','/api/auth/forgot-password',d),
   forgetRequest:(d)=>api.request('POST','/api/auth/forget-request',d),
   resetViaAuthenticator:(d)=>api.request('POST','/api/auth/reset-via-authenticator',d),
@@ -85,6 +86,7 @@ const api = {
   getProfileChangeRequests:()=>api.request('GET','/api/user/profile-change-requests'),
   changePassword:(d)=>api.request('POST','/api/user/change-password',d),
   getTransactions:(p)=>api.request('GET',`/api/user/transactions?${new URLSearchParams(p||{})}`),
+  getTransactionsSummary:()=>api.request('GET','/api/user/transactions/summary'),
   getNotifications:()=>api.request('GET','/api/user/notifications'),
   readAllNotifications:()=>api.request('PUT','/api/user/notifications/read-all'),
   getSettings:()=>api.request('GET','/api/settings'),

@@ -6,9 +6,17 @@
 // wording, never a guarantee. applyDailyPnl applies one day to every
 // active copy (and to showcase display balances, via applyShowcasePnl).
 // Times: each month the 22 slots 12:00 PM-7:00 PM (20-min steps) are
-// SHUFFLED like the rates and stored per day (run_minutes) — so every
-// month each day pays at a different time; regenerating a month's
-// schedule re-shuffles its times too.
+// SHUFFLED like the rates and stored per day (run_minutes) — kept as a
+// legacy per-day anchor. What actually pays a user is the TRICKLE
+// (owner, 7 Nov): one part per copied trader, each part landing at its
+// own time between 10:00 AM and 7:00 PM Dhaka, so the day total is fully
+// added by 7:00 PM and the Trade History shows different times per
+// trader instead of one identical timestamp for the whole day.
+// Part times are deterministic per (user, cycle, day, copy) —
+// partTimes() below — so every scheduler tick agrees on them, and the
+// per-copy shares are computed once over the user's FULL active copy
+// set (including already-paid parts), so the day total stays exactly
+// the uniform total even when parts land on different ticks.
 // A per-user profit target scales that user's rates. All money is
 // integer cents; the profit goes to Copy Invested only, on the first
 // copied amount, no compounding.
@@ -83,9 +91,38 @@ function dayRunTime(row) {
   }
   return profitTimeForDay(row ? row.day_number : 1);
 }
+// The day's payout window (display): parts land across it, not at one time.
+function formatTrickleWindow() { return formatMinutes(TRICKLE_START_MIN) + ' – ' + formatMinutes(TRICKLE_END_MIN); }
 function formatDayRunTime(row) {
-  if (row && row.run_minutes !== null && row.run_minutes !== undefined) return formatMinutes(row.run_minutes);
-  return formatProfitTime(row ? row.day_number : 1);
+  return formatTrickleWindow();
+}
+// Minutes since midnight (Dhaka) right now — the trickle clock.
+function dhakaNowMin() {
+  const parts = new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Dhaka', hour: 'numeric', minute: 'numeric', hour12: false }).formatToParts(new Date());
+  const get = (t) => parts.find((p) => p.type === t).value;
+  return (parseInt(get('hour'), 10) % 24) * 60 + parseInt(get('minute'), 10);
+}
+// One payout time per copy, spread across the 10:00 AM-7:00 PM window.
+// The window is split into copyCount equal slots, the slot order is
+// shuffled deterministically from the seed (so which trader pays first
+// differs per user and per day), and each time gets a small +/-10 min
+// jitter so the times never look mechanical. Returns an array of
+// minutes-since-midnight, index = the copy's index in its user's
+// copy list (ORDER BY id, same as applyDailyPnl uses).
+const TRICKLE_START_MIN = 10 * 60; // 10:00 AM Dhaka
+const TRICKLE_END_MIN = 19 * 60; // 7:00 PM Dhaka
+function partTimes(seedKey, copyCount) {
+  const n = Math.max(1, copyCount | 0);
+  const rng = _mulberry32(_hashSeed(seedKey));
+  const order = Array.from({ length: n }, (_, i) => i);
+  for (let i = n - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); const t = order[i]; order[i] = order[j]; order[j] = t; }
+  const width = (TRICKLE_END_MIN - TRICKLE_START_MIN) / n;
+  const times = new Array(n);
+  for (let i = 0; i < n; i++) {
+    const jitter = Math.floor(rng() * 21) - 10;
+    times[i] = Math.min(TRICKLE_END_MIN, Math.max(TRICKLE_START_MIN, Math.round(TRICKLE_START_MIN + (order[i] + 0.5) * width + jitter)));
+  }
+  return times;
 }
 
 // Builds the month's 22 daily rates from the global target: 2 or 3 loss
@@ -191,23 +228,39 @@ function applyShowcasePnl(db, rateBp, yr, mo, day) {
 // applied. Days already logged are skipped. Showcase accounts are handled
 // separately (applyShowcasePnl) and only on a full apply — a single-user
 // manual apply never touches showcase.
-function applyDailyPnl(rateBp, yr, mo, day, targetUserId) {
+// Applies one day's PnL as a TRICKLE: one part per copied trader, each
+// part landing at its own time in the 10:00 AM-7:00 PM window (see
+// partTimes). A call applies only the parts whose time has come; the
+// rest stay pending for a later tick. opts.nowMin is minutes since
+// midnight Dhaka (defaults to now); opts.force pays every part at once
+// (the admin auto-run escape hatch — a manual /apply does NOT force,
+// so even a manual apply trickles across the day).
+// Returns {count, totalApplied, pending, allApplied, nextPartMin,
+// dayTotalApplied, showcaseCount, showcaseTotalApplied}. The schedule
+// day is marked applied only when every part for the day has landed
+// (so a partial call never blocks the remaining parts).
+function applyDailyPnl(rateBp, yr, mo, day, targetUserId, opts) {
   const db = getDb();
+  const nowMin = (opts && opts.nowMin !== undefined) ? opts.nowMin : dhakaNowMin();
+  const force = !!(opts && opts.force);
   return db.transaction(()=>{
     let q="SELECT c.*, u.profit_target_bp FROM copies c JOIN users u ON c.user_id=u.id WHERE c.status='active' AND u.is_showcase=0 ORDER BY c.id";
     const p=[]; if(targetUserId){q+=' AND c.user_id=?';p.push(targetUserId);}
     const copies=db.prepare(q).all(...p);
-    let cnt=0,tot=0;
-    const perUser={};
+    let cnt=0,tot=0,pending=0,nextPartMin=null;
     const globalTarget=getTargetBp();
-    // Group the still-unlogged copies by user: the per-trader variation is
-    // computed per user (one user's copies share one day total).
+    const hasLog=db.prepare('SELECT id FROM daily_pnl_log WHERE copy_id=? AND cycle_year=? AND cycle_month=? AND day_number=?');
+    // Group ALL active copies by user — including already-paid ones:
+    // the per-copy shares are computed once over the full set, so the
+    // day total stays exactly the uniform total even when parts land
+    // on different ticks (recomputing over only the unpaid copies
+    // would drift the total).
     const byUser=new Map();
     for(const copy of copies){
-      if(db.prepare('SELECT id FROM daily_pnl_log WHERE copy_id=? AND cycle_year=? AND cycle_month=? AND day_number=?').get(copy.id,yr,mo,day)) continue;
       if(!byUser.has(copy.user_id)) byUser.set(copy.user_id,[]);
       byUser.get(copy.user_id).push(copy);
     }
+    const appliedThisCall=new Set();
     for(const [uid,userCopies] of byUser){
       const first=userCopies[0];
       const userTarget=(first.profit_target_bp!==null&&first.profit_target_bp!==undefined)?first.profit_target_bp:globalTarget;
@@ -216,7 +269,10 @@ function applyDailyPnl(rateBp, yr, mo, day, targetUserId) {
       // variedSplit only re-slices it across this user's copies.
       const uniformTotal=userCopies.reduce((s,c)=>s+Math.round(c.amount_cents*rateBpEff/10000),0);
       const shares=variedSplit(`${uid}:${yr}:${mo}:${day}`,userCopies.map(c=>c.amount_cents),uniformTotal);
+      const times=partTimes(`${uid}:${yr}:${mo}:${day}`,userCopies.length);
       userCopies.forEach((copy,i)=>{
+        if(hasLog.get(copy.id,yr,mo,day)) return; // already paid — idempotent
+        if(!force && nowMin < times[i]){ pending++; if(nextPartMin===null||times[i]<nextPartMin) nextPartMin=times[i]; return; }
         const ac=shares[i];
         const rateBpCopy=copy.amount_cents>0?Math.round(ac*10000/copy.amount_cents):0;
         db.prepare('INSERT INTO daily_pnl_log (copy_id,user_id,trader_id,cycle_year,cycle_month,day_number,rate_bp,amount_cents) VALUES (?,?,?,?,?,?,?,?)')
@@ -229,26 +285,39 @@ function applyDailyPnl(rateBp, yr, mo, day, targetUserId) {
             `Daily PnL — Day ${day} of 22`,
             `Profit ${ac>=0?'+=':'-='} ${Math.abs(rateBpCopy)/100}% x $${H.fmtC(copy.amount_cents)} = $${H.fmtC(Math.abs(ac))}${ac<0?' (loss)':''}`);
         cnt++;tot+=ac;
-        // v1.3 phone notifications: one row per user per applied day.
-        perUser[uid]=(perUser[uid]||0)+ac;
+        appliedThisCall.add(uid);
       });
     }
-    // One notification row per user for this day's profit/loss, so the
-    // phone app can alert them. Naturally once-per-day: a re-apply of
-    // the same day finds every copy already logged (cnt=0, empty map).
+    // One notification row per user for this day's profit/loss, sent
+    // once — on the tick that pays their LAST part for the day (so the
+    // phone app alerts once with the full day total, not once per part).
     const insN=db.prepare("INSERT INTO notifications (user_id,title,message,type,action_url) VALUES (?,?,?,?,?)");
-    for(const [uid,amt] of Object.entries(perUser)){
-      if(!amt) continue;
-      if(amt>=0) insN.run(uid,`Daily profit — Day ${day} of 22`,`Your daily profit of $${H.fmtC(amt)} was added to your Profit Balance.`,'success','/dashboard');
-      else insN.run(uid,`Daily loss — Day ${day} of 22`,`A daily loss of $${H.fmtC(Math.abs(amt))} was applied to your Profit Balance.`,'warning','/dashboard');
+    for(const [uid,userCopies] of byUser){
+      if(!appliedThisCall.has(uid)) continue;
+      if(userCopies.some(c=>!hasLog.get(c.id,yr,mo,day))) continue; // parts still pending
+      const dayTotal=db.prepare('SELECT COALESCE(SUM(amount_cents),0) AS t FROM daily_pnl_log WHERE user_id=? AND cycle_year=? AND cycle_month=? AND day_number=?').get(uid,yr,mo,day).t;
+      if(!dayTotal) continue;
+      if(dayTotal>=0) insN.run(uid,`Daily profit — Day ${day} of 22`,`Your daily profit of $${H.fmtC(dayTotal)} was added to your Profit Balance.`,'success','/dashboard');
+      else insN.run(uid,`Daily loss — Day ${day} of 22`,`A daily loss of $${H.fmtC(Math.abs(dayTotal))} was applied to your Profit Balance.`,'warning','/dashboard');
     }
 
-    // Showcase accounts earn the same daily rate on their DISPLAY copy balance.
-    // Only on a full apply — a single-user manual apply must not touch showcase.
+    // The day is done only when no active real copy (in scope) is left
+    // unpaid. Until then the schedule row stays unapplied so later ticks
+    // keep paying the remaining parts.
+    const leftQ=targetUserId
+      ? "SELECT COUNT(*) AS n FROM copies c JOIN users u ON c.user_id=u.id WHERE c.status='active' AND u.is_showcase=0 AND c.user_id=? AND NOT EXISTS (SELECT 1 FROM daily_pnl_log d WHERE d.copy_id=c.id AND d.cycle_year=? AND d.cycle_month=? AND d.day_number=?)"
+      : "SELECT COUNT(*) AS n FROM copies c JOIN users u ON c.user_id=u.id WHERE c.status='active' AND u.is_showcase=0 AND NOT EXISTS (SELECT 1 FROM daily_pnl_log d WHERE d.copy_id=c.id AND d.cycle_year=? AND d.cycle_month=? AND d.day_number=?)";
+    const leftN=targetUserId?db.prepare(leftQ).get(targetUserId,yr,mo,day).n:db.prepare(leftQ).get(yr,mo,day).n;
     let sc = { count: 0, totalApplied: 0 };
-    if (!targetUserId) sc = applyShowcasePnl(db, rateBp, yr, mo, day);
-    db.prepare('UPDATE profit_schedule SET applied=1,applied_at=unixepoch() WHERE cycle_year=? AND cycle_month=? AND day_number=?').run(yr,mo,day);
-    return {count:cnt,totalApplied:tot,showcaseCount:sc.count,showcaseTotalApplied:sc.totalApplied};
+    let dayTotalApplied=null;
+    if(leftN===0){
+      // Showcase accounts earn the same daily rate on their DISPLAY copy balance.
+      // Only on a full apply — a single-user manual apply must not touch showcase.
+      if (!targetUserId) sc = applyShowcasePnl(db, rateBp, yr, mo, day);
+      db.prepare('UPDATE profit_schedule SET applied=1,applied_at=unixepoch() WHERE cycle_year=? AND cycle_month=? AND day_number=?').run(yr,mo,day);
+      dayTotalApplied=db.prepare('SELECT COALESCE(SUM(amount_cents),0) AS t FROM daily_pnl_log WHERE cycle_year=? AND cycle_month=? AND day_number=?').get(yr,mo,day).t;
+    }
+    return {count:cnt,totalApplied:tot,pending,allApplied:leftN===0,nextPartMin,dayTotalApplied,showcaseCount:sc.count,showcaseTotalApplied:sc.totalApplied};
   })();
 }
 
@@ -314,4 +383,4 @@ function retargetSchedule(year,month,newTargetBp){
   })();
 }
 
-module.exports = { generateSchedule, getSchedule, applyDailyPnl, rebalanceSchedule, retargetSchedule, getTargetBp, profitTimeForDay, formatProfitTime, formatMinutes, dayRunTime, formatDayRunTime, timeSlots, variedSplit };
+module.exports = { generateSchedule, getSchedule, applyDailyPnl, rebalanceSchedule, retargetSchedule, getTargetBp, profitTimeForDay, formatProfitTime, formatMinutes, dayRunTime, formatDayRunTime, formatTrickleWindow, partTimes, dhakaNowMin, TRICKLE_START_MIN, TRICKLE_END_MIN, timeSlots, variedSplit };

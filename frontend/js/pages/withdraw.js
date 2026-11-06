@@ -29,9 +29,12 @@ Pages.withdraw=async function(){
 // Fee for this withdraw: the early fee percent while locked, otherwise
 // the regular fee percent (0% once the lock has expired).
     const b=me.balance,locked=info.is_locked,fee=locked?info.early_fee_percent:(info.regular_fee_percent||0);
+    const blocked=me.user?.blocks?.includes('withdraw');
+    const enabled=App.state.settings?.withdraw_enabled!=='0' && !blocked;
     Components.layout(`<div class="max-w-4xl">
       <div class="flex items-center gap-3 mb-6"><button onclick="history.back()" class="p-2 rounded-lg hover:bg-gray-100">${svgIcons.arrow_left}</button><h1 class="text-xl font-bold">Withdraw</h1><button onclick="App.navigate('/history')" class="ml-auto btn-secondary text-sm" style="padding:8px 16px">Withdraw History →</button></div>
-      <div class="flex flex-col lg:grid lg:grid-cols-2 gap-4 lg:gap-6 two-col-layout">
+      ${!enabled?`<div class="alert-warning mb-4">${blocked?'Withdrawals are disabled for your account.':'Withdrawals are currently disabled.'} Please contact support.</div>`:''}
+      ${enabled?`<div class="flex flex-col lg:grid lg:grid-cols-2 gap-4 lg:gap-6 two-col-layout">
         <div class="card">
           <h2 class="font-bold mb-1">Main Balance Withdraw</h2>
           <p class="text-xs text-gray-400 mb-4">From Main Balance only — ${utils.fmtMoney(b.main_cents)} available</p>
@@ -63,11 +66,11 @@ Pages.withdraw=async function(){
             <button type="submit" id="profit-btn" class="btn-primary" ${b.profit_cents<1000?'disabled':''}>Submit Profit Withdraw</button>
           </form>
         </div>
-      </div></div>`,'Withdraw','');
+      </div>` :''}</div>`,'Withdraw','');
 // Main withdraw submit. API: api.withdrawMain(). Goes to History on success.
-    document.getElementById('main-wd-form').onsubmit=async(e)=>{e.preventDefault();const f=e.target,err=document.getElementById('main-err'),btn=document.getElementById('main-btn');err.classList.add('hidden');utils.loading(btn,true);try{await api.withdrawMain({amount:parseFloat(f.amount.value),wallet_address:f.wallet.value});utils.toast('Main withdraw submitted!','success');App.navigate('/history');}catch(ex){err.textContent=ex.message;err.classList.remove('hidden');}utils.loading(btn,false);};
+    if(enabled){document.getElementById('main-wd-form').onsubmit=async(e)=>{e.preventDefault();const f=e.target,err=document.getElementById('main-err'),btn=document.getElementById('main-btn');err.classList.add('hidden');utils.loading(btn,true);try{await api.withdrawMain({amount:parseFloat(f.amount.value),wallet_address:f.wallet.value});utils.toast('Main withdraw submitted!','success');App.navigate('/history');}catch(ex){err.textContent=ex.message;err.classList.remove('hidden');}utils.loading(btn,false);};
 // Profit withdraw submit. API: api.withdrawProfit(). Goes to History on success.
-    document.getElementById('profit-wd-form').onsubmit=async(e)=>{e.preventDefault();const f=e.target,err=document.getElementById('profit-err'),btn=document.getElementById('profit-btn');err.classList.add('hidden');utils.loading(btn,true);try{await api.withdrawProfit({amount:parseFloat(f.amount.value),wallet_address:f.wallet.value});utils.toast('Profit withdraw submitted!','success');App.navigate('/history');}catch(ex){err.textContent=ex.message;err.classList.remove('hidden');}utils.loading(btn,false);};
+    document.getElementById('profit-wd-form').onsubmit=async(e)=>{e.preventDefault();const f=e.target,err=document.getElementById('profit-err'),btn=document.getElementById('profit-btn');err.classList.add('hidden');utils.loading(btn,true);try{await api.withdrawProfit({amount:parseFloat(f.amount.value),wallet_address:f.wallet.value});utils.toast('Profit withdraw submitted!','success');App.navigate('/history');}catch(ex){err.textContent=ex.message;err.classList.remove('hidden');}utils.loading(btn,false);};}
   }catch(e){document.getElementById('app').innerHTML=`<p class="p-8 text-red-500">${e.message}</p>`;}
 };
 // Live fee preview for the Main withdraw amount field: shows the fee

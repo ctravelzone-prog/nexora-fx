@@ -12,6 +12,7 @@
 const router = require('express').Router();
 const bcrypt = require('bcrypt');
 const { getDb } = require('../models/database');
+const { USERNAME_RE, suggestUsernames } = require('../services/usernameService');
 const { authUser, authImpersonation } = require('../middleware/auth');
 const { getBalance, getMoneySettings, calcMainWithdrawFee, fmtC } = require('../services/moneyHelpers');
 const multer = require('multer');
@@ -46,13 +47,18 @@ router.get('/me', auth, (req,res)=>{
     bal.total_withdrawn_cents=user.showcase_withdraw_cents||0;
   }
   const total=bal.main_cents+bal.copy_cents+bal.profit_cents;
+  // Per-user access controls (Money Settings): which deposit/withdraw kinds
+  // the admin blocked for this user, and whether Request Money is on.
+  const blocks=db.prepare('SELECT kind FROM user_blocks WHERE user_id=?').all(user.id).map(r=>r.kind);
+  const rmFlag=db.prepare('SELECT request_money_enabled FROM users WHERE id=?').get(user.id);
   const s=getMoneySettings();
   const feeCents=calcMainWithdrawFee(user.id,bal.main_cents,s);
   res.json({user:{id:user.id,full_name:user.full_name,username:user.username,
     email:user.email,phone:user.phone,country_code:user.country_code,
     profile_photo:user.profile_photo,kyc_status:user.kyc_status,kyc_requested:user.kyc_requested||0,
     email_verified:user.email_verified,two_fa_enabled:user.two_fa_enabled,
-    referral_code:user.referral_code,created_at:user.created_at},
+    referral_code:user.referral_code,created_at:user.created_at,
+    blocks,request_money_enabled:rmFlag?rmFlag.request_money_enabled:1},
     balance:{main_cents:bal.main_cents,copy_cents:bal.copy_cents,
       profit_cents:bal.profit_cents,referral_cents:bal.referral_cents,
       total_cents:total,total_deposited_cents:bal.total_deposited_cents,
@@ -75,7 +81,8 @@ router.put('/profile', auth, (req,res)=>{
   if(!me) return res.status(404).json({error:'User not found'});
   const newName=(username||'').trim();
   if(newName && newName!==me.username){
-    if(db.prepare('SELECT id FROM users WHERE username=? AND id<>?').get(newName,req.userId)) return res.status(400).json({error:'Username already taken'});
+    if(!USERNAME_RE.test(newName)) return res.status(400).json({error:'Username can only use lowercase letters, numbers, - and _',suggestion:suggestUsernames(db,newName,1)[0]});
+    if(db.prepare('SELECT id FROM users WHERE username=? AND id<>?').get(newName,req.userId)) return res.status(400).json({error:'Username already taken',suggestion:suggestUsernames(db,newName,1)[0]});
   }
   const newFull=(full_name||'').trim();
   if(newFull==='') return res.status(400).json({error:'Full name is required'});
@@ -193,6 +200,22 @@ router.get('/transactions', auth, (req,res)=>{
   q+=' ORDER BY created_at DESC LIMIT ? OFFSET ?';
   p.push(parseInt(limit),parseInt(offset));
   res.json(db.prepare(q).all(...p));
+});
+
+// GET /transactions/summary — exact totals for the History summary band:
+// total deposits, total withdrawals and total withdraw fees, completed
+// rows only. Copy transfers/stops, daily PnL, referral and admin credits
+// are internal movements, not money the user put in or took out, so they
+// are NOT counted here (counting them inflated TOTAL IN / TOTAL OUT).
+// GET /api/user/transactions/summary
+router.get('/transactions/summary', auth, (req,res)=>{
+  const db=getDb();
+  const row=db.prepare(`SELECT
+    COALESCE(SUM(CASE WHEN type='deposit' AND status='completed' THEN amount_cents ELSE 0 END),0) AS total_deposit_cents,
+    COALESCE(SUM(CASE WHEN type LIKE 'withdraw%' AND status='completed' THEN amount_cents ELSE 0 END),0) AS total_withdraw_cents,
+    COALESCE(SUM(CASE WHEN type LIKE 'withdraw%' AND status='completed' THEN fee_cents ELSE 0 END),0) AS total_fee_cents
+    FROM transactions WHERE user_id=?`).get(req.userId);
+  res.json(row);
 });
 
 // GET /notifications — the user's notifications (plus broadcast ones

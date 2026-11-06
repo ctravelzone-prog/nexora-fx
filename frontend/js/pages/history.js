@@ -6,16 +6,20 @@
  * withdrawals appear in the list with a Pending badge.
  *
  * Key functions:
- * - Pages.history — loads transactions, computes the completed-only
- *   totals, and renders the summary band, tabs and table.
+ * - Pages.history — loads transactions, the summary totals (deposits /
+ *   withdrawals / fees only, exact from the server) and the live balance,
+ *   and renders the summary band, tabs and table.
  * - Pages._hrows — renders table rows for a list of transactions.
  * - Pages._htab — switches the visible tab (All / Dep / Wd / Copy / Ref)
  *   by reading the stored rows, without another API call.
  *
- * Rules: money is integer cents; display via utils.fmtMoney. Totals
- * count completed money only — a pending deposit or withdrawal must
- * not inflate the balance before the admin approves it. Net is
- * amount minus fee. Website UI text is always English.
+ * Rules: money is integer cents; display via utils.fmtMoney. The
+ * summary band shows ONLY total deposits, total withdrawals and total
+ * withdraw fees (completed rows) — copy transfers/stops, daily PnL,
+ * referral and admin credits are internal movements and must not
+ * inflate the totals. TOTAL BALANCE is the live balance (Main + Copy
+ * + Profit) from /api/user/me, not a sum of the totals. Net is amount
+ * minus fee. Website UI text is always English.
  * Gotcha: the ?v= cache version in script tags must be bumped on every
  * release, or browsers may serve stale code.
  * Note: this file uses CRLF line endings — preserve them on every edit.
@@ -23,17 +27,18 @@
 // Transaction History page: summary band, tabs and table. See header.
 Pages.history=async function(){
   try{
-    const txns=await api.getTransactions({limit:100});
+    const [txns,summary,me]=await Promise.all([api.getTransactions({limit:100}),api.getTransactionsSummary(),api.getMe()]);
     const f=utils.fmtMoney;
-    // Totals count completed money only — a pending deposit/withdraw must
-    // not inflate the balance before the admin approves it.
-    const done=txns.filter(t=>t.status==='completed');
-    const tIn=done.filter(t=>t.direction==='in').reduce((a,t)=>a+t.amount_cents,0);
-    const tOut=done.filter(t=>t.direction==='out').reduce((a,t)=>a+t.amount_cents,0);
-    const tFee=done.reduce((a,t)=>a+t.fee_cents,0);
+    // Summary totals (exact, from the server): deposits in, withdrawals
+    // out, withdraw fees — completed rows only. Copy/PnL/referral rows
+    // are NOT counted here. TOTAL BALANCE is the live balance.
+    const tIn=summary.total_deposit_cents||0;
+    const tOut=summary.total_withdraw_cents||0;
+    const tFee=summary.total_fee_cents||0;
+    const totalBal=(me.balance.main_cents||0)+(me.balance.copy_cents||0)+(me.balance.profit_cents||0);
     const cats={all:txns,dep:txns.filter(t=>t.type==='deposit'),wd:txns.filter(t=>t.type.startsWith('withdraw')),copy:txns.filter(t=>t.type.startsWith('copy_')),ref:txns.filter(t=>t.type==='referral_commission')};
     const backBtn='<button onclick="history.back()" style="width:36px;height:36px;border:1px solid var(--border);border-radius:10px;background:#fff;cursor:pointer;display:grid;place-items:center">'+svgIcons.arrow_left+'</button>';
-    const darkBand='<div style="background:var(--dark2);border-radius:20px;color:#fff;padding:20px 24px;margin-bottom:14px"><small style="font-size:10px;font-weight:800;letter-spacing:1px;color:#94A3B8">TOTAL BALANCE</small><div style="font-size:26px;font-weight:800;margin-top:4px">'+f(tIn-tOut-tFee)+'</div><div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:12px;border-top:1px solid rgba(255,255,255,.12);padding-top:12px"><div><small style="font-size:10px;font-weight:800;letter-spacing:1px;color:#94A3B8">TOTAL IN</small><b style="font-size:17px;display:block;margin-top:3px;color:#34D399">+'+f(tIn)+'</b></div><div><small style="font-size:10px;font-weight:800;letter-spacing:1px;color:#94A3B8">TOTAL OUT</small><b style="font-size:17px;display:block;margin-top:3px;color:#F87171">-'+f(tOut)+'</b></div><div><small style="font-size:10px;font-weight:800;letter-spacing:1px;color:#94A3B8">FEES</small><b style="font-size:17px;display:block;margin-top:3px;color:#FDBA74">'+f(tFee)+'</b></div></div></div>';
+    const darkBand='<div style="background:var(--dark2);border-radius:20px;color:#fff;padding:20px 24px;margin-bottom:14px"><small style="font-size:10px;font-weight:800;letter-spacing:1px;color:#94A3B8">TOTAL BALANCE</small><div style="font-size:26px;font-weight:800;margin-top:4px">'+f(totalBal)+'</div><div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:12px;border-top:1px solid rgba(255,255,255,.12);padding-top:12px"><div><small style="font-size:10px;font-weight:800;letter-spacing:1px;color:#94A3B8">TOTAL IN</small><b style="font-size:17px;display:block;margin-top:3px;color:#34D399">+'+f(tIn)+'</b></div><div><small style="font-size:10px;font-weight:800;letter-spacing:1px;color:#94A3B8">TOTAL OUT</small><b style="font-size:17px;display:block;margin-top:3px;color:#F87171">-'+f(tOut)+'</b></div><div><small style="font-size:10px;font-weight:800;letter-spacing:1px;color:#94A3B8">FEES</small><b style="font-size:17px;display:block;margin-top:3px;color:#FDBA74">'+f(tFee)+'</b></div></div></div>';
     const tabs='<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">'+Object.entries(cats).map(([k,v],i)=>'<button onclick="Pages._htab(\''+k+'\')" id="htab-'+k+'" style="border:1px solid '+(i===0?'var(--ink)':'var(--border)')+';background:'+(i===0?'var(--ink)':'#fff')+';color:'+(i===0?'#fff':'var(--body)')+';border-radius:999px;padding:8px 16px;font-weight:700;font-size:13px;cursor:pointer;font-family:inherit">'+k.charAt(0).toUpperCase()+k.slice(1)+' <span style="opacity:.6;font-size:11px">'+v.length+'</span></button>').join('')+'</div>';
     const tbl='<div class="card" style="padding:0;overflow:hidden"><div style="overflow-x:auto"><table class="data-table"><thead><tr><th>Date</th><th>Type</th><th>Amount</th><th>Fee</th><th>Net</th><th>Status</th><th>Ref</th></tr></thead><tbody id="hist-body">'+Pages._hrows(txns)+'</tbody></table></div></div>';
     const safe=s=>JSON.stringify(s).replace(/'/g,"&#39;");
