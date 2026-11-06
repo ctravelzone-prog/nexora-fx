@@ -27,7 +27,7 @@ function requestMainWithdraw(userId, amountCents, walletAddress) {
     const feeStr = feeCents > 0 ? `fee ${H.getWithdrawFeeBp(userId,s)/100}% = $${H.fmtC(feeCents)}` : 'fee $0';
     db.prepare('INSERT INTO transactions (user_id,type,amount_cents,fee_cents,net_cents,direction,status,reference,reason,formula) VALUES (?,?,?,?,?,?,?,?,?,?)')
       .run(userId, 'withdraw_main', amountCents, feeCents, netCents, 'out', 'pending', `WD-${wId}`,
-        'Main withdraw — pending admin approval', `Main -= $${H.fmtC(amountCents)}; ${feeStr}; net $${H.fmtC(netCents)}`);
+        'Main withdraw — pending approval', `Main -= $${H.fmtC(amountCents)}; ${feeStr}; net $${H.fmtC(netCents)}`);
     H.createAdminNotif(db, 'withdraw', `Main withdraw request $${H.fmtC(amountCents)}`, wId, 'withdrawal', 'withdrawals');
     return { wId, feeCents, netCents };
   })();
@@ -49,7 +49,7 @@ function requestProfitWithdraw(userId, amountCents, walletAddress) {
       .run(userId, amountCents, amountCents, walletAddress).lastInsertRowid;
     db.prepare('INSERT INTO transactions (user_id,type,amount_cents,fee_cents,net_cents,direction,status,reference,reason,formula) VALUES (?,?,?,0,?,?,?,?,?,?)')
       .run(userId, 'withdraw_profit', amountCents, amountCents, 'out', 'pending', `WD-${wId}`,
-        'Profit withdraw — pending admin approval', `Profit -= $${H.fmtC(amountCents)}; fee $0; net $${H.fmtC(amountCents)}`);
+        'Profit withdraw — pending approval', `Profit -= $${H.fmtC(amountCents)}; fee $0; net $${H.fmtC(amountCents)}`);
     H.createAdminNotif(db, 'withdraw', `Profit withdraw request $${H.fmtC(amountCents)}`, wId, 'withdrawal', 'withdrawals');
     return { wId, feeCents: 0, netCents: amountCents };
   })();

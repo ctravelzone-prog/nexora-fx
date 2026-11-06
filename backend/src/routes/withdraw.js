@@ -50,7 +50,7 @@ router.post('/main', authImpersonation, (req,res)=>{
     const amountCents=Math.round(parseFloat(amount)*100);
     if(isNaN(amountCents)||amountCents<=0) return res.status(400).json({error:'Invalid amount'});
     const result=requestMainWithdraw(req.userId,amountCents,wallet_address);
-    res.json({success:true,message:'Withdrawal submitted. Awaiting admin approval.',...result});
+    res.json({success:true,message:'Withdrawal submitted. Awaiting approval.',...result});
   }catch(e){res.status(400).json({error:e.message});}
 });
 
@@ -66,7 +66,7 @@ router.post('/profit', authImpersonation, (req,res)=>{
     const amountCents=Math.round(parseFloat(amount)*100);
     if(isNaN(amountCents)||amountCents<=0) return res.status(400).json({error:'Invalid amount'});
     const result=requestProfitWithdraw(req.userId,amountCents,wallet_address);
-    res.json({success:true,message:'Profit withdrawal submitted. Awaiting admin approval.',...result});
+    res.json({success:true,message:'Profit withdrawal submitted. Awaiting approval.',...result});
   }catch(e){res.status(400).json({error:e.message});}
 });
 

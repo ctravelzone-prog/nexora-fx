@@ -27,10 +27,10 @@ router.post('/', authImpersonation, (req,res)=>{
     // Pending row in History right away (same pattern as withdraws): the user
     // sees 'Deposit — Pending' until the admin approves or rejects it.
     db.prepare('INSERT INTO transactions (user_id,type,amount_cents,fee_cents,net_cents,direction,status,reference,reason,formula) VALUES (?,?,?,0,?,?,?,?,?,?)')
-      .run(req.userId,'deposit',amountCents,amountCents,'in','pending',`DEP-${depId}`,'Deposit submitted — awaiting admin approval',`Main += $${(amountCents/100).toFixed(2)} (on approval)`);
+      .run(req.userId,'deposit',amountCents,amountCents,'in','pending',`DEP-${depId}`,'Deposit submitted — awaiting approval',`Main += $${(amountCents/100).toFixed(2)} (on approval)`);
     db.prepare('INSERT INTO admin_notifications (type,title,message,reference_id,reference_type,destination_pane) VALUES (?,?,?,?,?,?)')
       .run('deposit',`Deposit request — $${(amountCents/100).toFixed(2)}`,(()=>{const u=db.prepare('SELECT full_name,username FROM users WHERE id=?').get(req.userId);return u?`${u.full_name} (@${u.username}) · TxID: ${txid}`:`TxID: ${txid}`;})(),depId,'deposit','deposits');
-    res.json({success:true,message:'Deposit submitted. Awaiting admin approval.',id:depId});
+    res.json({success:true,message:'Deposit submitted. Awaiting approval.',id:depId});
   }catch(e){res.status(500).json({error:e.message});}
 });
 

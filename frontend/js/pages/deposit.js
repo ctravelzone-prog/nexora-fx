@@ -38,7 +38,7 @@ Pages.deposit=async function(){
                 ${wallet.qr?`<img src="${wallet.qr}" class="w-40 h-40 mx-auto mb-2" alt="QR Code">`:
                   `<div class="w-40 h-40 mx-auto mb-2 bg-gray-100 rounded-xl flex items-center justify-center text-gray-300 text-sm">QR not set</div>`}
                 ${wallet.address?`<div class="text-xs text-gray-400 break-all">${wallet.address}</div>`:''}
-                <p class="text-xs text-gray-300 mt-2">QR comes from admin — not a static file</p>
+                <p class="text-xs text-gray-300 mt-2">QR updates automatically — not a static file</p>
               </div>
               <form id="dep-form" class="space-y-4">
                 <div><label class="input-label">Transaction ID</label><input name="txid" type="text" placeholder="Paste Transaction ID / Order ID" class="input-field" required><p class="text-xs text-gray-400 mt-1">Find it in Binance: Pay history, then open the payment you just sent.</p></div>

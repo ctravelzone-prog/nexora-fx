@@ -3,15 +3,12 @@ package com.nexorafx.app;
 import android.Manifest;
 import android.app.Activity;
 import android.app.AlertDialog;
-import android.app.DownloadManager;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Build;
-import android.os.Environment;
-import android.provider.Settings;
 import android.widget.Toast;
 import android.net.Uri;
 import android.os.Bundle;
@@ -127,32 +124,21 @@ public class MainActivity extends Activity {
                 .show();
     }
 
-    // Downloads the new APK and opens the installer when it finishes
-    // (DownloadCompleteReceiver). Android 8+ needs "Install unknown
-    // apps" allowed for Nexora FX first — if it is off, the user is
-    // sent to that setting and taps Update again after allowing it.
+    // v1.4.1: updates install from the browser, not from inside the app.
+    // The app no longer declares REQUEST_INSTALL_PACKAGES — that permission
+    // made Play Protect block fresh installs as a "harmful app" (before
+    // v1.3 the app installed with a plain "Install anyway" prompt). Update
+    // opens the download in the browser; the user taps the downloaded
+    // file to install it with the system installer.
     private void startApkUpdate(String url) {
         if (url == null || url.isEmpty()) return;
-        if (Build.VERSION.SDK_INT >= 26 && !getPackageManager().canRequestPackageInstalls()) {
-            Toast.makeText(this,
-                    "Allow \"Install unknown apps\" for Nexora FX, then tap Update again.",
-                    Toast.LENGTH_LONG).show();
-            Intent i = new Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
-                    Uri.parse("package:" + getPackageName()));
+        try {
+            Intent i = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
             startActivity(i);
-            return;
+            Toast.makeText(this, "Downloading update in browser — tap the file to install", Toast.LENGTH_LONG).show();
+        } catch (Exception e) {
+            Toast.makeText(this, "Could not open download", Toast.LENGTH_SHORT).show();
         }
-        DownloadManager dm = (DownloadManager) getSystemService(Context.DOWNLOAD_SERVICE);
-        if (dm == null) return;
-        DownloadManager.Request req = new DownloadManager.Request(Uri.parse(url));
-        req.setTitle("Nexora FX update");
-        req.setDescription("Downloading the new version...");
-        req.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
-        req.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, "NexoraFX-update.apk");
-        req.setMimeType("application/vnd.android.package-archive");
-        long id = dm.enqueue(req);
-        NotificationHelper.prefs(this).edit().putLong(NotificationHelper.KEY_DOWNLOAD_ID, id).apply();
-        Toast.makeText(this, "Downloading update...", Toast.LENGTH_SHORT).show();
     }
 
     // Android 13+ needs a runtime permission before any notification
