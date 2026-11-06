@@ -68,13 +68,23 @@ public class MainActivity extends Activity {
 
     // WebView settings: JavaScript on (the site is a JS app), DOM storage
     // on (login token lives in localStorage), zoom off (site is responsive).
+    // v1.2: loadWithOverviewMode REMOVED (was true) — it let the WebView
+    // pick a layout viewport wider than the phone screen, so the Copy
+    // Trade cards rendered cut off on the right and fixed elements
+    // (modal, bottom nav) landed in the wrong place. With it off and
+    // useWideViewPort on, the WebView strictly uses the viewport meta
+    // (width=device-width). Support zoom is off too, so the page can
+    // never get stuck zoomed in. The site itself fits every phone width
+    // (verified 320-390px at up to 1.5x text in Chrome), so no zoom is
+    // needed. Admin tables already scroll inside overflow-x-auto
+    // containers, so nothing is lost by turning overview mode off.
     private void setupWebView() {
         WebSettings settings = webView.getSettings();
         settings.setJavaScriptEnabled(true);
         settings.setDomStorageEnabled(true);
         settings.setDatabaseEnabled(true);
-        settings.setLoadWithOverviewMode(true);
         settings.setUseWideViewPort(true);
+        settings.setSupportZoom(false);
         settings.setBuiltInZoomControls(false);
         settings.setDisplayZoomControls(false);
         settings.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);

@@ -4,8 +4,23 @@ A native Android wrapper for the Nexora FX website. The app opens the live
 site in a WebView — login, trading, admin, everything works exactly as on
 the web. There is no separate app code for trading features.
 
-- **Package:** `com.nexorafx.app` — **App name:** Nexora FX — **Version:** 1.1 (versionCode 2)
+- **Package:** `com.nexorafx.app` — **App name:** Nexora FX — **Version:** 1.2 (versionCode 3)
 - **Site address:** `https://nexora-fx-uxvy.onrender.com` (see `MainActivity.java`, `SITE_URL`)
+
+**v1.2 fix (6 Nov):** the Copy Trade page rendered cut off on the right in
+the app (cards too wide, Copy Now button unreachable, modal shifted, bottom
+nav missing) — while the same page fits every phone width (320–390px, up to
+1.5x text) in a standard browser. Cause: `setLoadWithOverviewMode(true)`
+let the WebView pick a layout viewport wider than the phone screen. v1.2
+removes that call and adds `setSupportZoom(false)`, so the WebView strictly
+uses the viewport meta (`width=device-width`). `useWideViewPort` stays on.
+Admin tables already scroll inside `overflow-x-auto` containers, so nothing
+is lost. Site-side hardening shipped with it (site v65): `html` overflow-x
+guard, `img`/`iframe` max-width, trader grids `grid-cols-1`, card bottom
+row wraps. v1.2 is signed with the same keystore as v1.0/v1.1, so it
+installs as an update. The site's Download button still points at the v1.1
+release until the VPS move (the button is site code, and the site can't be
+pushed while live data is on Render) — install v1.2 from the release link.
 
 **v1.1 fix (6 Nov):** v1.0 had NO `targetSdkVersion` in the manifest, so the
 APK defaulted to target 1 and Google Play Protect blocked the install as
