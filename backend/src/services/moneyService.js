@@ -11,20 +11,21 @@ const { getDb } = require('../models/database');
 const H = require('./moneyHelpers');
 
 // Pays the referrer once, on the user's FIRST deposit only: 4% of the
-// deposit, added to the referrer's Main Balance, with the referrals row
-// marked 'paid'. Does nothing when there is no referrer or the referral
-// was already paid.
+// deposit, added to the referrer's REFERRAL balance (not Profit — the
+// user moves it to Profit with the transfer option when they want it),
+// with the referrals row marked 'paid'. Does nothing when there is no
+// referrer or the referral was already paid.
 function payRef(userId, depCents, db, s) {
   const ref = db.prepare(`SELECT * FROM referrals WHERE referred_user_id=? AND status='pending'`).get(userId);
   if (!ref) return;
   const c = Math.floor(depCents * s.referralBp / 10000);
   db.prepare(`UPDATE referrals SET deposit_amount_cents=?,commission_cents=?,status='paid',paid_at=unixepoch() WHERE id=?`).run(depCents, c, ref.id);
   H.getOrCreateBalance(ref.referrer_user_id);
-  db.prepare('UPDATE balances SET referral_cents=referral_cents+?,profit_cents=profit_cents+?,updated_at=unixepoch() WHERE user_id=?').run(c, c, ref.referrer_user_id);
+  db.prepare('UPDATE balances SET referral_cents=referral_cents+?,updated_at=unixepoch() WHERE user_id=?').run(c, ref.referrer_user_id);
   db.prepare('INSERT INTO transactions (user_id,type,amount_cents,fee_cents,net_cents,direction,status,reason,formula) VALUES (?,?,?,0,?,?,?,?,?)')
-    .run(ref.referrer_user_id, 'referral_commission', c, c, 'in', 'completed', 'Referral commission — 4% of deposit', `Profit += 4% x $${H.fmtC(depCents)} = $${H.fmtC(c)}`);
+    .run(ref.referrer_user_id, 'referral_commission', c, c, 'in', 'completed', 'Referral commission — 4% of deposit', `Referral += 4% x $${H.fmtC(depCents)} = $${H.fmtC(c)} (transfer to Profit when you like)`);
   db.prepare('INSERT INTO notifications (user_id,title,message,type) VALUES (?,?,?,?)')
-    .run(ref.referrer_user_id, 'Referral commission', `You earned $${H.fmtC(c)} referral commission (4% of a $${H.fmtC(depCents)} deposit).`, 'success');
+    .run(ref.referrer_user_id, 'Referral commission', `You earned $${H.fmtC(c)} referral commission (4% of a $${H.fmtC(depCents)} deposit). It is in your Referral Bonus — transfer it to Profit whenever you like.`, 'success');
 }
 
 // Approves a pending deposit: sets first_deposit_at on the user's first

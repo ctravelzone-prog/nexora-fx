@@ -44,6 +44,21 @@ function getDb() {
     try{const cols=db.prepare("PRAGMA table_info(profit_schedule)").all();if(!cols.some(c=>c.name==='run_minutes')){db.exec('ALTER TABLE profit_schedule ADD COLUMN run_minutes INTEGER');}}catch(_){}
     try{const cols=db.prepare("PRAGMA table_info(users)").all();if(!cols.some(c=>c.name==='request_money_enabled')){db.exec('ALTER TABLE users ADD COLUMN request_money_enabled INTEGER NOT NULL DEFAULT 1');}}catch(_){}
     try{const cols=db.prepare("PRAGMA table_info(users)").all();if(!cols.some(c=>c.name==='request_money_one_time')){db.exec('ALTER TABLE users ADD COLUMN request_money_one_time INTEGER NOT NULL DEFAULT 0');}}catch(_){}
+    try{const cols=db.prepare("PRAGMA table_info(balances)").all();if(!cols.some(c=>c.name==='referral_transferred_cents')){db.exec('ALTER TABLE balances ADD COLUMN referral_transferred_cents INTEGER NOT NULL DEFAULT 0');}}catch(_){}
+    // One-time backfill for the referral transfer feature (v88): referral
+    // money earned BEFORE v88 was already added straight to Profit, so
+    // mark it transferred — otherwise it could be transferred a second
+    // time. Runs once (site_settings flag); new earnings stay transferable.
+    try{
+      const cols=db.prepare("PRAGMA table_info(balances)").all();
+      if(cols.some(c=>c.name==='referral_transferred_cents')){
+        const flag=db.prepare("SELECT value FROM site_settings WHERE key='referral_transfer_migrated'").get();
+        if(!flag||flag.value!=='1'){
+          db.exec('UPDATE balances SET referral_transferred_cents=referral_cents');
+          db.prepare("INSERT OR REPLACE INTO site_settings (key,value) VALUES ('referral_transfer_migrated','1')").run();
+        }
+      }
+    }catch(_){}
   }
   return db;
 }

@@ -25,7 +25,8 @@ Pages._db2=function(b,u,copies,f){
   var html='';
   html+='<h3 style="font-size:14.5px;font-weight:800;color:var(--ink);margin-bottom:8px">Quick actions &amp; balances</h3><div class="compact-grid">';
   html+='<div class="c-card"><small>MAIN BALANCE</small><div class="cv">'+f(b.main_cents)+'</div></div>';
-  html+='<div class="c-card"><small>REFERRAL BONUS</small><div class="cv">'+f(b.referral_cents)+'</div></div>';
+  var refAvail=(b.referral_available_cents!=null?b.referral_available_cents:b.referral_cents);
+  html+='<div class="c-card"><small>REFERRAL BONUS</small><div class="cv">'+f(refAvail)+'</div>'+(refAvail>0?'<div style="margin-top:6px"><span onclick="App.navigate(\'/promotion\')" style="cursor:pointer;color:var(--orange);font-size:12px;font-weight:700">Transfer →</span></div>':'')+'</div>';
   html+='<div class="c-card"><small>TOTAL PNL</small><div class="cv '+(b.profit_cents>=0?'green':'red')+'">'+f(b.profit_cents)+'</div></div>';
   html+='<div class="c-card"><small>TOTAL DEPOSIT</small><div class="cv">'+f(b.total_deposited_cents)+'</div></div>';
   html+='<div class="c-card"><small>TOTAL WITHDRAW</small><div class="cv">'+f(b.total_withdrawn_cents)+'</div></div>';

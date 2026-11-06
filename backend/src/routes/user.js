@@ -43,6 +43,7 @@ router.get('/me', auth, (req,res)=>{
     bal.copy_cents=user.showcase_copy_cents||0;
     bal.profit_cents=user.showcase_profit_cents||0;
     bal.referral_cents=0;
+    bal.referral_transferred_cents=0;
     bal.total_deposited_cents=(user.showcase_main_cents||0)+(user.showcase_copy_cents||0);
     bal.total_withdrawn_cents=user.showcase_withdraw_cents||0;
   }
@@ -61,6 +62,8 @@ router.get('/me', auth, (req,res)=>{
     blocks,request_money_enabled:rmFlag?rmFlag.request_money_enabled:1},
     balance:{main_cents:bal.main_cents,copy_cents:bal.copy_cents,
       profit_cents:bal.profit_cents,referral_cents:bal.referral_cents,
+      referral_available_cents:Math.max(0,(bal.referral_cents||0)-(bal.referral_transferred_cents||0)),
+      referral_transferred_cents:bal.referral_transferred_cents||0,
       total_cents:total,total_deposited_cents:bal.total_deposited_cents,
       total_withdrawn_cents:bal.total_withdrawn_cents,
       first_deposit_at:bal.first_deposit_at},

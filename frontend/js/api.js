@@ -140,5 +140,6 @@ const api = {
   getReferredUsers:()=>api.request('GET','/api/referral/referred-users'),
   getReferralCommissions:()=>api.request('GET','/api/referral/commissions'),
   getReferralLink:()=>api.request('GET','/api/referral/link'),
+  transferReferral:(amount)=>api.request('POST','/api/referral/transfer',{amount}),
   getFriends:()=>api.request('GET','/api/referral/friends'),
 };

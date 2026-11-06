@@ -36,7 +36,7 @@ for (const day of days) {
         else db.prepare('UPDATE copies SET profit_cents=profit_cents+? WHERE id=?').run(share - r.amount_cents, r.copy_id);
         const tx = txRows[i];
         db.prepare('UPDATE transactions SET amount_cents=?,net_cents=?,direction=?,formula=? WHERE id=?')
-          .run(Math.abs(share), share, share >= 0 ? 'in' : 'out',
+          .run(Math.abs(share), Math.abs(share), share >= 0 ? 'in' : 'out',
             `Profit ${share >= 0 ? '+=' : '-='} ${Math.abs(newRate) / 100}% x $${(r.copy_amount / 100).toFixed(2)} = $${(Math.abs(share) / 100).toFixed(2)}${share < 0 ? ' (loss)' : ''}`, tx.id);
       });
     })();
