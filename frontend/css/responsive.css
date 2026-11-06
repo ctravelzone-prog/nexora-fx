@@ -110,3 +110,12 @@
 @media(max-width:1023px){
   .with-sidebar main,.admin-main main{padding-bottom:192px;}
 }
+
+/* iOS Safari auto-zoom fix (v72): on phones/tablets, tapping a text input
+   smaller than 16px makes Safari zoom the whole page in — and the zoom
+   STAYS after login, so the dashboard loads zoomed-in until the user
+   pinches out. 16px inputs never trigger it. Desktop keeps 14px.
+   !important so it also beats Tailwind's text-sm on some inputs. */
+@media(max-width:1023px){
+  .input-field, input, select, textarea{font-size:16px !important;}
+}
