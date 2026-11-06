@@ -115,8 +115,11 @@ const App = {
     // idempotent — it returns early if already running or logged out.
     try { if (typeof Components !== 'undefined' && Components.startBellPoll) Components.startBellPoll(); } catch(e) {}
 
-    // Logged in trying to access login/register → go to dashboard
-    if ((cleanPath === '/login' || cleanPath === '/register') && loggedIn) {
+    // Logged in trying to access home/login/register → go to dashboard.
+    // Home IS the dashboard for a logged-in user; the signup landing page
+    // is only for visitors. After logout the token is gone, so '/'
+    // shows the landing page again.
+    if ((cleanPath === '/' || cleanPath === '/login' || cleanPath === '/register') && loggedIn) {
       history.replaceState({}, '', '/dashboard');
       Pages.dashboard();
       return;
