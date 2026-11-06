@@ -23,6 +23,8 @@ function payRef(userId, depCents, db, s) {
   db.prepare('UPDATE balances SET referral_cents=referral_cents+?,profit_cents=profit_cents+?,updated_at=unixepoch() WHERE user_id=?').run(c, c, ref.referrer_user_id);
   db.prepare('INSERT INTO transactions (user_id,type,amount_cents,fee_cents,net_cents,direction,status,reason,formula) VALUES (?,?,?,0,?,?,?,?,?)')
     .run(ref.referrer_user_id, 'referral_commission', c, c, 'in', 'completed', 'Referral commission — 4% of deposit', `Profit += 4% x $${H.fmtC(depCents)} = $${H.fmtC(c)}`);
+  db.prepare('INSERT INTO notifications (user_id,title,message,type) VALUES (?,?,?,?)')
+    .run(ref.referrer_user_id, 'Referral commission', `You earned $${H.fmtC(c)} referral commission (4% of a $${H.fmtC(depCents)} deposit).`, 'success');
 }
 
 // Approves a pending deposit: sets first_deposit_at on the user's first
@@ -46,6 +48,9 @@ function applyDeposit(userId, depositId, amountCents, approverId) {
     }
     payRef(userId, amountCents, db, s);
     H.createAdminNotif(db, 'deposit', `Deposit approved $${H.fmtC(amountCents)}`, depositId, 'deposit', 'deposits');
+    // The user must see this on their dashboard bell right away.
+    db.prepare('INSERT INTO notifications (user_id,title,message,type) VALUES (?,?,?,?)')
+      .run(userId, 'Deposit approved', `Your deposit of $${H.fmtC(amountCents)} has been approved and added to your Main Balance.`, 'success');
   })();
 }
 

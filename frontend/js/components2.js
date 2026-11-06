@@ -238,6 +238,41 @@ Components.updateBellBadge=function(){
     }
   } else if(b){ b.remove(); }
 };
+// Live bell poll: refresh the unread count every 15s while logged in, so
+// admin actions (deposit approved, KYC, profit...) show on the bell and
+// as a toast without a page reload. 15s = 60 calls per 15 min, well inside
+// the 200-request user rate limit. Skips hidden tabs; stops after 3
+// consecutive failures (e.g. token expired).
+Components._bellPoll=null;
+Components._bellPollFails=0;
+Components.startBellPoll=function(){
+  if(Components._bellPoll)return;
+  if(typeof utils==='undefined'||!utils.isLoggedIn())return;
+  var tick=function(){
+    if(document.hidden)return;
+    api.getNotifications().then(function(d){
+      Components._bellPollFails=0;
+      var prev=App.state.unreadCount||0;
+      var now=d.unread_count||0;
+      App.state.unreadCount=now;
+      Components.updateBellBadge();
+      if(now>prev){
+        var dd=document.getElementById('bell-dd');
+        var newest=null;var list=d.notifications||[];
+        for(var i=0;i<list.length;i++){if(!list[i].is_read){newest=list[i];break;}}
+        if(newest&&(!dd||dd.style.display==='none')){
+          try{utils.toast(newest.title,'success');}catch(e){}
+        }
+      }
+    }).catch(function(){
+      Components._bellPollFails=(Components._bellPollFails||0)+1;
+      if(Components._bellPollFails>=3&&Components._bellPoll){clearInterval(Components._bellPoll);Components._bellPoll=null;}
+    });
+  };
+  Components._bellPollTick=tick;
+  tick();
+  Components._bellPoll=setInterval(tick,15000);
+};
 // Mark all notifications read via PUT /api/user/notifications/read-all,
 // clear the badge and close the dropdown.
 Components.markAllRead=function(){

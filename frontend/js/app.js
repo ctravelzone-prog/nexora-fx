@@ -110,6 +110,11 @@ const App = {
       return;
     }
 
+    // Start the live bell poll (once) for logged-in users, so admin
+    // actions show on the bell without a reload. startBellPoll is
+    // idempotent — it returns early if already running or logged out.
+    try { if (typeof Components !== 'undefined' && Components.startBellPoll) Components.startBellPoll(); } catch(e) {}
+
     // Logged in trying to access login/register → go to dashboard
     if ((cleanPath === '/login' || cleanPath === '/register') && loggedIn) {
       history.replaceState({}, '', '/dashboard');
