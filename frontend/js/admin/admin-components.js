@@ -25,6 +25,15 @@ const AdminComponents = {
 // Wraps a page's HTML with the sidebar, top bar and mobile overlay,
   // then refreshes the notification badge and sidebar group state.
   layout(content, title) {
+    // Preserve the sidebar's scroll + drawer state across re-renders: the
+    // dashboard auto-refresh rebuilds this whole layout every second, and
+    // without this the nav scroll jumps back to the top — so a link near
+    // the bottom (e.g. Forget Requests) keeps disappearing — and the phone
+    // drawer closes by itself. Same class of bug as _hoverGroup.
+    const _sb=document.getElementById('admin-sidebar');
+    const _nav=_sb?_sb.querySelector('nav'):null;
+    const _st=_nav?_nav.scrollTop:0, _st2=_sb?_sb.scrollTop:0;
+    const _open=_sb?_sb.classList.contains('open'):false;
     document.getElementById('admin-app').innerHTML = `
       ${AdminComponents.sidebar()}
       <div class="admin-main">
@@ -32,6 +41,8 @@ const AdminComponents = {
         <main class="p-4 pb-36 lg:p-6">${content}</main>
       </div>
       <div class="admin-overlay" id="admin-ov" onclick="AdminComponents.closeSidebar()"></div>`;
+    const _sb2=document.getElementById('admin-sidebar');
+    if(_sb2){const _nav2=_sb2.querySelector('nav');if(_nav2)_nav2.scrollTop=_st;_sb2.scrollTop=_st2;if(_open)_sb2.classList.add('open');}
     AdminComponents.loadBadges();
     AdminComponents.syncGroups();
   },

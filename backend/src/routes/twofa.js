@@ -31,8 +31,11 @@ router.get('/setup', authImpersonation, async (req,res)=>{
     if(!g2||g2.value!=='1') return res.status(403).json({error:'2FA is currently disabled by admin'});
     const user=db.prepare('SELECT * FROM users WHERE id=?').get(req.userId);
     if(user.two_fa_enabled) return res.status(400).json({error:'2FA already enabled'});
-    const secret=authenticator.generateSecret();
-    db.prepare('UPDATE users SET two_fa_secret=? WHERE id=?').run(secret,req.userId);
+    // Reuse the saved secret when the user already started setup but
+    // has not verified yet: regenerating it here would kill the QR
+    // code they already scanned, so their app codes would never verify.
+    const secret=user.two_fa_secret || authenticator.generateSecret();
+    if(!user.two_fa_secret) db.prepare('UPDATE users SET two_fa_secret=? WHERE id=?').run(secret,req.userId);
     const otpauth=authenticator.keyuri(user.email,'NexoraFx',secret);
     const qrDataUrl=await qrcode.toDataURL(otpauth);
     res.json({secret,qr:qrDataUrl,manual_key:secret});

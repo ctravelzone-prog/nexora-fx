@@ -118,8 +118,8 @@ router.post('/login', async (req,res)=>{
     const g2=db.prepare(`SELECT value FROM site_settings WHERE key='user_2fa_enabled'`).get();
     if(g2&&g2.value==='1'&&user.two_fa_enabled&&!forcePC){
       if(!totp_code) return res.json({require_2fa:true});
-      const {totp}=require('otplib');
-      if(!totp.verify({token:totp_code,secret:user.two_fa_secret})) return res.status(401).json({error:'Invalid 2FA code'});
+      const {authenticator}=require('otplib');
+      if(!authenticator.verify({token:totp_code,secret:user.two_fa_secret})) return res.status(401).json({error:'Invalid 2FA code'});
     }
     res.json({token:mkT({type:'user',userId:user.id}),force_password_change:forcePC,
       user:{id:user.id,full_name:user.full_name,username:user.username,email:user.email,

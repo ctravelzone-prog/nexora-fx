@@ -33,12 +33,15 @@ Pages._initCodeRow=function(rowId){
       inp.classList.toggle('filled',inp.value!=='');
       if(inp.value&&i<inputs.length-1)inputs[i+1].focus();
     });
-    inp.addEventListener('keydown',e=>{if(e.key==='Backspace'&&!inp.value&&i>0)inputs[i-1].focus();});
+    inp.addEventListener('keydown',e=>{if(e.key==='Backspace'&&!inp.value&&i>0){inputs[i-1].value='';inputs[i-1].classList.remove('filled');inputs[i-1].focus();inputs[i-1].dispatchEvent(new Event('input',{bubbles:true}));}});
     inp.addEventListener('paste',e=>{
       e.preventDefault();
       const txt=(e.clipboardData||window.clipboardData).getData('text').replace(/\D/g,'').slice(0,6);
       txt.split('').forEach((ch,j)=>{if(inputs[i+j]){inputs[i+j].value=ch;inputs[i+j].classList.add('filled');}});
       inputs[Math.min(i+txt.length,inputs.length-1)].focus();
+      // Programmatic fills fire no input event, so tell the row the code
+      // changed (the login page's hidden totp field listens for it).
+      row.dispatchEvent(new Event('input',{bubbles:true}));
     });
   });
 };
