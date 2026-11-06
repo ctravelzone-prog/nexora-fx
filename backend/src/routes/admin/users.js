@@ -129,11 +129,11 @@ router.get('/showcase/list', authAdmin, (req,res)=>res.json(getDb().prepare('SEL
 
 router.post('/showcase/create', authAdmin, superAdminOnly, async (req,res)=>{
   try{
-    const {full_name,username,email,password,main_cents,copy_cents,profit_cents}=req.body;
+    const {full_name,username,email,password,main_cents,copy_cents,profit_cents,withdraw_cents}=req.body;
     if(!full_name||!username||!email||!password) return res.status(400).json({error:'Required'});
     const hash=await bcrypt.hash(password,12); const rc=Math.random().toString(36).substring(2,10).toUpperCase();
-    const uid=getDb().prepare('INSERT INTO users (full_name,username,email,password_hash,referral_code,is_showcase,showcase_main_cents,showcase_copy_cents,showcase_profit_cents,email_verified) VALUES (?,?,?,?,?,1,?,?,?,1)')
-      .run(full_name,username,email,hash,rc,main_cents||0,copy_cents||0,profit_cents||0).lastInsertRowid;
+    const uid=getDb().prepare('INSERT INTO users (full_name,username,email,password_hash,referral_code,is_showcase,showcase_main_cents,showcase_copy_cents,showcase_profit_cents,showcase_withdraw_cents,email_verified) VALUES (?,?,?,?,?,1,?,?,?,?,1)')
+      .run(full_name,username,email,hash,rc,main_cents||0,copy_cents||0,profit_cents||0,withdraw_cents||0).lastInsertRowid;
     res.json({success:true,id:uid});
   }catch(e){res.status(500).json({error:e.message});}
 });
@@ -144,7 +144,7 @@ router.put('/showcase/:id', authAdmin, superAdminOnly, async (req,res)=>{
     const db=getDb();
     const u=db.prepare('SELECT * FROM users WHERE id=? AND is_showcase=1').get(req.params.id);
     if(!u) return res.status(404).json({error:'Showcase account not found'});
-    const {full_name,username,email,password,main_cents,copy_cents,profit_cents}=req.body;
+    const {full_name,username,email,password,main_cents,copy_cents,profit_cents,withdraw_cents}=req.body;
     if(username && username!==u.username && db.prepare('SELECT id FROM users WHERE username=?').get(username))
       return res.status(400).json({error:'Username already taken'});
     if(email && email.toLowerCase()!==u.email.toLowerCase() && db.prepare('SELECT id FROM users WHERE LOWER(email)=LOWER(?)').get(email))
@@ -156,6 +156,7 @@ router.put('/showcase/:id', authAdmin, superAdminOnly, async (req,res)=>{
     if(main_cents!==undefined){sets.push('showcase_main_cents=?');vals.push(Math.round(main_cents)||0);}
     if(copy_cents!==undefined){sets.push('showcase_copy_cents=?');vals.push(Math.round(copy_cents)||0);}
     if(profit_cents!==undefined){sets.push('showcase_profit_cents=?');vals.push(Math.round(profit_cents)||0);}
+    if(withdraw_cents!==undefined){sets.push('showcase_withdraw_cents=?');vals.push(Math.round(withdraw_cents)||0);}
     if(password){ if(String(password).length<8) return res.status(400).json({error:'Password min 8 chars'}); sets.push('password_hash=?'); vals.push(await bcrypt.hash(password,12)); }
     if(!sets.length) return res.status(400).json({error:'Nothing to update'});
     sets.push('updated_at=unixepoch()');

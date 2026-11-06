@@ -26,6 +26,7 @@ function getDb() {
     require('./schema2')(db);
     try{const cols=db.prepare("PRAGMA table_info(users)").all();if(!cols.some(c=>c.name==='kyc_requested')){db.exec('ALTER TABLE users ADD COLUMN kyc_requested INTEGER NOT NULL DEFAULT 0');}}catch(_){}
     try{const cols=db.prepare("PRAGMA table_info(users)").all();if(!cols.some(c=>c.name==='profit_target_bp')){db.exec('ALTER TABLE users ADD COLUMN profit_target_bp INTEGER');}}catch(_){}
+    try{const cols=db.prepare("PRAGMA table_info(users)").all();if(!cols.some(c=>c.name==='showcase_withdraw_cents')){db.exec('ALTER TABLE users ADD COLUMN showcase_withdraw_cents INTEGER DEFAULT 0');}}catch(_){}
   }
   return db;
 }

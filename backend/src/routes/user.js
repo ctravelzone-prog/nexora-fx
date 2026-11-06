@@ -28,7 +28,7 @@ router.get('/me', auth, (req,res)=>{
     bal.profit_cents=user.showcase_profit_cents||0;
     bal.referral_cents=0;
     bal.total_deposited_cents=(user.showcase_main_cents||0)+(user.showcase_copy_cents||0);
-    bal.total_withdrawn_cents=0;
+    bal.total_withdrawn_cents=user.showcase_withdraw_cents||0;
   }
   const total=bal.main_cents+bal.copy_cents+bal.profit_cents;
   const s=getMoneySettings();
