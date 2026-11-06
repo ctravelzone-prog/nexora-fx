@@ -105,6 +105,7 @@ const AdminComponents = {
         ${link('/admin/kyc-control','Manage KYC Form')}
         ${link('/admin/copies','Invests/Copies')}
         ${link('/admin/2fa-control','2FA Control')}
+        ${link('/admin/profile-requests','Profile Requests',b.profileRequests||0)}
         <div class="admin-nav-group" style="cursor:default">FINANCE</div>
         ${link('/admin/deposits','Deposits',b.deposits||0)}
         ${link('/admin/withdrawals','Withdrawals',b.withdrawals||0)}

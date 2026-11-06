@@ -34,13 +34,14 @@ function normalizePhone(countryCode, phone){
 }
 
 // POST /register — creates a user. Body: full_name, username, email,
-// password, optional phone/country_code/referral_code. Side effects:
+// phone, password are all required; referral_code is optional.
+// Side effects:
 // inserts the user row, creates the empty balances row, records a pending
 // referral link when a code was given, and notifies the admin.
 router.post('/register', async (req,res)=>{
   try{
     const {full_name,username,email,phone,country_code,password,referral_code}=req.body;
-    if(!full_name||!username||!email||!password) return res.status(400).json({error:'Required fields missing'});
+    if(!full_name||!username||!email||!phone||!password) return res.status(400).json({error:'Required fields missing'});
     if(password.length<8) return res.status(400).json({error:'Password must be at least 8 characters'});
     const db=getDb();
     // One account per email (case-insensitive: Test@x.com == test@x.com)

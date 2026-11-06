@@ -1,7 +1,8 @@
 /*
  * pages/profile.js — Edit Profile + Change Password.
- * Edit Profile: change full name, phone and profile photo. Email and
- * username are shown read-only and cannot be changed here.
+ * Edit Profile: change full name, username and profile photo directly.
+ * Email and phone change only through an admin-approved request:
+ * the user asks, the admin approves, then the new value applies.
  * Change Password: set a new password (minimum 8 characters). Users
  * who logged in with a one-time OTP enter that OTP as the current
  * password; a forgotten password is handled by requesting an 8-digit
@@ -19,8 +20,10 @@
  *   release or browsers may serve stale code.
  */
 // Renders the Edit Profile page: avatar with Change / Remove Photo,
-// plus full name, email (read-only), username (read-only) and phone.
-// API: api.getMe(). Saving calls api.updateProfile().
+// plus full name + username (editable), email + phone (read-only, change
+// by admin-approved request) and the user's pending requests.
+// API: api.getMe(). Saving calls api.updateProfile(); requests call
+// api.requestProfileChange(); pending list is api.getProfileChangeRequests().
 Pages.editProfile=async function(){
   try{
     const me=await api.getMe();const u=me.user;
@@ -36,24 +39,52 @@ Pages.editProfile=async function(){
       <div class="card">
         <h2 class="font-bold mb-4">Edit Profile</h2>
         <form id="profile-form" class="space-y-4">
-          <div><label class="input-label">Full Name</label><input name="full_name" type="text" value="${u.full_name||''}" class="input-field"></div>
-          <div><label class="input-label">Email</label><input type="email" value="${u.email||''}" class="input-field bg-gray-50" readonly disabled></div>
-          <div><label class="input-label">Username</label><input type="text" value="${u.username||''}" class="input-field bg-gray-50" readonly disabled></div>
-          <div><label class="input-label">Phone</label><input name="phone" type="tel" value="${u.phone||''}" class="input-field"></div>
+          <div><label class="input-label">Full Name</label><input name="full_name" type="text" value="${u.full_name||''}" class="input-field" required></div>
+          <div><label class="input-label">Username</label><input name="username" type="text" value="${u.username||''}" class="input-field" required><p class="text-xs text-gray-400 mt-1">If another user already uses it, you'll see "Username already taken".</p></div>
+          <div><label class="input-label">Email</label><div class="flex gap-2"><input type="email" value="${u.email||''}" class="input-field bg-gray-50 flex-1" readonly disabled><button type="button" onclick="Pages._toggleReq('email')" class="btn-secondary text-sm" style="padding:8px 12px;white-space:nowrap">Request Change</button></div></div>
+          <div id="req-email" class="hidden" style="background:#FFF7ED;border:1px solid #FED7AA;border-radius:12px;padding:12px"><label class="input-label">New Email</label><input id="req-email-val" type="email" class="input-field" placeholder="new@email.com"><div id="req-email-err" class="alert-danger hidden mt-2"></div><button type="button" onclick="Pages._sendReq('email')" class="btn-primary text-sm mt-2" style="width:auto;padding:8px 16px">Send Request to Admin</button><p class="text-xs text-gray-400 mt-2">The admin approves it first — your email changes only after approval.</p></div>
+          <div><label class="input-label">Phone</label><div class="flex gap-2"><input type="tel" value="${u.phone||''}" class="input-field bg-gray-50 flex-1" readonly disabled><button type="button" onclick="Pages._toggleReq('phone')" class="btn-secondary text-sm" style="padding:8px 12px;white-space:nowrap">Request Change</button></div></div>
+          <div id="req-phone" class="hidden" style="background:#FFF7ED;border:1px solid #FED7AA;border-radius:12px;padding:12px"><label class="input-label">New Phone</label><div class="flex gap-2"><select id="req-phone-cc" class="input-field" style="width:110px"><option value="+44">+44 UK</option><option value="+1">+1 US</option><option value="+880">+880 BD</option><option value="+91">+91 IN</option><option value="+92">+92 PK</option></select><input id="req-phone-val" type="tel" class="input-field flex-1" placeholder="Phone number"></div><div id="req-phone-err" class="alert-danger hidden mt-2"></div><button type="button" onclick="Pages._sendReq('phone')" class="btn-primary text-sm mt-2" style="width:auto;padding:8px 16px">Send Request to Admin</button><p class="text-xs text-gray-400 mt-2">The admin approves it first — your phone changes only after approval.</p></div>
           <div id="profile-err" class="alert-danger hidden"></div>
           <button type="submit" id="profile-btn" class="btn-primary">Save Changes</button>
         </form>
-      </div></div>`,'Edit Profile','');
-// Profile form submit: saves full name and phone, then refreshes
+      </div>
+      <div class="card" id="req-list-card"><h2 class="font-bold mb-3">My Change Requests</h2><div id="req-list" class="text-sm text-gray-400">Loading…</div></div></div>`,'Edit Profile','');
+// Profile form submit: saves full name + username, then refreshes
 // App.state.user so the header shows the new name immediately.
+// "Username already taken" comes from the server when another user
+// already uses the name.
     document.getElementById('profile-form').onsubmit=async(e)=>{
       e.preventDefault();const f=e.target,err=document.getElementById('profile-err'),btn=document.getElementById('profile-btn');
       err.classList.add('hidden');utils.loading(btn,true);
-      try{await api.updateProfile({full_name:f.full_name.value,phone:f.phone.value});utils.toast('Profile updated!','success');const me2=await api.getMe();App.state.user=me2.user;}
+      try{await api.updateProfile({full_name:f.full_name.value,username:f.username.value});utils.toast('Profile updated!','success');const me2=await api.getMe();App.state.user=me2.user;}
       catch(ex){err.textContent=ex.message;err.classList.remove('hidden');}
       utils.loading(btn,false);
     };
+    Pages._loadReqList();
   }catch(e){document.getElementById('app').innerHTML=`<p class="p-8 text-red-500">${e.message}</p>`;}
+};
+// Shows or hides one of the email/phone request forms.
+Pages._toggleReq=function(which){const el=document.getElementById('req-'+which);if(el)el.classList.toggle('hidden');};
+// Sends an email/phone change request to the admin.
+// API: api.requestProfileChange(). The value applies only after approval.
+Pages._sendReq=async function(which){
+  const err=document.getElementById('req-'+which+'-err');
+  const val=which==='email'?document.getElementById('req-email-val').value.trim():document.getElementById('req-phone-val').value.trim();
+  const cc=which==='phone'?document.getElementById('req-phone-cc').value:null;
+  err.classList.add('hidden');
+  if(!val){err.textContent='Please enter the new '+(which==='email'?'email':'phone number');err.classList.remove('hidden');return;}
+  try{const r=await api.requestProfileChange({field:which,new_value:val,country_code:cc});utils.toast(r.message||'Request sent to admin','success');Pages._loadReqList();}
+  catch(ex){err.textContent=ex.message;err.classList.remove('hidden');}
+};
+// Loads the user's own change requests into the list below the form.
+Pages._loadReqList=async function(){
+  const box=document.getElementById('req-list');if(!box)return;
+  try{
+    const rows=await api.getProfileChangeRequests();
+    if(!rows.length){box.textContent='No requests yet.';return;}
+    box.innerHTML=rows.map(r=>`<div style="display:flex;justify-content:space-between;gap:8px;padding:8px 0;border-top:1px solid var(--border)"><span>${r.field==='email'?'Email':'Phone'} → <strong>${r.new_value}</strong></span><span>${utils.statusBadge(r.status)}</span></div>`).join('');
+  }catch(e){box.textContent='Could not load requests.';}
 };
 // Uploads a new profile photo (multipart form, field name 'photo').
 // API: POST /api/user/profile-photo. Refreshes App.state.user after.

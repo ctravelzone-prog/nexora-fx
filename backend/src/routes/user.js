@@ -62,15 +62,82 @@ router.get('/me', auth, (req,res)=>{
 });
 
 // PUT /api/user/profile
-// PUT /profile — updates full_name / phone / country_code (only the
-// fields sent are changed).
+// PUT /profile — updates full_name and username ONLY (the only fields a
+// user may change directly). Email and phone change only through an
+// admin-approved request (POST /profile-change-request below), so they
+// are never updated here even if sent. Username must be unique —
+// another user's name answers 400 'Username already taken'.
 router.put('/profile', auth, (req,res)=>{
   if(req.isImpersonation) return res.status(403).json({error:'Not allowed during Login as User session'});
-  const {full_name,phone,country_code}=req.body;
+  const {full_name,username}=req.body;
   const db=getDb();
-  db.prepare('UPDATE users SET full_name=COALESCE(?,full_name),phone=COALESCE(?,phone),country_code=COALESCE(?,country_code),updated_at=unixepoch() WHERE id=?')
-    .run(full_name||null,phone||null,country_code||null,req.userId);
+  const me=db.prepare('SELECT username FROM users WHERE id=?').get(req.userId);
+  if(!me) return res.status(404).json({error:'User not found'});
+  const newName=(username||'').trim();
+  if(newName && newName!==me.username){
+    if(db.prepare('SELECT id FROM users WHERE username=? AND id<>?').get(newName,req.userId)) return res.status(400).json({error:'Username already taken'});
+  }
+  const newFull=(full_name||'').trim();
+  if(newFull==='') return res.status(400).json({error:'Full name is required'});
+  db.prepare('UPDATE users SET full_name=?,username=COALESCE(?,username),updated_at=unixepoch() WHERE id=?')
+    .run(newFull,newName||null,req.userId);
   res.json({success:true});
+});
+
+// Normalize a phone number to digits-only with country code, so the same
+// number in different formats (+8801712..., 01712...) matches as one.
+// Mirrors the normalizePhone in routes/auth.js — keep the two in sync.
+function normalizePhone(countryCode, phone){
+  if(!phone) return null;
+  const raw=String(phone).trim();
+  const ccDigits=(countryCode||'').replace(/\D/g,'');
+  let digits=raw.replace(/\D/g,'');
+  if(!digits) return null;
+  if(raw.startsWith('+')) return digits;
+  if(ccDigits && digits.startsWith(ccDigits)) return digits;
+  if(ccDigits && digits.startsWith('0')) digits=digits.slice(1);
+  return ccDigits ? ccDigits+digits : digits;
+}
+
+// POST /profile-change-request — user asks the admin to change their
+// email or phone. The change applies ONLY when the admin approves it.
+// One pending request per field per user; a taken value is rejected.
+router.post('/profile-change-request', auth, (req,res)=>{
+  if(req.isImpersonation) return res.status(403).json({error:'Not allowed during Login as User session'});
+  const {field,new_value,country_code}=req.body;
+  if(!['email','phone'].includes(field)) return res.status(400).json({error:'Field must be email or phone'});
+  const value=String(new_value||'').trim();
+  if(!value) return res.status(400).json({error:'New value is required'});
+  const db=getDb();
+  const me=db.prepare('SELECT full_name,username,email,phone,country_code FROM users WHERE id=?').get(req.userId);
+  if(!me) return res.status(404).json({error:'User not found'});
+  if(field==='email'){
+    if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) return res.status(400).json({error:'Invalid email address'});
+    const emailNorm=value.toLowerCase();
+    if(emailNorm===String(me.email||'').toLowerCase()) return res.status(400).json({error:'This is already your email'});
+    if(db.prepare('SELECT id FROM users WHERE LOWER(email)=? AND id<>?').get(emailNorm,req.userId)) return res.status(400).json({error:'Email already registered'});
+  }else{
+    const norm=normalizePhone(country_code||me.country_code,value);
+    if(!norm) return res.status(400).json({error:'Invalid phone number'});
+    if(norm===normalizePhone(me.country_code,me.phone)) return res.status(400).json({error:'This is already your phone number'});
+    const taken=db.prepare('SELECT phone,country_code FROM users WHERE phone IS NOT NULL AND phone<>? AND id<>?').all('',req.userId)
+      .some(u=>normalizePhone(u.country_code,u.phone)===norm);
+    if(taken) return res.status(400).json({error:'Phone number already registered'});
+  }
+  if(db.prepare("SELECT id FROM profile_change_requests WHERE user_id=? AND field=? AND status='pending'").get(req.userId,field))
+    return res.status(400).json({error:'You already have a pending request for this'});
+  const oldVal=field==='email'?me.email:me.phone;
+  const r=db.prepare('INSERT INTO profile_change_requests (user_id,field,old_value,new_value,country_code) VALUES (?,?,?,?,?)')
+    .run(req.userId,field,oldVal||null,value,field==='phone'?(country_code||me.country_code||null):null);
+  db.prepare('INSERT INTO admin_notifications (type,title,message,reference_id,reference_type,destination_pane) VALUES (?,?,?,?,?,?)')
+    .run('profile_request',`Profile change request — ${field}`,`${me.full_name} (@${me.username}) wants to change ${field} to ${value}`,Number(r.lastInsertRowid),'profile_request','profile-requests');
+  res.json({success:true,message:'Request sent to admin. It will apply once approved.'});
+});
+
+// GET /profile-change-requests — the user's own change requests, newest first.
+router.get('/profile-change-requests', auth, (req,res)=>{
+  const rows=getDb().prepare('SELECT * FROM profile_change_requests WHERE user_id=? ORDER BY created_at DESC').all(req.userId);
+  res.json(rows);
 });
 
 // POST /profile-photo — uploads a new avatar (max 5 MB) and saves its

@@ -48,6 +48,7 @@ router.get('/notifications', authAdmin, (req,res)=>{
     if(n.reference_type==='kyc'){const r=db.prepare('SELECT user_id FROM kyc_submissions WHERE id=?').get(n.reference_id);return r?userOf(r.user_id):null;}
     if(n.reference_type==='ticket'){const r=db.prepare('SELECT user_id FROM support_tickets WHERE id=?').get(n.reference_id);return r?userOf(r.user_id):null;}
     if(n.reference_type==='forget_request'){const r=db.prepare('SELECT user_id FROM forget_requests WHERE id=?').get(n.reference_id);return r?userOf(r.user_id):null;}
+    if(n.reference_type==='profile_request'){const r=db.prepare('SELECT user_id FROM profile_change_requests WHERE id=?').get(n.reference_id);return r?userOf(r.user_id):null;}
     return null;}catch(e){return null;}};
   notifs=notifs.map(n=>{const u=resolveUser(n);return {...n,user_name:u?u.full_name:null,user_username:u?u.username:null,user_email:u?u.email:null};});
   const unread=notifs.filter(n=>!n.is_read).length;
@@ -59,7 +60,8 @@ router.get('/notifications', authAdmin, (req,res)=>{
   const newUsers=notifs.filter(n=>n.type==='new_user'&&!n.is_read).length;
   const moneyRequests=notifs.filter(n=>n.type==='money_request'&&!n.is_read).length;
   const forgetRequests=notifs.filter(n=>n.type==='forget_request'&&!n.is_read).length;
-  res.json({notifications:notifs,unread,badges:{deposits,withdrawals,kyc,tickets,messages,newUsers,moneyRequests,forgetRequests,finance:deposits+withdrawals,support:tickets+messages}});
+  const profileRequests=notifs.filter(n=>n.type==='profile_request'&&!n.is_read).length;
+  res.json({notifications:notifs,unread,badges:{deposits,withdrawals,kyc,tickets,messages,newUsers,moneyRequests,forgetRequests,profileRequests,finance:deposits+withdrawals,support:tickets+messages}});
 });
 
 // PUT /notifications/read-all — marks all admin notifications read.

@@ -28,7 +28,7 @@ const AdminApp = {
   state: { admin: null, notifCount: 0, sideBadges: {} },
   _listPoll: null,
   // Request-list pages that auto-refresh so new user requests appear without a manual reload
-  _refreshable: ['/dashboard','/notifications','/transactions','/deposits','/withdrawals','/request-money','/tickets','/forget-requests','/kyc'],
+  _refreshable: ['/dashboard','/notifications','/transactions','/deposits','/withdrawals','/request-money','/tickets','/forget-requests','/profile-requests','/kyc'],
 // Starts the 1s auto-refresh poll, but only on request-list pages.
   // Other pages never poll, so their forms and detail views stay stable.
   _startListRefresh(path) {
@@ -102,6 +102,7 @@ const AdminApp = {
       '/kyc-control': AdminPages.kycControl,
       '/tickets': AdminPages.tickets,
       '/forget-requests': AdminPages.forgetRequests,
+      '/profile-requests': AdminPages.profileRequests,
       '/settings': AdminPages.settings,
       '/money-settings': AdminPages.moneySettings,
       '/deposit-wallet': AdminPages.depositWallet,

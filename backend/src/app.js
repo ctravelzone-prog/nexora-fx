@@ -32,7 +32,13 @@ app.use('/assets', express.static(path.join(__dirname, '../../frontend/assets'))
 // (1s auto-refresh), which alone is ~900 requests / 15 min and tripped the 200 cap
 // with a 429 after ~3 minutes. Admin access already requires a valid admin JWT,
 // so the admin API gets its own higher cap instead.
-const limiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 200, skip: (req) => req.originalUrl.startsWith('/api/admin/') });
+// The two public polling GETs are also skipped: the landing page polls
+// /api/market/quotes every 5s (180 calls / 15 min) and the app checks
+// /api/app/version on open — together with the 15s bell poll (60 calls)
+// they ate the whole 200 budget, so login/register answered HTTP 429.
+// Both are cheap cached public reads; skipping them keeps the 200 cap
+// for real actions (login, register, deposits) where it protects us.
+const limiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 200, skip: (req) => req.originalUrl.startsWith('/api/admin/') || req.originalUrl.startsWith('/api/market/quotes') || req.originalUrl.startsWith('/api/app/version') });
 app.use('/api/', limiter);
 const adminLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 3000 });
 app.use('/api/admin/', adminLimiter);
@@ -70,6 +76,7 @@ app.use('/api/admin/settings', require('./routes/admin/settings'));
 app.use('/api/admin/kyc', require('./routes/admin/kyc'));
 app.use('/api/admin/tickets', require('./routes/admin/tickets'));
 app.use('/api/admin/forget-requests', require('./routes/admin/forget'));
+app.use('/api/admin/profile-requests', require('./routes/admin/profileRequests'));
 app.use('/api/admin/money-requests', require('./routes/admin/moneyRequests'));
 app.use('/api/admin', require('./routes/admin/misc'));
 
