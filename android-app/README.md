@@ -4,8 +4,20 @@ A native Android wrapper for the Nexora FX website. The app opens the live
 site in a WebView — login, trading, admin, everything works exactly as on
 the web. There is no separate app code for trading features.
 
-- **Package:** `com.nexorafx.app` — **App name:** Nexora FX — **Version:** 1.0 (versionCode 1)
+- **Package:** `com.nexorafx.app` — **App name:** Nexora FX — **Version:** 1.1 (versionCode 2)
 - **Site address:** `https://nexora-fx-uxvy.onrender.com` (see `MainActivity.java`, `SITE_URL`)
+
+**v1.1 fix (6 Nov):** v1.0 had NO `targetSdkVersion` in the manifest, so the
+APK defaulted to target 1 and Google Play Protect blocked the install as
+"Unsafe app blocked / built for an older version of Android" — AND the same
+missing targetSdk put the app in Android's old-compatibility mode, so it
+rendered in a small top-left box with the rest of the screen black
+(Siam-er 11:49 AM screenshot). v1.1 sets
+`<uses-sdk android:minSdkVersion="24" android:targetSdkVersion="34" />`
+in `AndroidManifest.xml` (Android 14). **Never ship an APK without
+targetSdkVersion — always verify with
+`aapt2 dump badging NexoraFX.apk | grep targetSdkVersion` before release.**
+v1.1 is signed with the same keystore as v1.0, so it installs as an update.
 
 ## What the app does
 

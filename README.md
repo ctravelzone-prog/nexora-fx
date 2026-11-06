@@ -5,10 +5,7 @@ Users deposit (Binance Pay), copy top traders, earn a daily profit target, and
 withdraw (USDT BEP20). Admins approve deposits/withdrawals and manage users,
 traders, profit schedules, and site settings from a separate admin panel.
 
-**Version in this zip: v59** — v58 code + developer comments, plus the
-Android app (`android-app/`, v1.0 APK included) and the home-page
-"Download Android App" button now linked to the APK release. The live
-site runs the same code — see [Deployment](#deployment) before you push anything.
+**Version in this zip: v60** — v59 code + Android app v1.1 (targetSdk 34) + Download button linked to v1.1 APK release. The live site runs the same code — see [Deployment](#deployment) before you push anything.
 
 > **A new developer should read this file first, then the header comment at
 > the top of any source file.** Every source file has a header comment that
