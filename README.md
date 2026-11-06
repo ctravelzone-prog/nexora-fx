@@ -5,7 +5,7 @@ Users deposit (Binance Pay), copy top traders, earn a daily profit target, and
 withdraw (USDT BEP20). Admins approve deposits/withdrawals and manage users,
 traders, profit schedules, and site settings from a separate admin panel.
 
-**Version in this zip: v65** — v64 code + Copy Trade overflow hardening (html overflow-x guard, img/iframe max-width, trader grids grid-cols-1, card bottom row wraps). The live site runs the same code — see [Deployment](#deployment) before you push anything.
+**Version in this zip: v66** — v65 code + Where We Work section on the user dashboard (below market chart, above Referral) via shared Components.whereWeWork(). The live site runs the same code — see [Deployment](#deployment) before you push anything.
 
 > **A new developer should read this file first, then the header comment at
 > the top of any source file.** Every source file has a header comment that
