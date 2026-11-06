@@ -4,6 +4,7 @@ Pages.dashboard=async function(){
   try{
     var me=await api.getMe();
     var copies=await api.getMyCopies().catch(function(){return[];});
+    var pending=(await api.getTransactions({limit:100}).catch(function(){return[];})).filter(function(x){return x.status==='pending';});
     App.state.user=me.user;App.state.balance=me.balance;
     var b=me.balance,u=me.user;
     var total=b.main_cents+b.copy_cents+b.profit_cents;
@@ -12,7 +13,7 @@ Pages.dashboard=async function(){
     var mPct=total>0?Math.round(b.main_cents/total*100):0;
     var cPct=total>0?Math.round(b.copy_cents/total*100):0;
     Components.layout(
-      Pages._db(b,u,dailyPnl,total,mPct,cPct,copies,kycEnabled&&u.kyc_status!=='approved'),
+      Pages._db(b,u,dailyPnl,total,mPct,cPct,copies,kycEnabled&&u.kyc_status!=='approved',pending),
       'Dashboard','Here is your account overview for today.'
     );
     setTimeout(function(){if(Pages._loadTvChart)Pages._loadTvChart();},150);

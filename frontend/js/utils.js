@@ -48,7 +48,7 @@ const utils = {
   },
   statusBadge(status) {
     const map = {
-      pending: 'badge badge-gray', approved: 'badge badge-green', paid: 'badge badge-green',
+      pending: 'badge badge-orange', approved: 'badge badge-green', paid: 'badge badge-green',
       rejected: 'badge badge-red', active: 'badge badge-green', stopped: 'badge badge-gray',
       open: 'badge badge-orange', answered: 'badge badge-green', closed: 'badge badge-gray',
       not_submitted: 'badge badge-gray', verified: 'badge badge-green', processing: 'badge badge-gray',

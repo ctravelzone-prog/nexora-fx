@@ -29,6 +29,7 @@ router.post('/deposits/:id/reject', authAdmin, (req,res)=>{
     const dep=db.prepare('SELECT * FROM deposits WHERE id=?').get(req.params.id);
     if(!dep||dep.status!=='pending') return res.status(400).json({error:'Not found or processed'});
     db.prepare(`UPDATE deposits SET status='rejected',admin_note=?,approved_by=?,approved_at=unixepoch(),updated_at=unixepoch() WHERE id=?`).run(note||null,req.adminId,dep.id);
+    db.prepare(`UPDATE transactions SET status='rejected' WHERE reference=?`).run(`DEP-${dep.id}`);
     db.prepare('INSERT INTO notifications (user_id,title,message,type) VALUES (?,?,?,?)')
       .run(dep.user_id,'Deposit rejected',`Your deposit of $${(dep.amount_cents/100).toFixed(2)} was rejected.`+(note?` Reason: ${note}`:''),'warning');
     res.json({success:true});

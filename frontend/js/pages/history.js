@@ -3,9 +3,12 @@ Pages.history=async function(){
   try{
     const txns=await api.getTransactions({limit:100});
     const f=utils.fmtMoney;
-    const tIn=txns.filter(t=>t.direction==='in').reduce((a,t)=>a+t.amount_cents,0);
-    const tOut=txns.filter(t=>t.direction==='out').reduce((a,t)=>a+t.amount_cents,0);
-    const tFee=txns.reduce((a,t)=>a+t.fee_cents,0);
+    // Totals count completed money only — a pending deposit/withdraw must
+    // not inflate the balance before the admin approves it.
+    const done=txns.filter(t=>t.status==='completed');
+    const tIn=done.filter(t=>t.direction==='in').reduce((a,t)=>a+t.amount_cents,0);
+    const tOut=done.filter(t=>t.direction==='out').reduce((a,t)=>a+t.amount_cents,0);
+    const tFee=done.reduce((a,t)=>a+t.fee_cents,0);
     const cats={all:txns,dep:txns.filter(t=>t.type==='deposit'),wd:txns.filter(t=>t.type.startsWith('withdraw')),copy:txns.filter(t=>t.type.startsWith('copy_')),ref:txns.filter(t=>t.type==='referral_commission')};
     const backBtn='<button onclick="history.back()" style="width:36px;height:36px;border:1px solid var(--border);border-radius:10px;background:#fff;cursor:pointer;display:grid;place-items:center">'+svgIcons.arrow_left+'</button>';
     const darkBand='<div style="background:var(--dark2);border-radius:20px;color:#fff;padding:20px 24px;margin-bottom:14px"><small style="font-size:10px;font-weight:800;letter-spacing:1px;color:#94A3B8">TOTAL BALANCE</small><div style="font-size:26px;font-weight:800;margin-top:4px">'+f(tIn-tOut-tFee)+'</div><div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:12px;border-top:1px solid rgba(255,255,255,.12);padding-top:12px"><div><small style="font-size:10px;font-weight:800;letter-spacing:1px;color:#94A3B8">TOTAL IN</small><b style="font-size:17px;display:block;margin-top:3px;color:#34D399">+'+f(tIn)+'</b></div><div><small style="font-size:10px;font-weight:800;letter-spacing:1px;color:#94A3B8">TOTAL OUT</small><b style="font-size:17px;display:block;margin-top:3px;color:#F87171">-'+f(tOut)+'</b></div><div><small style="font-size:10px;font-weight:800;letter-spacing:1px;color:#94A3B8">FEES</small><b style="font-size:17px;display:block;margin-top:3px;color:#FDBA74">'+f(tFee)+'</b></div></div></div>';

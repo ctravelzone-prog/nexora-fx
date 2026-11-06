@@ -20,8 +20,13 @@ function applyDeposit(userId, depositId, amountCents, approverId) {
     db.prepare('UPDATE balances SET main_cents=main_cents+?,total_deposited_cents=total_deposited_cents+?,first_deposit_at=COALESCE(first_deposit_at,unixepoch()),updated_at=unixepoch() WHERE user_id=?')
       .run(amountCents, amountCents, userId);
     db.prepare(`UPDATE deposits SET status='approved',approved_by=?,approved_at=unixepoch(),updated_at=unixepoch() WHERE id=?`).run(approverId, depositId);
-    db.prepare('INSERT INTO transactions (user_id,type,amount_cents,fee_cents,net_cents,direction,status,reference,reason,formula) VALUES (?,?,?,0,?,?,?,?,?,?)')
-      .run(userId, 'deposit', amountCents, amountCents, 'in', 'completed', `DEP-${depositId}`, 'Deposit approved', `Main += $${H.fmtC(amountCents)}`);
+    // The pending row was created at submit time — flip it to completed.
+    // Fall back to INSERT for deposits submitted before this change.
+    const upd = db.prepare(`UPDATE transactions SET status='completed' WHERE reference=?`).run(`DEP-${depositId}`);
+    if (!upd.changes) {
+      db.prepare('INSERT INTO transactions (user_id,type,amount_cents,fee_cents,net_cents,direction,status,reference,reason,formula) VALUES (?,?,?,0,?,?,?,?,?,?)')
+        .run(userId, 'deposit', amountCents, amountCents, 'in', 'completed', `DEP-${depositId}`, 'Deposit approved', `Main += $${H.fmtC(amountCents)}`);
+    }
     payRef(userId, amountCents, db, s);
     H.createAdminNotif(db, 'deposit', `Deposit approved $${H.fmtC(amountCents)}`, depositId, 'deposit', 'deposits');
   })();
