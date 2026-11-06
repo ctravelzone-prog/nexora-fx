@@ -98,7 +98,7 @@ AdminPages.moneySettings=async function(){
             ${wd?`<button class="btn-secondary text-sm" style="padding:8px 14px" onclick="AdminPages._uacUnblock(${wd.id})">Unblock Withdraw</button>`:`<button class="btn-secondary text-sm" style="padding:8px 14px" onclick="AdminPages._uacBlock(${u.id},'withdraw')">Block Withdraw</button>`}
             ${rmOff?`<button class="btn-secondary text-sm" style="padding:8px 14px" onclick="AdminPages._uacRmOnce(${u.id})">Enable Request Money</button>`:`<button class="btn-secondary text-sm" style="padding:8px 14px" onclick="AdminPages._uacRm(${u.id},0,0)">Disable Request Money</button>`}
           </div>
-          ${rmOff?`<label class="flex items-center gap-2 mt-3 text-sm"><input type="checkbox" id="uac-once"> Enable once only — turns off again after the admin approves their next request</label>`:''}
+          ${rmOff?`<label class="flex items-center gap-2 mt-3 text-sm"><input type="checkbox" id="uac-once"> Enable once only — turns off again after they use it once</label>`:''}
         </div>`;
       }catch(e){utils.toast(e.message,'error');}
     };

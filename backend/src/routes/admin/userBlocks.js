@@ -4,8 +4,8 @@
 // whose Request Money is switched off. POST / blocks a user for one kind.
 // DELETE /:id unblocks (the row disappears from the history list).
 // POST /request-money turns Request Money on/off for one user, optionally
-// one-time only (it switches off again after the admin approves that
-// user's next money request).
+// one-time only (it switches off again after the user uses it once —
+// submitting their next money request; see routes/requestMoney.js).
 const router = require('express').Router();
 const { getDb } = require('../../models/database');
 const { authAdmin } = require('../../middleware/auth');
@@ -15,7 +15,8 @@ router.get('/', authAdmin, (req, res) => {
   const db = getDb();
   const blocks = db.prepare(`SELECT ub.*, u.full_name, u.username, u.email FROM user_blocks ub JOIN users u ON u.id=ub.user_id ORDER BY ub.created_at DESC`).all();
   const requestMoneyOff = db.prepare(`SELECT id, full_name, username, email, request_money_one_time, updated_at FROM users WHERE request_money_enabled=0 ORDER BY updated_at DESC`).all();
-  res.json({ blocks, requestMoneyOff });
+  const requestMoneyOnce = db.prepare(`SELECT id, full_name, username, email, updated_at FROM users WHERE request_money_enabled=1 AND request_money_one_time=1 ORDER BY updated_at DESC`).all();
+  res.json({ blocks, requestMoneyOff, requestMoneyOnce });
 });
 
 // POST / — block one user for deposit or withdraw.
@@ -45,8 +46,8 @@ router.delete('/:id', authAdmin, (req, res) => {
 
 // POST /request-money — switch Request Money on/off for one user.
 // Body: {user_id, enabled: 0|1, one_time: 0|1}. one_time=1 means the switch
-// turns itself off again after the admin approves that user's next
-// money request (see routes/admin/moneyRequests.js).
+// turns itself off again after the user uses it once (submits their next
+// money request — see routes/requestMoney.js).
 router.post('/request-money', authAdmin, (req, res) => {
   const db = getDb();
   const userId = parseInt(req.body.user_id, 10);

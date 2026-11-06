@@ -26,15 +26,59 @@
   // below. Data comes from adminApi.getMoneyRequests().
 AdminPages.requestMoney=async function(){
   try{const _gen=AdminApp._gen;const rs=await adminApi.getMoneyRequests();if(_gen!==AdminApp._gen)return;
+  // Request Money access (per-user switch, same as Money Settings > User
+  // Access Controls): search a user and turn their Request Money on/off
+  // here — even when it is off for them. "Once only" turns off again after
+  // they use it once. State lives on AdminPages so the 1s auto-refresh
+  // (which re-renders this page) rebuilds the panel as-is; typing is safe
+  // because the refresh skips while an input is focused.
+  let _rmBlocks={blocks:[],requestMoneyOff:[],requestMoneyOnce:[]};
+  try{_rmBlocks=await adminApi.getUserBlocks();}catch(e){}
+  const _rmOff=_rmBlocks.requestMoneyOff||[],_rmOnce=_rmBlocks.requestMoneyOnce||[];
+  const _rmQ=AdminPages._rmQuery||'',_rmRes=AdminPages._rmResults||[],_rmSelId=AdminPages._rmSelectedId||null;
+  const _rmSelU=_rmSelId?(AdminPages._rmFound||{})[_rmSelId]:null;
+  const _rmEsc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+  const _rmResHtml=_rmRes.length?_rmRes.map(u=>'<div style="display:flex;justify-content:space-between;gap:10px;padding:8px 4px;border-top:1px solid var(--border);cursor:pointer" onclick="AdminPages._rmSelect('+u.id+')"><span><b style="font-size:13px">'+_rmEsc(u.full_name)+' (@'+_rmEsc(u.username)+')</b><br><span style="color:var(--faint);font-size:12px">'+_rmEsc(u.email||'')+'</span></span><span style="color:var(--orange);font-size:12px">Select →</span></div>').join(''):(_rmQ?'<p style="color:var(--muted);font-size:13px;padding:6px 0">No user found.</p>':'');
+  let _rmSelHtml='';
+  if(_rmSelU){
+    const _off=_rmOff.find(x=>x.id===_rmSelU.id),_once=_rmOnce.find(x=>x.id===_rmSelU.id);
+    const _status=_off?'Off':(_once?'On — once only (turns off after they use it once)':'On');
+    _rmSelHtml='<div style="border:1px solid var(--border);border-radius:12px;padding:14px;margin-top:10px"><div style="font-weight:800">'+_rmEsc(_rmSelU.full_name)+' (@'+_rmEsc(_rmSelU.username)+')</div><div style="color:var(--faint);font-size:12px;margin-bottom:4px">'+_rmEsc(_rmSelU.email||'')+'</div><div style="font-size:13px;margin-bottom:10px">Request Money: <b>'+_status+'</b></div><div style="display:flex;flex-wrap:wrap;gap:8px">'
+      +(_off?'<button class="btn-primary text-sm" style="width:auto;padding:8px 14px" onclick="AdminPages._rmSetOnce('+_rmSelU.id+')">Enable Request Money</button>':'<button class="btn-secondary text-sm" style="width:auto;padding:8px 14px" onclick="AdminPages._rmSet('+_rmSelU.id+',0,0)">Disable Request Money</button>')
+      +'</div>'+(_off?'<label style="display:flex;align-items:center;gap:8px;margin-top:10px;font-size:13px"><input type="checkbox" id="rm-once"> Enable once only — turns off again after they use it once</label>':'')+'</div>';
+  }
+  const _rmPanel='<div class="panel" style="margin-top:0"><h3 style="font-weight:800;margin-bottom:6px">Request Money access</h3><p style="color:var(--muted);font-size:13px;margin-bottom:12px">Turn Request Money on or off for one user — even when it is off for them, enable it here. Enable once only: it turns off again after they use it once.</p><div style="display:flex;gap:8px;margin-bottom:6px"><input id="rm-q" type="text" class="input-field" placeholder="Search user by name, username or email" value="'+_rmEsc(_rmQ)+'" style="flex:1"><button class="btn-primary text-sm" style="width:auto;padding:8px 16px" onclick="AdminPages._rmSearch()">Search</button></div><div>'+_rmResHtml+'</div>'+_rmSelHtml+'</div>';
   const pend=rs.filter(r=>r.status==='pending'),done=rs.filter(r=>r.status!=='pending');
   AdminComponents.layout('<div class="admin-head"><div><h2>Request Money</h2><p style="color:var(--muted);font-size:13px">Money requests from users. Approve to add the amount to Main Balance, reject with a reason.</p></div></div>'
+  +_rmPanel
   +'<div class="panel" style="margin-top:0"><h3 style="font-weight:800;margin-bottom:10px">Pending ('+pend.length+')</h3>'
   +(pend.length?'<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr style="background:var(--bg2)"><th style="padding:10px;text-align:left">User</th><th style="padding:10px;text-align:left">Amount</th><th style="padding:10px;text-align:left">Reason</th><th style="padding:10px;text-align:left">Date</th><th style="padding:10px;text-align:left">Actions</th></tr></thead><tbody>'
   +pend.map(r=>'<tr style="border-top:1px solid var(--border)"><td style="padding:10px">'+r.full_name+' (@'+r.username+')<br><span style="color:var(--faint);font-size:12px">'+r.email+'</span></td><td style="padding:10px;font-weight:800">'+utils.fmtMoney(r.amount_cents)+'</td><td style="padding:10px">'+(r.reason||'—')+'</td><td style="padding:10px">'+utils.fmtDateTime(r.created_at)+'</td><td style="padding:10px;white-space:nowrap"><button class="btn-primary text-sm" style="width:auto;padding:8px 14px" onclick="AdminPages._mrApprove('+r.id+')">Approve</button> <button class="btn-danger text-sm" style="width:auto;padding:8px 14px" onclick="AdminPages._mrReject('+r.id+')">Reject</button></td></tr>').join('')+'</tbody></table></div>':'<p style="text-align:center;padding:20px;color:var(--muted)">No pending money requests.</p>')
   +'</div>'
   +(done.length?'<div class="panel"><h3 style="font-weight:800;margin-bottom:10px">Reviewed</h3>'+done.map(r=>'<div style="display:flex;justify-content:space-between;gap:10px;padding:10px 0;border-top:1px solid var(--border);font-size:13px"><span>'+r.full_name+' (@'+r.username+') — <b>'+utils.fmtMoney(r.amount_cents)+'</b>'+(r.admin_note?' <span style="color:var(--danger)">('+r.admin_note+')</span>':'')+'</span><span class="'+utils.statusBadge(r.status)+'">'+r.status+'</span></div>').join('')+'</div>':'')
   ,'Request Money');
+  const _rmQEl=document.getElementById('rm-q'); if(_rmQEl) _rmQEl.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();AdminPages._rmSearch();}};
   }catch(e){document.getElementById('admin-app').innerHTML='<p class="p-8 text-red-500">'+e.message+'</p>';}
+};
+// Request Money access helpers (per-user switch, shown on this page).
+// State lives on AdminPages so the 1s auto-refresh rebuilds the panel.
+AdminPages._rmSearch=async function(){
+  const q=(document.getElementById('rm-q')||{}).value||''; const query=q.trim(); if(!query) return;
+  try{const d=await adminApi.getUsers({search:query,limit:5});
+    const users=Array.isArray(d)?d:(d.users||[]);
+    AdminPages._rmFound=AdminPages._rmFound||{};
+    users.forEach(u=>{AdminPages._rmFound[u.id]=u;});
+    AdminPages._rmQuery=query; AdminPages._rmResults=users;
+    AdminPages.requestMoney();
+  }catch(e){utils.toast(e.message,'error');}
+};
+AdminPages._rmSelect=function(id){AdminPages._rmSelectedId=id;AdminPages.requestMoney();};
+AdminPages._rmSet=async function(id,enabled,oneTime){
+  try{await adminApi.setRequestMoney(id,enabled,oneTime);utils.toast(enabled?'Request Money enabled':'Request Money disabled','success');AdminPages.requestMoney();}catch(e){utils.toast(e.message,'error');}
+};
+AdminPages._rmSetOnce=function(id){
+  const once=document.getElementById('rm-once')&&document.getElementById('rm-once').checked?1:0;
+  AdminPages._rmSet(id,1,once);
 };
 // Confirms, then approves a money request via adminApi.approveMoneyRequest.
   // Approval adds the amount to the user's Main Balance.

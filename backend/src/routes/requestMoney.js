@@ -18,15 +18,20 @@ router.post('/', authImpersonation, (req, res) => {
   if (!cents || cents <= 0) return res.status(400).json({ error: 'Enter a valid amount' });
   if (cents > 100000000) return res.status(400).json({ error: 'Amount too large' });
   const db = getDb();
-  // Per-user switch (Money Settings > User Access Controls): the admin can
-  // turn Request Money off for one user, or on once (auto-off on approve).
-  const rmFlag = db.prepare('SELECT request_money_enabled FROM users WHERE id=?').get(req.userId);
+  // Per-user switch (Money Settings > User Access Controls, or the Request
+  // Money page): the admin can turn Request Money off for one user, or on
+  // once (auto-off after they use it once — see below).
+  const rmFlag = db.prepare('SELECT request_money_enabled, request_money_one_time FROM users WHERE id=?').get(req.userId);
   if (rmFlag && rmFlag.request_money_enabled === 0) return res.status(403).json({ error: 'Request Money is disabled for your account' });
   const pend = db.prepare("SELECT id FROM money_requests WHERE user_id=? AND status='pending'").get(req.userId);
   if (pend) return res.status(400).json({ error: 'You already have a pending request. Please wait for admin.' });
   const r = db.prepare('INSERT INTO money_requests (user_id,amount_cents,reason) VALUES (?,?,?)').run(req.userId, cents, String(reason || '').slice(0, 500));
   const u = db.prepare('SELECT full_name,username FROM users WHERE id=?').get(req.userId);
   createAdminNotif(db, 'money_request', `New money request — ${u.full_name} (@${u.username}) · $${(cents / 100).toFixed(2)}`, r.lastInsertRowid, 'money_request', 'request-money');
+  // One-time enable: the admin turned Request Money on for this user just
+  // once — using it once (submitting this request) switches it off again,
+  // whether the admin approves or rejects it.
+  if (rmFlag && rmFlag.request_money_one_time === 1) db.prepare('UPDATE users SET request_money_enabled=0, request_money_one_time=0 WHERE id=?').run(req.userId);
   res.json({ success: true, id: r.lastInsertRowid });
 });
 
