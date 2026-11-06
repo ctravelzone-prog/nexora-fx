@@ -25,7 +25,7 @@ const AdminApp = {
   // before their API call and skip rendering if it changed — so a stale auto-refresh
   // can never overwrite a page the admin just navigated to (first click looked dead).
   _gen: 0,
-  state: { admin: null, notifCount: 0 },
+  state: { admin: null, notifCount: 0, sideBadges: {} },
   _listPoll: null,
   // Request-list pages that auto-refresh so new user requests appear without a manual reload
   _refreshable: ['/dashboard','/notifications','/transactions','/deposits','/withdrawals','/request-money','/tickets','/forget-requests','/kyc'],

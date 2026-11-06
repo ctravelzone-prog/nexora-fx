@@ -57,7 +57,9 @@ router.get('/notifications', authAdmin, (req,res)=>{
   const tickets=notifs.filter(n=>n.type==='ticket'&&!n.is_read).length;
   const messages=notifs.filter(n=>n.type==='ticket_reply'&&!n.is_read).length;
   const newUsers=notifs.filter(n=>n.type==='new_user'&&!n.is_read).length;
-  res.json({notifications:notifs,unread,badges:{deposits,withdrawals,kyc,tickets,messages,newUsers,finance:deposits+withdrawals,support:tickets+messages}});
+  const moneyRequests=notifs.filter(n=>n.type==='money_request'&&!n.is_read).length;
+  const forgetRequests=notifs.filter(n=>n.type==='forget_request'&&!n.is_read).length;
+  res.json({notifications:notifs,unread,badges:{deposits,withdrawals,kyc,tickets,messages,newUsers,moneyRequests,forgetRequests,finance:deposits+withdrawals,support:tickets+messages}});
 });
 
 // PUT /notifications/read-all — marks all admin notifications read.

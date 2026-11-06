@@ -89,6 +89,7 @@ const AdminComponents = {
       return `<div class="admin-nav-link ${active?'active':''}" onclick="AdminComponents.closeSidebar();AdminApp.navigate('${href}')">${label}${bdg}</div>`;
     };
     const s=AdminApp.state;
+    const b=s.sideBadges||{};
     return `<aside class="admin-sidebar" id="admin-sidebar">
       <div class="p-4 border-b border-gray-100 flex items-center justify-between">
         <div class="flex items-center gap-2"><img src="/assets/logo-nx-mark-transparent.png" style="height:28px" alt="NX"><div><div class="font-bold text-sm">Nexora <span class="text-orange-500">FX</span> Admin</div><div class="text-xs text-gray-400">${(AdminApp.state.admin?.role||'Super Admin')}</div></div></div>
@@ -99,15 +100,15 @@ const AdminComponents = {
         ${link('/admin/notifications','Admin Notifications',s.notifCount||0)}
         ${link('/admin/transactions','Transactions')}
         <div class="admin-nav-group" style="cursor:default">USERS</div>
-        ${link('/admin/users','Users')}
-        ${link('/admin/kyc','KYC Control')}
+        ${link('/admin/users','Users',b.newUsers||0)}
+        ${link('/admin/kyc','KYC Control',b.kyc||0)}
         ${link('/admin/kyc-control','Manage KYC Form')}
         ${link('/admin/copies','Invests/Copies')}
         ${link('/admin/2fa-control','2FA Control')}
         <div class="admin-nav-group" style="cursor:default">FINANCE</div>
-        ${link('/admin/deposits','Deposits')}
-        ${link('/admin/withdrawals','Withdrawals')}
-        ${link('/admin/request-money','Request Money')}
+        ${link('/admin/deposits','Deposits',b.deposits||0)}
+        ${link('/admin/withdrawals','Withdrawals',b.withdrawals||0)}
+        ${link('/admin/request-money','Request Money',b.moneyRequests||0)}
         ${link('/admin/referrals','Referral')}
         ${link('/admin/profit','Profit System')}
         ${link('/admin/money-settings','Money Settings')}
@@ -160,9 +161,9 @@ const AdminComponents = {
         ${link('/admin/traders','Traders')}
         ${link('/admin/showcase','Showcase Accounts')}
         <div class="admin-nav-group" style="cursor:default">SUPPORT</div>
-        ${link('/admin/tickets','Support Tickets')}
+        ${link('/admin/tickets','Support Tickets',(b.tickets||0)+(b.messages||0))}
         ${link('/admin/send-notification','Notifications Send')}
-        ${link('/admin/forget-requests','Forget Requests')}
+        ${link('/admin/forget-requests','Forget Requests',b.forgetRequests||0)}
       </nav>
       <div class="p-3 border-t border-gray-100">
         <div class="admin-nav-link" onclick="window.open('/','_blank')" style="color:#3B82F6">← Exit to User Site</div>
@@ -237,6 +238,6 @@ const AdminComponents = {
 // Fetches unread admin notifications (adminApi.notifications) and stores
   // the count, so the sidebar and top bar badges stay in sync.
   async loadBadges() {
-    try{const d=await adminApi.notifications();AdminApp.state.notifCount=d.unread||0;}catch(e){}
+    try{const d=await adminApi.notifications();AdminApp.state.notifCount=d.unread||0;AdminApp.state.sideBadges=d.badges||{};}catch(e){}
   }
 };
