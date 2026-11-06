@@ -1,7 +1,15 @@
-// emailService.js — SMTP email + dev console fallback
+// services/emailService.js — optional SMTP mail (nodemailer).
+// Sends the registration verification mail and the password-reset mail.
+// Mailing is optional: when SMTP_HOST / SMTP_USER / SMTP_PASS are not set,
+// isSmtpConfigured() is false, sendEmail logs the mail to the console
+// (dev only) and returns false instead of failing. No SMTP is configured
+// in production, so the admin-OTP flow (see routes/auth2.js) is the
+// working password-reset path.
 const nodemailer = require('nodemailer');
 require('dotenv').config();
 
+// Creates (once) the nodemailer transporter from the SMTP env vars;
+// returns null when SMTP is not configured.
 function getTransporter() {
   if (!process.env.SMTP_HOST) return null;
   return nodemailer.createTransport({
@@ -12,6 +20,8 @@ function getTransporter() {
   });
 }
 
+// Sends one mail. Without SMTP it logs the message to the console
+// (dev only) and returns false.
 async function sendEmail(to, subject, html) {
   const transporter = getTransporter();
   if (!transporter) {
@@ -26,6 +36,8 @@ async function sendEmail(to, subject, html) {
   return transporter.sendMail({ from: process.env.SMTP_FROM, to, subject, html });
 }
 
+// Sends the registration verification mail with the confirm link built
+// from the token and the site URL.
 async function sendVerifyEmail(to, token, siteUrl) {
   const link = `${siteUrl}/verify-email?token=${token}`;
   await sendEmail(to, 'Verify your Nexora Fx email', `
@@ -36,6 +48,7 @@ async function sendVerifyEmail(to, token, siteUrl) {
   `);
 }
 
+// Sends the password-reset mail with the reset link.
 async function sendResetEmail(to, token, siteUrl) {
   const link = `${siteUrl}/reset-password?token=${token}`;
   await sendEmail(to, 'Reset your Nexora Fx password', `
@@ -46,6 +59,7 @@ async function sendResetEmail(to, token, siteUrl) {
   `);
 }
 
+// True only when SMTP_HOST, SMTP_USER and SMTP_PASS are all set.
 function isSmtpConfigured() {
   return !!process.env.SMTP_HOST;
 }

@@ -1,4 +1,30 @@
-// admin-settings2.js — Money settings + Deposit Wallet
+/*
+ * admin-settings2.js — Money Settings and Deposit Wallet pages.
+ *
+ * Renders /admin/money-settings (withdraw fees, lock period, profit target,
+ * profit minimum withdrawal, referral rate, deposits/withdrawals on-off)
+ * and /admin/deposit-wallet (the Binance address and QR users pay to).
+ * Key functions: AdminPages.moneySettings, AdminPages.depositWallet.
+ *
+ * Gotchas:
+ * - Money Settings is Super Admin only and every save is audit-logged.
+ * - Percent inputs are converted to basis points and dollar inputs to
+ *   cents before saving (100 bp = 1%, 100 cents = $1).
+ * - Changing the deposit wallet takes effect immediately: users see the
+ *   new address / QR on the Deposit screen with no code change.
+ * - Profit Target default is 10%; changing it rebalances only this
+ *   month's remaining days, never days already applied.
+ * - Money is integer cents everywhere; display with utils.fmtMoney.
+ * - Admin API calls go through adminApi in js/admin-api.js.
+ * - Showcase accounts (is_showcase=1) are demo accounts with DISPLAY
+ *   balances set by the admin; they are excluded from all admin totals,
+ *   ledgers and reports.
+ * - Bump the ?v= cache version in script tags on every release, or
+ *   browsers keep serving stale code.
+ */
+// Renders /admin/money-settings: withdraw fees, lock period, profit
+  // target, profit minimum withdrawal, referral rate and on/off switches.
+  // Values come from adminApi.getMoney; saving needs a confirmation.
 AdminPages.moneySettings=async function(){
   try{
     const s=await adminApi.getMoney();
@@ -24,6 +50,7 @@ AdminPages.moneySettings=async function(){
       err.classList.add('hidden');
       utils.confirm('Save money settings? Audit-logged.',async()=>{
         utils.loading(btn,true);
+        // Convert percent inputs to basis points and dollar inputs to cents.
         try{await adminApi.saveMoney({withdraw_early_fee_bp:Math.round(parseFloat(f.fee.value)*100),withdraw_regular_fee_bp:Math.round(parseFloat(f.rfee.value)*100),profit_target_bp:Math.round(parseFloat(f.ptarget.value)*100),withdraw_lock_months:parseInt(f.lock.value),profit_min_cents:Math.round(parseFloat(f.pmin.value)*100),referral_bp:Math.round(parseFloat(f.ref.value)*100),deposit_enabled:f.dep.value,withdraw_enabled:f.wd.value});utils.toast('Saved!','success');}
         catch(ex){err.textContent=ex.message;err.classList.remove('hidden');}
         utils.loading(btn,false);
@@ -32,6 +59,8 @@ AdminPages.moneySettings=async function(){
   }catch(e){document.getElementById('admin-app').innerHTML=`<p class="p-8 text-red-500">${e.message}</p>`;}
 };
 
+// Renders /admin/deposit-wallet: current Binance address and QR, plus
+  // the form to change them. Loads via adminApi.getDepositWallet.
 AdminPages.depositWallet=async function(){
   try{
     const w=await adminApi.getDepositWallet();

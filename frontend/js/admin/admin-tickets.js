@@ -1,4 +1,29 @@
-// admin-tickets.js — Support Tickets
+/*
+ * admin-tickets.js — Support Tickets list and ticket detail view.
+ *
+ * Renders /admin/tickets (list with priority and status) and the ticket
+ * detail page: live message thread with an admin reply form and a
+ * Close / Reopen button.
+ * Key functions: AdminPages.tickets, AdminPages.viewTicket,
+ * AdminPages._ticketMsgsHTML, AdminPages._refreshTicketMsgs,
+ * AdminPages._startTicketPoll, AdminPages._stopTicketPoll.
+ *
+ * Gotchas:
+ * - An open ticket polls every 3s for new messages; the 1s list
+ *   auto-refresh in admin-app.js skips pages while a ticket is open, so
+ *   the ticket's own poll is the only updater.
+ * - The thread only re-renders when the message HTML changed, and only
+ *   scrolls to the bottom when the admin was already near the bottom.
+ * - Money is integer cents everywhere; display with utils.fmtMoney.
+ * - Admin API calls go through adminApi in js/admin-api.js.
+ * - Showcase accounts (is_showcase=1) are demo accounts with DISPLAY
+ *   balances set by the admin; they are excluded from all admin totals,
+ *   ledgers and reports.
+ * - Bump the ?v= cache version in script tags on every release, or
+ *   browsers keep serving stale code.
+ */
+// Renders /admin/tickets: the support ticket list (priority, status).
+  // Fetches up to 50 rows via adminApi.getTickets.
 AdminPages.tickets=async function(){
   AdminPages._stopTicketPoll();
   try{
@@ -11,12 +36,17 @@ AdminPages.tickets=async function(){
     </tbody></table></div>`,'Support Tickets');
   }catch(e){document.getElementById('admin-app').innerHTML=`<p class="p-8 text-red-500">${e.message}</p>`;}
 };
+// Stops the ticket message poll and clears the active ticket state.
 AdminPages._stopTicketPoll=function(){if(AdminPages._ticketPoll){clearInterval(AdminPages._ticketPoll);AdminPages._ticketPoll=null;}AdminPages._activeTicketId=null;AdminPages._activeTicketStatus=null;AdminPages._ticketPollBusy=false;};
+// Builds the chat-style message HTML: admin replies right (orange),
+  // user messages left (grey), each with a timestamp.
 AdminPages._ticketMsgsHTML=function(msgs){return msgs.map(m=>`<div class="flex gap-3 ${m.sender_type==='admin'?'flex-row-reverse':''}">
             <div class="w-8 h-8 rounded-full flex-shrink-0 ${m.sender_type==='admin'?'bg-orange-500 text-white':'bg-gray-200 text-gray-600'} flex items-center justify-center text-xs font-bold">${m.sender_type==='admin'?'A':'U'}</div>
             <div class="max-w-xs ${m.sender_type==='admin'?'bg-orange-50 text-right ml-auto':'bg-gray-50'} rounded-xl p-3">
               <p class="text-sm">${m.message}</p><p class="text-xs text-gray-400 mt-1">${utils.fmtDateTime(m.created_at)}</p>
             </div></div>`).join('');};
+// Poll tick: reloads one ticket via adminApi.getTicket, updates the
+  // status badge if it changed, and re-renders only when messages changed.
 AdminPages._refreshTicketMsgs=async function(id,forceScroll){
   const box=document.getElementById('admin-ticket-msgs');
   if(!box||AdminPages._activeTicketId!==id){AdminPages._stopTicketPoll();return;}
@@ -35,10 +65,14 @@ AdminPages._refreshTicketMsgs=async function(id,forceScroll){
   }catch(e){}
   AdminPages._ticketPollBusy=false;
 };
+// Starts the 3s message poll for the open ticket.
 AdminPages._startTicketPoll=function(id){
   AdminPages._stopTicketPoll();AdminPages._activeTicketId=id;
-  AdminPages._ticketPoll=setInterval(()=>{AdminPages._refreshTicketMsgs(id);},3000);
+  AdminPages._ticketPoll=setInterval(()=>{AdminPages._refreshTicketMsgs(id);},3000); // Poll every 3s for new replies while a ticket is open.
 };
+// Renders one ticket: subject, live message thread, reply form and
+  // Close / Reopen. Loads via adminApi.getTicket; replies go through
+  // adminApi.replyTicket and status changes via updateTicketStatus.
 AdminPages.viewTicket=async function(id){
   AdminPages._stopTicketPoll();
   try{

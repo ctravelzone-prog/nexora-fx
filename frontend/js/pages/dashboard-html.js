@@ -1,4 +1,25 @@
-// dashboard-html.js — dashboard HTML part 1 (KYC, welcome, value band, breakdown)
+/*
+ * dashboard-html.js — Dashboard HTML, part 1 (Nexora FX).
+ *
+ * Builds the top half of the dashboard markup: the KYC banner, the
+ * welcome row, the pending-approval strip, the Total Value band with
+ * Daily PnL, and the Balance Breakdown (Main + Copy = Total).
+ *
+ * Key function:
+ * - Pages._db(b, u, dailyPnl, total, mPct, cPct, copies, kycNeeded,
+ *   pending) — returns the HTML string; the second half comes from
+ *   Pages._db2 in dashboard-html2.js.
+ *
+ * Rules: money is integer cents; display via utils.fmtMoney. Balances
+ * come from GET /api/user/me. Daily PnL is earned on Copy Invested only;
+ * withdrawal is from Main Balance only. Showcase accounts
+ * (is_showcase=1) show DISPLAY balances set by the admin.
+ * Gotcha: the ?v= cache version in script tags must be bumped on every
+ * release, or browsers may serve stale code.
+ * Note: this file uses CRLF line endings — preserve them on every edit.
+ */
+// Dashboard HTML, part 1: KYC banner, welcome row, pending strip,
+// Total Value band and Balance Breakdown. See the header for details.
 Pages._db=function(b,u,dailyPnl,total,mPct,cPct,copies,kycNeeded,pending){
   var f=utils.fmtMoney, html='';
   if(kycNeeded) html+='<div class="kyc-banner"><div class="kb-icon"><svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M12 22s8-3.6 8-10V5l-8-3-8 3v7c0 6.4 8 10 8 10Z"/></svg></div><div class="kb-body" style="flex:1"><h4>KYC Not Verified — action needed</h4><p>Complete KYC to unlock withdrawals.</p></div><button class="btn-kyc" onclick="App.navigate(\'/kyc\')">Complete KYC →</button></div>';

@@ -1,15 +1,23 @@
-// admin/moneyRequests.js — list + approve (adds Main Balance) / reject money requests
+// routes/admin/moneyRequests.js — admin side of balance-correction requests.
+// GET / lists money requests (pending first). POST /:id/approve adds the
+// requested amount to the user's Main Balance (via adminAddBalance) and
+// marks the request approved. POST /:id/reject turns it down.
+// Rule: a user can have only one pending request at a time (enforced when
+// they submit it).
 const router = require('express').Router();
 const { getDb } = require('../../models/database');
 const { authAdmin } = require('../../middleware/auth');
 const { adminAddBalance } = require('../../services/withdrawService');
 
+// GET / — all money requests with user name/username, pending first.
 router.get('/', authAdmin, (req, res) => {
   const db = getDb();
   const rows = db.prepare(`SELECT mr.*, u.full_name, u.username, u.email FROM money_requests mr JOIN users u ON u.id=mr.user_id ORDER BY CASE WHEN mr.status='pending' THEN 0 ELSE 1 END, mr.created_at DESC`).all();
   res.json(rows);
 });
 
+// POST /:id/approve — approves the request: adds the amount to the
+// user's Main Balance and marks the request approved.
 router.post('/:id/approve', authAdmin, (req, res) => {
   const db = getDb();
   const r = db.prepare('SELECT * FROM money_requests WHERE id=?').get(req.params.id);
@@ -22,6 +30,7 @@ router.post('/:id/approve', authAdmin, (req, res) => {
   res.json({ success: true });
 });
 
+// POST /:id/reject — rejects the request. No money moves.
 router.post('/:id/reject', authAdmin, (req, res) => {
   const db = getDb();
   const r = db.prepare('SELECT * FROM money_requests WHERE id=?').get(req.params.id);

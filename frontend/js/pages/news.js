@@ -1,8 +1,23 @@
-// pages/news.js — Forex News: daily economic calendar (same events Forex Factory shows).
-// Forex Factory blocks automated access (Cloudflare), so the calendar is the
-// TradingView Economic Calendar widget — same daily forex events (NFP, CPI,
-// FOMC, GDP...), always live, in Dhaka time. If TradingView cannot load, a
-// plain notice is shown, never a fake calendar.
+/*
+ * pages/news.js — Forex News: daily economic calendar.
+ * Shows the same daily events Forex Factory shows (NFP, CPI, FOMC,
+ * GDP and others), always live, in Dhaka time. Red = high impact.
+ * The calendar is the TradingView Economic Calendar widget, because
+ * Forex Factory blocks automated access (Cloudflare). If TradingView
+ * cannot load, a plain notice is shown, never a fake calendar.
+ * Key functions:
+ * - Pages.news() renders the page (public when logged out, inside
+ *   the app layout when logged in) and injects the widget script.
+ * Rules / gotchas:
+ * - Money is integer cents everywhere; display with utils.fmtMoney.
+ * - Balances come from GET /api/user/me; showcase accounts
+ *   (is_showcase=1) show DISPLAY balances set by the admin.
+ * - The ?v= cache version in script tags must be bumped on every
+ *   release or browsers may serve stale code.
+ */
+// Renders the Forex News page and loads the TradingView Economic
+// Calendar widget (currencies: USD, EUR, GBP, JPY, CHF, CAD, AUD,
+// NZD, CNY; all importance levels). No backend API call is made.
 Pages.news=function(){
   var loggedIn=utils.isLoggedIn()&&App.state.user!==null;
   var pageHtml=`
@@ -33,6 +48,8 @@ Pages.news=function(){
     currencyFilter:'USD,EUR,GBP,JPY,CHF,CAD,AUD,NZD,CNY'
   });
   container.appendChild(script);
+// Fallback check: if the widget did not render an iframe within
+// 8 seconds, show the plain 'unavailable' notice instead.
   setTimeout(function(){
     var holder=document.getElementById('nx-news-holder');
     if(holder && !holder.querySelector('iframe')){

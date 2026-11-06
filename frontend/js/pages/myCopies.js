@@ -1,4 +1,28 @@
-// pages/myCopies.js
+/*
+ * pages/myCopies.js — My Copies page (active copy trades).
+ * Shows the user's active copies with Main Balance, Copy Invested
+ * and Total Value at the top, plus Increase / Decrease / Stop Copy
+ * actions for each copy.
+ * Key functions:
+ * - Pages.myCopies() renders the page (GET /api/user/me and
+ *   api.getMyCopies()).
+ * - Pages._adjCopy() / Pages._doAdj() open and submit the
+ *   Increase / Decrease Balance dialog.
+ * - Pages._stopCopyDlg() / Pages._doStop() confirm and submit
+ *   Stop Copy, which settles the copy's funds back to Main.
+ * Rules / gotchas:
+ * - Profit applies ONLY to Copy Invested, never to Main Balance.
+ * - Withdraw is from Main Balance only; stop a copy first to
+ *   move its money back to Main.
+ * - Money is integer cents everywhere; display with utils.fmtMoney.
+ * - Balances come from GET /api/user/me; showcase accounts
+ *   (is_showcase=1) show DISPLAY balances set by the admin.
+ * - The ?v= cache version in script tags must be bumped on every
+ *   release or browsers may serve stale code.
+ */
+// Renders the My Copies page: balance summary cards plus one card
+// per active copy (copied amount, profit, daily PnL, action buttons).
+// APIs: api.getMe() for balances, api.getMyCopies() for the copies.
 Pages.myCopies=async function(){
   try{
     const [me,copies]=await Promise.all([api.getMe(),api.getMyCopies()]);
@@ -17,9 +41,13 @@ Pages.myCopies=async function(){
     `,'My Copies · Active Copies','');
   }catch(e){document.getElementById('app').innerHTML=`<p class="p-8 text-red-500">${e.message}</p>`;}
 };
+// Opens the Increase / Decrease Balance dialog for one copy.
+// `action` is 'inc' or 'dec'; `name` is the trader's display name.
 Pages._adjCopy=function(id,action,name){
   utils.showModal(`<div class="modal"><h2 class="text-lg font-bold mb-3">${action==='inc'?'Increase':'Decrease'} Copy — ${name}</h2><label class="input-label">Amount (USD)</label><input id="adj-amt" type="number" step="0.01" min="0.01" class="input-field mb-3"><div id="adj-err" class="alert-danger hidden mb-3"></div><div class="flex gap-3"><button onclick="utils.closeModal()" class="btn-secondary flex-1">Cancel</button><button id="adj-ok" onclick="Pages._doAdj(${id},'${action}')" class="btn-primary flex-1">Confirm</button></div></div>`);
 };
+// Submits the Increase / Decrease request from the dialog.
+// APIs: api.increaseCopy() or api.decreaseCopy(). Reloads the page on success.
 Pages._doAdj=async function(id,action){
   const btn=document.getElementById('adj-ok'),err=document.getElementById('adj-err');
   const amt=parseFloat(document.getElementById('adj-amt').value);
@@ -28,9 +56,12 @@ Pages._doAdj=async function(id,action){
   try{if(action==='inc')await api.increaseCopy({copy_id:id,amount:amt});else await api.decreaseCopy({copy_id:id,amount:amt});utils.closeModal();utils.toast('Updated!','success');Pages.myCopies();}
   catch(e){err.textContent=e.message;err.classList.remove('hidden');utils.loading(btn,false);}
 };
+// Opens the Stop Copy confirmation dialog, showing principal and
+// profit up to yesterday. Today's Daily PnL is $0.00 at this point.
 Pages._stopCopyDlg=function(id,name,principal,profit){
   utils.showModal(`<div class="modal"><h2 class="text-lg font-bold mb-3">Stop Copy — ${name}?</h2><div class="card bg-gray-50 mb-4"><div class="text-sm">Principal: <strong>${utils.fmtMoney(principal)}</strong></div><div class="text-sm">Profit (up to yesterday): <strong class="text-green-500">${utils.fmtMoney(profit)}</strong></div><div class="text-sm text-gray-400">Today's Daily PnL: $0.00</div></div><p class="text-sm text-gray-500 mb-4">Stopping moves all funds back to Main Balance. Today's PnL is $0.00.</p><div class="flex gap-3"><button onclick="utils.closeModal()" class="btn-secondary flex-1">Cancel</button><button id="stop-ok" onclick="Pages._doStop(${id})" class="btn-danger flex-1">Stop Copy</button></div></div>`);
 };
+// Submits Stop Copy. API: api.stopCopy(). Funds return to Main Balance.
 Pages._doStop=async function(id){
   utils.loading(document.getElementById('stop-ok'),true);
   try{await api.stopCopy({copy_id:id});utils.closeModal();utils.toast('Copy stopped. Funds returned to Main.','success');Pages.myCopies();}

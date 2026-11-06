@@ -1,14 +1,22 @@
-// admin/auth.js — admin login + password change (clean template literals)
+// routes/admin/auth.js — admin login and admin profile.
+// POST /login checks email + bcrypt password against the admins table and
+// returns an admin JWT (7 days). POST /change-password changes the
+// logged-in admin's own password. GET /me returns the logged-in admin's
+// profile (id, name, email, role). Admin accounts are separate from user
+// accounts (separate admins table) and are seeded by seed.js.
 const router = require('express').Router();
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const { getDb } = require('../../models/database');
 const { authAdmin, superAdminOnly } = require('../../middleware/auth');
 
+// Signs an admin JWT (type 'admin'). All admin tokens expire in 7 days.
 function mkAdminToken(adminId){
   return jwt.sign({type:'admin',adminId},process.env.JWT_SECRET,{expiresIn:'7d'});
 }
 
+// POST /login — admin sign-in. Body: email, password. Returns the
+// admin JWT + profile on success; 401 on a wrong email or password.
 router.post('/login', async (req,res)=>{
   try{
     const {email,password,totp_code}=req.body;
@@ -28,6 +36,8 @@ router.post('/login', async (req,res)=>{
   }catch(e){res.status(500).json({error:e.message});}
 });
 
+// POST /change-password — the logged-in admin changes their own
+// password (current password required, new password min 8 chars).
 router.post('/change-password', authAdmin, async (req,res)=>{
   try{
     const {current_password,new_password,confirm_password}=req.body;
@@ -44,6 +54,7 @@ router.post('/change-password', authAdmin, async (req,res)=>{
   }catch(e){res.status(500).json({error:e.message});}
 });
 
+// GET /me — the logged-in admin's profile (requires an admin token).
 router.get('/me', authAdmin, (req,res)=>{
   const {id,email,role,two_fa_enabled}=req.admin;
   res.json({id,email,role,two_fa_enabled});

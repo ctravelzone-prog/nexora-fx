@@ -1,4 +1,25 @@
-// admin-app.js — Admin SPA router
+/*
+ * admin-app.js — Admin SPA router and login gate.
+ *
+ * Owns the AdminApp object: the route table, navigation, the admin login
+ * screen, and the 1-second auto-refresh for request-list pages.
+ * Key functions: init, navigate, route, _routes, showLogin, logout,
+ * _startListRefresh, _stopListRefresh, _autoRefresh.
+ * Pages themselves are rendered by AdminPages handlers defined in the other
+ * admin-*.js files; this file only decides which handler runs for a URL.
+ *
+ * Gotchas:
+ * - _gen is bumped on every route() call. Async page handlers capture it
+ *   before their API call and skip rendering if it changed, so a stale
+ *   auto-refresh can never overwrite a page the admin just opened.
+ * - Money is integer cents everywhere; display with utils.fmtMoney.
+ * - Admin API calls go through adminApi in js/admin-api.js.
+ * - Showcase accounts (is_showcase=1) are demo accounts with DISPLAY
+ *   balances set by the admin; they are excluded from all admin totals,
+ *   ledgers and reports.
+ * - Bump the ?v= cache version in script tags on every release, or
+ *   browsers keep serving stale code.
+ */
 const AdminApp = {
   // Navigation generation: bumped on every route(). Async page handlers capture it
   // before their API call and skip rendering if it changed — so a stale auto-refresh
@@ -8,14 +29,20 @@ const AdminApp = {
   _listPoll: null,
   // Request-list pages that auto-refresh so new user requests appear without a manual reload
   _refreshable: ['/dashboard','/notifications','/transactions','/deposits','/withdrawals','/request-money','/tickets','/forget-requests','/kyc'],
+// Starts the 1s auto-refresh poll, but only on request-list pages.
+  // Other pages never poll, so their forms and detail views stay stable.
   _startListRefresh(path) {
     AdminApp._stopListRefresh();
     if (!AdminApp._refreshable.includes(path)) return;
-    AdminApp._listPoll = setInterval(() => AdminApp._autoRefresh(), 1000);
+    AdminApp._listPoll = setInterval(() => AdminApp._autoRefresh(), 1000); // Poll every second so new requests appear without a manual reload.
   },
+// Stops any running list poll (called before starting a new one and on logout).
   _stopListRefresh() {
     if (AdminApp._listPoll) { clearInterval(AdminApp._listPoll); AdminApp._listPoll = null; }
   },
+// Re-runs the current list page handler once per second.
+  // Skips while a modal is open, the admin is typing, a ticket is open
+  // (it has its own 3s poll), or the tab is hidden. Scroll position is kept.
   async _autoRefresh() {
     // Skip while the admin is busy: a modal is open, typing in a field,
     // a ticket detail is open (its own 3s poll handles it), or the tab is hidden.
@@ -34,6 +61,8 @@ const AdminApp = {
     window.scrollTo(0, y);
   },
 
+// Boot: if there is no admin token, show the login screen. Otherwise
+  // load the current admin and site settings, then route to the current URL.
   async init() {
     if (!api.getAdminToken()) { AdminApp.showLogin(); return; }
     try {
@@ -48,11 +77,13 @@ const AdminApp = {
     window.onpopstate = () => AdminApp.route(window.location.pathname);
   },
 
+// Pushes a new URL into history and routes to it without a page reload.
   navigate(path) {
     history.pushState({}, '', path);
     AdminApp.route(path);
   },
 
+// Maps each admin URL path to the AdminPages handler that renders it.
   _routes() {
     return {
       '/': AdminPages.dashboard,
@@ -101,6 +132,8 @@ const AdminApp = {
     };
   },
 
+// Main router: bumps the navigation generation, starts list refresh for
+  // the new page, and handles the /admin/users/:id detail route specially.
   route(path) {
     AdminApp._gen++;
     if (!api.getAdminToken()) { AdminApp.showLogin(); return; }
@@ -114,6 +147,8 @@ const AdminApp = {
     else AdminPages.dashboard();
   },
 
+// Renders the admin login form. Handles the 2FA step (reveals the code
+  // field when the server asks for it) and the expired-session message.
   showLogin() {
     AdminApp._stopListRefresh();
     document.getElementById('admin-app').innerHTML = `
@@ -154,6 +189,7 @@ const AdminApp = {
     };
   },
 
+// Asks for confirmation, then clears the admin token and shows login.
   logout() {
     utils.confirm('Sign out of admin?', ()=>{api.clearAdminToken();AdminApp.showLogin();},'Sign Out');
   }

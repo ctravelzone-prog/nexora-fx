@@ -1,4 +1,13 @@
-// copyService.js — copy start/increase/decrease/stop
+// services/copyService.js — copy start/increase/decrease/stop.
+// Moves money between Main Balance and Copy Invested and tracks each
+// copy's earned profit. startCopy checks the trader minimum and the Main
+// Balance, then creates the copy row; increaseCopy adds money to an active
+// copy; decreaseCopy returns money to Main; stopCopy returns the principal
+// + earned profit to Main and marks the copy stopped.
+// Rule: profit is earned only on Copy Invested, on the first copied
+// amount, no compounding. Showcase accounts (is_showcase=1) copy against
+// their DISPLAY balances (showcase_main/copy/profit cents) and write no
+// real transaction rows.
 const { getDb } = require('../models/database');
 const H = require('./moneyHelpers');
 
@@ -7,15 +16,21 @@ const H = require('./moneyHelpers');
 // never in the real balances table. Copy money moves for a showcase user
 // use those fields, and no real transaction rows are written (showcase $
 // must never appear in admin totals or ledgers).
+// True when the user is a showcase (demo) account.
 function isShowcase(db, userId) {
   const u = db.prepare('SELECT is_showcase FROM users WHERE id=?').get(userId);
   return !!(u && u.is_showcase === 1);
 }
+// Moves money between a showcase account's display fields (never the
+// real balances table); returns false when the move would go negative.
 function moveShowcase(db, userId, dMain, dCopy, dProfit) {
   db.prepare('UPDATE users SET showcase_main_cents=showcase_main_cents+?,showcase_copy_cents=showcase_copy_cents+?,showcase_profit_cents=showcase_profit_cents+? WHERE id=?')
     .run(dMain, dCopy, dProfit, userId);
 }
 
+// Starts copying a trader: validates the trader, the amount and the
+// Main Balance (or the display balance for showcase), creates the copy
+// row (cycle starts today), and moves the amount Main -> Copy Invested.
 function startCopy(userId, traderId, amountCents) {
   const db = getDb();
   return db.transaction(() => {
@@ -51,6 +66,7 @@ function startCopy(userId, traderId, amountCents) {
   })();
 }
 
+// Adds money to an active copy (Main -> Copy Invested).
 function increaseCopy(userId, copyId, addCents) {
   const db = getDb();
   return db.transaction(() => {
@@ -72,6 +88,8 @@ function increaseCopy(userId, copyId, addCents) {
   })();
 }
 
+// Takes money out of an active copy (Copy Invested -> Main). A copy
+// cannot be decreased below zero.
 function decreaseCopy(userId, copyId, r) {
   const db = getDb();
   return db.transaction(() => {
@@ -91,6 +109,8 @@ function decreaseCopy(userId, copyId, r) {
   })();
 }
 
+// Stops a copy: principal + earned profit return to Main Balance and
+// the copy is marked stopped with a timestamp.
 function stopCopy(userId, copyId) {
   const db = getDb();
   return db.transaction(() => {

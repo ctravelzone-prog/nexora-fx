@@ -1,4 +1,30 @@
-// admin-users3.js — Showcase Accounts
+/*
+ * admin-users3.js — Showcase Accounts page.
+ *
+ * Renders /admin/showcase: demo accounts with admin-set DISPLAY balances
+ * (Main / Copy / Profit / Total Withdraw) and Create / Edit / Delete
+ * actions. Showcase profit follows the same 10% over 22 days schedule,
+ * applied to the Display Copy balance.
+ * Key functions: AdminPages.showcase, AdminPages._newShowcase,
+ * AdminPages._editShowcase, AdminPages._delShowcase, AdminPages._doDelShowcase.
+ *
+ * Gotchas:
+ * - Showcase accounts are demo accounts only: their DISPLAY balances are
+ *   not real money and they are excluded from all admin totals, ledgers
+ *   and reports. Real and showcase accounts are never mixed.
+ * - Dollar inputs are converted to integer cents before saving; a blank
+ *   field counts as 0. Leaving the password empty on edit keeps the
+ *   current password.
+ * - Money is integer cents everywhere; display with utils.fmtMoney.
+ * - Admin API calls go through adminApi in js/admin-api.js.
+ * - Showcase accounts (is_showcase=1) are demo accounts with DISPLAY
+ *   balances set by the admin; they are excluded from all admin totals,
+ *   ledgers and reports.
+ * - Bump the ?v= cache version in script tags on every release, or
+ *   browsers keep serving stale code.
+ */
+// Renders /admin/showcase: demo accounts with DISPLAY Main / Copy /
+  // Profit / Total Withdraw balances. Data: adminApi.getShowcaseUsers.
 AdminPages.showcase=async function(){
   try{
     const users=await adminApi.getShowcaseUsers();
@@ -10,6 +36,8 @@ AdminPages.showcase=async function(){
     </tbody></table></div>`,'Showcase Accounts');
   }catch(e){document.getElementById('admin-app').innerHTML=`<p class="p-8 text-red-500">${e.message}</p>`;}
 };
+// Opens the Create Showcase Account modal and saves it via
+  // adminApi.createShowcase.
 AdminPages._newShowcase=function(){
   utils.showModal(`<div class="modal"><h2 class="font-bold mb-4">Create Showcase Account</h2>
   <form id="sc-form" class="space-y-3">
@@ -29,11 +57,15 @@ AdminPages._newShowcase=function(){
   document.getElementById('sc-form').onsubmit=async(e)=>{
     e.preventDefault();const f=e.target,err=document.getElementById('sc-e');
     try{
+      // Convert dollar inputs to integer cents; a blank field counts as 0.
       await adminApi.createShowcase({full_name:f.full_name.value,username:f.username.value,email:f.email.value,password:f.password.value,main_cents:Math.round((parseFloat(f.main.value)||0)*100),copy_cents:Math.round((parseFloat(f.copy.value)||0)*100),profit_cents:Math.round((parseFloat(f.profit.value)||0)*100),withdraw_cents:Math.round((parseFloat(f.withdraw.value)||0)*100)});
       utils.closeModal();utils.toast('Showcase account created!','success');AdminPages.showcase();
     }catch(ex){err.textContent=ex.message;err.classList.remove('hidden');}
   };
 };
+// Loads showcase users via adminApi.getShowcaseUsers, finds the account
+  // and opens the pre-filled edit modal; saving goes through
+  // adminApi.updateShowcase.
 AdminPages._editShowcase=async function(id){
   try{
     const users=await adminApi.getShowcaseUsers();
@@ -65,5 +97,8 @@ AdminPages._editShowcase=async function(id){
     };
   }catch(e){utils.toast(e.message,'error');}
 };
+// Opens the Delete Showcase Account confirmation modal.
 AdminPages._delShowcase=function(id,name){utils.showModal(`<div class="modal"><h2 class="font-bold mb-3" style="color:#DC2626">Delete Showcase Account?</h2><p class="text-sm text-gray-500 mb-3">This permanently deletes showcase account <b>${name}</b> and its display-profit history. This cannot be undone.</p><div class="flex gap-3"><button onclick="utils.closeModal()" class="btn-secondary flex-1">Cancel</button><button onclick="AdminPages._doDelShowcase(${id})" class="flex-1 text-white font-semibold rounded-xl px-4 py-2" style="background:#DC2626">Delete Permanently</button></div></div>`);};
+// Deletes the showcase account via adminApi.deleteShowcase and
+  // returns to the showcase list.
 AdminPages._doDelShowcase=async function(id){try{await adminApi.deleteShowcase(id);utils.closeModal();utils.toast('Showcase account deleted','success');AdminPages.showcase();}catch(e){utils.toast(e.message,'error');}};

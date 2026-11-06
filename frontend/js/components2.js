@@ -1,6 +1,21 @@
-// components2.js Part 1 — topbar + sidebar helpers
+/*
+ * components2.js - Shared layout components for the Nexora FX user site.
+ * What it does: builds the public top bar, the logged-in sidebar and page
+ * header (with the notification bell), the mobile bottom nav, and the
+ * overall page layout that every Pages.* handler renders into.
+ * Key functions: brandNameHtml(), topbarPublic(), publicLayout(),
+ * navLink(), openSidebar(), closeSidebar(), sidebar(), appHeader(),
+ * toggleBell(), bellItemClick(), updateBellBadge(), markAllRead(),
+ * bottomNav(), layout().
+ * Important rules: the brand name comes from admin settings (last word
+ * orange unless per-word colors are set); the bell badge caps at "9+";
+ * the sidebar is fixed on desktop and slides in on mobile. Money is
+ * integer cents; display it only through utils.fmtMoney().
+ */
 const Components={
   // Brand name from admin settings: last word in orange (the Nexora FX style).
+  // Brand name HTML from admin settings. Per-word colors (JSON array of
+  // hex colors, one per word) win; otherwise the last word is orange.
   brandNameHtml(){
     const s=(typeof App!=='undefined'&&App.state&&App.state.settings)||{};
     const brand=(((s.header_brand_name||'Nexora FX').trim())||'Nexora FX');
@@ -15,6 +30,8 @@ const Components={
     const last=parts.pop();const first=parts.join(' ');
     return first?first+' <span class="text-orange-500">'+last+'</span>':'<span class="text-orange-500">'+last+'</span>';
   },
+  // Public top bar (landing, login, register): logo, brand name,
+  // tagline and Log In / Sign Up buttons, all controlled by admin settings.
   topbarPublic(page){
     const s=App.state.settings;
     const logo='<img src="'+(s.logo_url||'/assets/logo-nx-mark-transparent.png')+'" style="height:32px" alt="NX">';
@@ -36,22 +53,29 @@ const Components={
   publicLayout(html){
     document.getElementById('app').innerHTML=Components.topbarPublic('')+'<main class="nx-container py-8">'+html+'</main>';
   },
+  // One sidebar link. Adds the active class when its href matches the
+  // current path, and closes the mobile sidebar on tap.
   navLink(href,label,icon){
     const active=window.location.pathname===href;
     return '<a href="'+href+'" onclick="Components.closeSidebar()" class="sidebar-link'+(active?' active':'')+'">'+icon+'<span>'+label+'</span></a>';
   },
+  // Open the mobile sidebar and lock page scrolling behind it.
   openSidebar(){
     const s=document.getElementById('sidebar'),o=document.getElementById('sb-ov');
     if(s)s.classList.add('open');
     if(o)o.classList.add('show');
     document.body.style.overflow='hidden';
   },
+  // Close the mobile sidebar and restore page scrolling. Called on
+  // every navigation in App.route() so the page never stays locked.
   closeSidebar(){
     const s=document.getElementById('sidebar'),o=document.getElementById('sb-ov');
     if(s)s.classList.remove('open');
     if(o)o.classList.remove('show');
     document.body.style.overflow='';
   },
+  // Logged-in sidebar: logo + brand, grouped nav links (General, Stake,
+  // Finance, Referral, Account) and a red Sign Out button at the bottom.
   sidebar(){
     const u=App.state.user||{};
     const xbtn='<button class="ml-auto p-1 lg:hidden text-gray-400 hover:text-gray-700" onclick="Components.closeSidebar()"><svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path d="M6 18L18 6M6 6l12 12"/></svg></button>';
@@ -99,6 +123,8 @@ const Components={
 };
 
 
+// Page header for logged-in pages: menu button (mobile), title,
+// notification bell with unread badge, profile avatar and Sign Out.
 Components.appHeader=function(title,sub){
   const u=App.state.user||{}, n=App.state.unreadCount||0;
   const bellBadge=n>0?'<span id=\"bell-badge\" class="absolute top-0.5 right-0.5 w-4 h-4 bg-orange-500 text-white rounded-full" style="font-size:9px;display:flex;align-items:center;justify-content:center;font-weight:700">'+(n>9?'9+':n)+'</span>':'';
@@ -116,6 +142,8 @@ Components.appHeader=function(title,sub){
       +'<button onclick="App.logout()" title="Sign Out" class="p-2 rounded-xl hover:bg-gray-100 flex-shrink-0" style="color:#EF4444">'+svgIcons.logout+'</button>'
     +'</div></div>';
 };
+// Open/close the notification dropdown. On open it loads the latest
+// notifications via GET /api/user/notifications (shows at most 8).
 Components.toggleBell=function(e){
   e.stopPropagation();
   const dd=document.getElementById('bell-dd');
@@ -131,8 +159,11 @@ Components.toggleBell=function(e){
     Components.updateBellBadge();
     if(!list)return;
     if(!d.notifications.length){list.innerHTML='<p style="text-align:center;padding:20px;color:var(--muted);font-size:13px">No notifications</p>';return;}
+    // Show only the 8 most recent notifications in the dropdown.
     list.innerHTML=d.notifications.slice(0,8).map(function(n){
-      const icon=n.type==='success'?'✓':n.type==='warning'?'⚠':'ℹ';
+      // Icon and colors per notification type (success / warning / info).
+    // Icon and colors per notification type (success / warning / info).
+    const icon=n.type==='success'?'✓':n.type==='warning'?'⚠':'ℹ';
       const color=n.type==='success'?'#ECFDF5;color:#059669':n.type==='warning'?'#FFFBEB;color:#B45309':'#EFF6FF;color:#2563EB';
       return '<div onclick="Components.bellItemClick('+n.id+',\''+( n.action_url||'/notifications')+'\')" style="display:flex;align-items:flex-start;gap:12px;padding:12px 16px;border-bottom:1px solid var(--border);cursor:pointer;'+(n.is_read?'':'background:#FAFAFA;')+'hover:background:var(--bg2)">'
         +'<div style="width:32px;height:32px;border-radius:10px;flex:none;display:grid;place-items:center;font-size:13px;background:'+color+'">'+icon+'</div>'
@@ -145,12 +176,16 @@ Components.toggleBell=function(e){
   // Close on outside click
   setTimeout(function(){document.addEventListener('click',Components._bellOutside,{once:true});},10);
 };
+// Close the bell dropdown when the user clicks anywhere outside it.
 Components._bellOutside=function(e){
   const dd=document.getElementById('bell-dd');
   const btn=document.getElementById('bell-btn');
   if(dd&&!dd.contains(e.target)&&btn&&!btn.contains(e.target)){dd.style.display='none';}
 };
+// Hide the notification dropdown without loading anything.
 Components.closeBell=function(){const dd=document.getElementById('bell-dd');if(dd)dd.style.display='none';};
+// A notification was tapped: mark it read, drop the unread count by one,
+// close the dropdown, then navigate to its action URL (or /notifications).
 Components.bellItemClick=function(id,url){
   api.request('PUT','/api/user/notifications/'+id+'/read').catch(function(){});
   App.state.unreadCount=Math.max(0,(App.state.unreadCount||1)-1);
@@ -179,6 +214,8 @@ Components.updateBellBadge=function(){
     }
   } else if(b){ b.remove(); }
 };
+// Mark all notifications read via PUT /api/user/notifications/read-all,
+// clear the badge and close the dropdown.
 Components.markAllRead=function(){
   api.readAllNotifications().then(function(){
     App.state.unreadCount=0;
@@ -187,6 +224,8 @@ Components.markAllRead=function(){
     utils.toast('All notifications marked as read','success');
   }).catch(function(){});
 };
+// Mobile bottom nav (Home, Copy, Deposit, Withdraw, Alerts). Hidden on
+// desktop by CSS; the Alerts tab carries the unread-count badge.
 Components.bottomNav=function(){
   const p=window.location.pathname,n=App.state.unreadCount||0;
   function it(h,lbl,ic,b){
@@ -195,6 +234,8 @@ Components.bottomNav=function(){
   }
   return '<nav class="bottom-nav lg:hidden">'+it('/','Home',svgIcons.home,0)+it('/copy-trade','Copy',svgIcons.copy,0)+it('/deposit','Deposit',svgIcons.deposit,0)+it('/withdraw','Withdraw',svgIcons.withdraw,0)+it('/notifications','Alerts',svgIcons.bell,n)+'</nav>';
 };
+// Full logged-in page layout: sidebar + header + content + bottom nav.
+// Also refreshes the unread notification count for the bell badge.
 Components.layout=function(html,title,sub){
   document.getElementById('app').innerHTML=Components.sidebar()+'<div class="with-sidebar">'+Components.appHeader(title,sub)+'<main class="p-4 lg:p-6">'+html+'</main></div>'+Components.bottomNav();
   api.getNotifications().then(function(d){App.state.unreadCount=d.unread_count||0;}).catch(function(){});

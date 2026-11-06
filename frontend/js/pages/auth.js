@@ -1,6 +1,26 @@
-// pages/auth.js — auth pages
+/*
+ * auth.js — Authentication pages for Nexora FX.
+ *
+ * Renders the register, login, forgot-password, reset-password and
+ * email-verification screens, and wires up their forms.
+ *
+ * Key pages:
+ * - Pages.register — calls api.register; requires Terms acceptance,
+ *   matching passwords and a minimum of 8 characters.
+ * - Pages.login — calls api.login; supports an optional 2FA authenticator
+ *   code, forced password change, and a saved redirect destination.
+ * - Pages.forgotPassword — reset with an authenticator code, or message
+ *   the admin for a 24-hour one-time OTP (no email/SMTP reset link).
+ * - Pages.resetPassword — sets a new password from a reset link token.
+ * - Pages.verifyEmail — confirms an email verification token.
+ *
+ * Gotcha: the ?v= cache version in script tags must be bumped on every
+ * release, or browsers may serve stale code.
+ */
+// Toggle password visibility for the input next to the clicked button.
 Pages._pw=function(btn){const i=btn.previousElementSibling;if(i)i.type=i.type==='password'?'text':'password';};
 
+// Register page. Validates the form, then calls api.register.
 Pages.register=function(){
   document.getElementById('app').innerHTML=Templates.register();
   document.getElementById('reg-form').onsubmit=async(e)=>{
@@ -18,6 +38,8 @@ Pages.register=function(){
   };
 };
 
+// Login page. Calls api.login, handles 2FA, forced password change,
+// then loads the balance and redirects to the saved destination.
 Pages.login=function(){
   document.getElementById('app').innerHTML=Templates.login();
   document.getElementById('login-form').onsubmit=async(e)=>{
@@ -28,6 +50,7 @@ Pages.login=function(){
     utils.loading(btn,true);
     try{
       const d=await api.login({username:f.username.value,password:f.password.value,totp_code:f.totp_code?.value||undefined});
+      // Login succeeded but 2FA is required: reveal the code row.
       if(d.require_2fa){
         document.getElementById('login-2fa').classList.remove('hidden');
         document.getElementById('login-hint').textContent='Enter your 6-digit authenticator code.';
@@ -43,6 +66,7 @@ Pages.login=function(){
       api.setToken(d.token);
       document.getElementById('impersonation-banner')?.remove(); // normal login is never an impersonation
       App.state.user=d.user;
+      // One-time temporary password: force the user to set a new one.
       if(d.force_password_change){
         utils.toast('Please set a new permanent password.','info');
         App.navigate('/change-password');
@@ -62,6 +86,8 @@ Pages.login=function(){
   };
 };
 
+// Switch the forgot-password screen between the authenticator-code
+// option and the message-admin option.
 Pages._showFpOpt=function(which){
   const a=document.getElementById('fp-auth-section'),m=document.getElementById('fp-msg-section');
   if(a)a.style.display=which==='auth'?'block':'none';
@@ -70,6 +96,9 @@ Pages._showFpOpt=function(which){
   if(ab)ab.className=which==='auth'?'btn-primary':'btn-secondary';
   if(mb)mb.className=which==='msg'?'btn-primary':'btn-secondary';
 };
+// Forgot-password page. Offers two reset paths: authenticator code
+// (api.resetViaAuthenticator, then api.resetPassword) or a message to
+// the admin (api.forgetRequest) for a 24-hour one-time OTP.
 Pages.forgotPassword=function(){
   document.getElementById('app').innerHTML=Components.topbarPublic('')
     +'<div class="min-h-screen bg-gray-50 flex items-center justify-center p-4">'
@@ -134,6 +163,8 @@ Pages.forgotPassword=function(){
   };
 };
 
+// Reset-password page. Reads the token from the argument or the URL,
+// then calls api.resetPassword. No token means show forgot-password.
 Pages.resetPassword=async function(token){
   const t=token||new URLSearchParams(window.location.search).get('token');
   if(!t){Pages.forgotPassword();return;}
@@ -161,6 +192,8 @@ Pages.resetPassword=async function(token){
   };
 };
 
+// Email-verification page. Calls api.verifyEmail with the token from
+// the argument or the URL and shows a success or invalid-link screen.
 Pages.verifyEmail=async function(token){
   document.getElementById('app').innerHTML='<div class="min-h-screen flex items-center justify-center"><div class="text-center p-8"><div class="spinner page-loader mx-auto mb-4"></div><p>Verifying email...</p></div></div>';
   const t=token||new URLSearchParams(window.location.search).get('token');

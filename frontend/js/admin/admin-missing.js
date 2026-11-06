@@ -1,4 +1,29 @@
-// admin-missing.js — Request Money + Blog + Pages editor
+/*
+ * admin-missing.js — Request Money, Blog and Pages editor.
+ *
+ * Renders /admin/request-money (approve to credit Main Balance, reject with
+ * a reason), /admin/blog (create / list / delete posts) and the Website
+ * Contents page editor (Terms, Privacy, Risk Disclosure, FAQ, plus new pages).
+ * Key functions: AdminPages.requestMoney, AdminPages._mrApprove,
+ * AdminPages._mrReject, AdminPages._doMrReject, AdminPages.manageBlog,
+ * AdminPages._delPost, AdminPages._newPost, AdminPages.pagesEditor,
+ * AdminPages._editPage, AdminPages._newPage.
+ *
+ * Gotchas:
+ * - Blog and page calls use api.request directly (not adminApi) because
+ *   those endpoints have no adminApi wrapper yet.
+ * - Form fields are read with querySelector('[name=...]') because the
+ *   built-in form.title / form.target properties shadow input names.
+ * - Money is integer cents everywhere; display with utils.fmtMoney.
+ * - Admin API calls go through adminApi in js/admin-api.js.
+ * - Showcase accounts (is_showcase=1) are demo accounts with DISPLAY
+ *   balances set by the admin; they are excluded from all admin totals,
+ *   ledgers and reports.
+ * - Bump the ?v= cache version in script tags on every release, or
+ *   browsers keep serving stale code.
+ */
+// Renders /admin/request-money: pending requests first, reviewed ones
+  // below. Data comes from adminApi.getMoneyRequests().
 AdminPages.requestMoney=async function(){
   try{const _gen=AdminApp._gen;const rs=await adminApi.getMoneyRequests();if(_gen!==AdminApp._gen)return;
   const pend=rs.filter(r=>r.status==='pending'),done=rs.filter(r=>r.status!=='pending');
@@ -11,24 +36,32 @@ AdminPages.requestMoney=async function(){
   ,'Request Money');
   }catch(e){document.getElementById('admin-app').innerHTML='<p class="p-8 text-red-500">'+e.message+'</p>';}
 };
+// Confirms, then approves a money request via adminApi.approveMoneyRequest.
+  // Approval adds the amount to the user's Main Balance.
 AdminPages._mrApprove=function(id){utils.confirm('Approve this request? The amount will be added to the user\'s Main Balance.',async()=>{try{await adminApi.approveMoneyRequest(id);utils.toast('Approved — balance added','success');AdminPages.requestMoney();}catch(ex){utils.toast(ex.message,'error');}},'Approve');};
+// Opens a modal asking for a rejection reason for a money request.
 AdminPages._mrReject=function(id){utils.showModal('<div class="modal"><h2 class="font-bold mb-3">Reject Request #'+id+'</h2><label class="input-label">Reason (optional)</label><input id="mr-note" type="text" class="input-field mb-3"><div class="flex gap-3"><button onclick="utils.closeModal()" class="btn-secondary flex-1">Cancel</button><button onclick="AdminPages._doMrReject('+id+')" class="btn-danger flex-1">Reject</button></div></div>');};
+// Submits the rejection (with note) via adminApi.rejectMoneyRequest.
 AdminPages._doMrReject=async function(id){const note=document.getElementById('mr-note').value;try{await adminApi.rejectMoneyRequest(id,{note});utils.closeModal();utils.toast('Rejected','success');AdminPages.requestMoney();}catch(ex){utils.toast(ex.message,'error');}};
+// Renders /admin/blog: the post list with a New Post button.
+  // Fetches posts with GET /api/admin/blog; a failed fetch shows an empty list.
 AdminPages.manageBlog=async function(){
   let posts=[];
   try{ const r=await api.request('GET','/api/admin/blog',null,true); posts=Array.isArray(r)?r:[]; }catch(e){ posts=[]; }
   const rows=posts.map(p=>{
-    const d=p.created_at?new Date(p.created_at*1000).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}):'';
+    const d=p.created_at?new Date(p.created_at*1000).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}):''; // created_at is epoch seconds, so x1000 converts it to milliseconds.
     const badge=p.status==='published'?'<span class="st st-green">Published</span>':'<span class="st">Draft</span>';
     return '<div class="flex items-center gap-3" style="padding:12px 4px;border-bottom:1px solid var(--border)"><div class="grow min-w-0"><b style="font-size:14px">'+String(p.title||'').replace(/</g,'&lt;')+'</b><div class="text-xs text-gray-400">'+d+'</div></div>'+badge+'<button onclick="AdminPages._delPost('+p.id+')" class="btn-secondary text-xs" style="padding:6px 12px;width:auto">Delete</button></div>';
   }).join('');
   AdminComponents.layout(`<div class="admin-head"><div><h2>Manage Blog</h2><p style="color:var(--muted);font-size:13px">Create and manage blog posts.</p></div><div style="margin-left:auto"><button onclick="AdminPages._newPost()" class="btn-primary text-sm" style="width:auto;padding:10px 16px">+ New Post</button></div></div><div class="panel" style="margin-top:0">${rows||'<p style="text-align:center;padding:32px;color:var(--muted)">No blog posts yet.</p>'}</div>`,'Manage Blog');
 };
+// Confirms, then deletes a blog post via DELETE /api/admin/blog/:id.
 AdminPages._delPost=function(id){
   utils.confirm('Delete this blog post?',async()=>{
     try{ await api.request('DELETE','/api/admin/blog/'+id,null,true); utils.toast('Post deleted','success'); AdminPages.manageBlog(); }catch(e){ utils.toast(e.message,'error'); }
   },'Delete Post');
 };
+// Opens the New Blog Post modal and saves it via POST /api/admin/blog.
 AdminPages._newPost=function(){
   utils.showModal('<div class="modal"><h2 style="font-size:18px;font-weight:800;margin-bottom:12px">New Blog Post</h2><form id="bp-form" class="space-y-4"><div><label class="input-label">Title</label><input name="title" type="text" class="input-field" required></div><div><label class="input-label">Content (HTML)</label><textarea name="content" class="input-field" rows="5" placeholder="<p>Content...</p>"></textarea></div><div><label class="input-label">Status</label><select name="status" class="input-field"><option value="draft">Draft</option><option value="published">Published</option></select></div><div class="flex gap-3"><button type="button" onclick="utils.closeModal()" class="btn-secondary flex-1">Cancel</button><button type="submit" id="bp-btn" class="btn-primary flex-1">Save</button></div></form></div>');
   document.getElementById('bp-form').onsubmit=async e=>{
@@ -37,18 +70,23 @@ AdminPages._newPost=function(){
     catch(ex){ utils.toast(ex.message,'error'); utils.loading(btn,false); }
   };
 };
+// Renders the Website Contents page picker (Terms, Privacy, Risk, FAQ)
+  // plus an Add New Page card. No API call; content loads on edit.
 AdminPages.pagesEditor=function(){
   AdminComponents.layout('<div class="admin-head"><div><h2>Website Contents — Pages</h2><p style="color:var(--muted);font-size:13px">Edit Terms, Privacy Policy, Risk Disclosure, FAQ.</p></div></div><div class="panel" style="margin-top:0"><div style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px">'
     +[['terms','Terms & Conditions'],['privacy','Privacy Policy'],['risk','Risk Disclosure'],['faq','FAQ']].map(([s,t])=>'<div class="card" style="cursor:pointer" onclick="AdminPages._editPage(\''+s+'\',\''+t+'\')"><b style="font-size:15px;color:var(--ink)">'+t+'</b><p style="font-size:12px;color:var(--muted);margin-top:3px">Click to edit</p></div>').join('')
     +'<div class="card" style="border:2px dashed var(--border);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px" onclick="AdminPages._newPage()"><span style="font-size:20px;color:var(--muted)">+</span><span style="font-size:13px;font-weight:700;color:var(--muted)">Add New Page</span></div>'
     +'</div></div>','Website Contents');
 };
+// Loads one page's HTML via GET /api/admin/pages/:slug (missing page
+  // means empty content) and saves edits via PUT to the same endpoint.
 AdminPages._editPage=async function(slug,title){
   let content='';
   try{const p=await api.request('GET','/api/admin/pages/'+slug,null,true).catch(()=>null);if(p)content=p.content||'';}catch(e){}
   utils.showModal('<div class="modal" style="max-width:640px"><h2 style="font-size:18px;font-weight:800;margin-bottom:12px">Edit: '+title+'</h2><form id="pge-form"><label class="input-label">Content (HTML)</label><textarea name="content" class="input-field" rows="10" style="margin-bottom:12px">'+content+'</textarea><div class="flex gap-3"><button type="button" onclick="utils.closeModal()" class="btn-secondary flex-1">Cancel</button><button type="submit" id="pge-btn" class="btn-primary flex-1">Save</button></div></form></div>');
   document.getElementById('pge-form').onsubmit=async(e)=>{e.preventDefault();const btn=document.getElementById('pge-btn');utils.loading(btn,true);try{await api.request('PUT','/api/admin/pages/'+slug,{content:e.target.content.value},true);utils.closeModal();utils.toast('Page saved!','success');}catch(ex){utils.toast(ex.message,'error');utils.loading(btn,false);}};
 };
+// Opens the New Page modal and creates the page via POST /api/admin/pages.
 AdminPages._newPage=function(){
   utils.showModal('<div class="modal"><h2 style="font-size:18px;font-weight:800;margin-bottom:12px">New Page</h2><form id="npg-form" class="space-y-4"><div><label class="input-label">Title</label><input name="title" type="text" class="input-field" required></div><div><label class="input-label">Slug (e.g. about)</label><input name="slug" type="text" class="input-field" required></div><div><label class="input-label">Content (HTML)</label><textarea name="content" class="input-field" rows="5"></textarea></div><div class="flex gap-3"><button type="button" onclick="utils.closeModal()" class="btn-secondary flex-1">Cancel</button><button type="submit" id="npg-btn" class="btn-primary flex-1">Create</button></div></form></div>');
   document.getElementById('npg-form').onsubmit=async(e)=>{e.preventDefault();const btn=document.getElementById('npg-btn');utils.loading(btn,true);try{await api.request('POST','/api/admin/pages',{title:e.target.querySelector('[name="title"]').value,slug:e.target.querySelector('[name="slug"]').value,content:e.target.querySelector('[name="content"]').value},true);utils.closeModal();utils.toast('Page created!','success');AdminPages.pagesEditor();}catch(ex){utils.toast(ex.message,'error');utils.loading(btn,false);}};

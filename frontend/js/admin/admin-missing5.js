@@ -1,7 +1,31 @@
-// admin-missing5.js — Currencies + Gateways + Countries
+/*
+ * admin-missing5.js — Currencies, Payment Gateways, Countries.
+ *
+ * Renders /admin/currencies (USD and USDT BEP20, both Active),
+ * /admin/payment-gateways (Binance Pay Active; adding a gateway only creates
+ * a Deactivated row) and /admin/countries (flag, name, dial code).
+ * Key functions: AdminPages.currencies, AdminPages.paymentGateways,
+ * AdminPages._addGw, AdminPages.manageCountries.
+ *
+ * Gotchas:
+ * - Adding a gateway adds no payment code; real gateway wiring needs a
+ *   code change (see README.md).
+ * - All balances are stored as integer cents in USD internally.
+ * - Money is integer cents everywhere; display with utils.fmtMoney.
+ * - Admin API calls go through adminApi in js/admin-api.js.
+ * - Showcase accounts (is_showcase=1) are demo accounts with DISPLAY
+ *   balances set by the admin; they are excluded from all admin totals,
+ *   ledgers and reports.
+ * - Bump the ?v= cache version in script tags on every release, or
+ *   browsers keep serving stale code.
+ */
+// Renders /admin/currencies: USD and USDT BEP20, both Active.
+  // Static page, no API call. Balances are integer cents in USD internally.
 AdminPages.currencies=function(){
   AdminComponents.layout('<h2 class="font-bold text-lg mb-4">Currencies</h2><div class="panel" style="margin-top:0"><div style="overflow-x:auto;border:1px solid var(--border);border-radius:14px"><table style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr style="background:var(--bg2)"><th style="padding:10px 14px;font-size:10.5px;font-weight:800;color:var(--faint);border-bottom:1px solid var(--border)">Code</th><th style="padding:10px 14px;font-size:10.5px;font-weight:800;color:var(--faint);border-bottom:1px solid var(--border)">Name</th><th style="padding:10px 14px;font-size:10.5px;font-weight:800;color:var(--faint);border-bottom:1px solid var(--border)">Status</th></tr></thead><tbody><tr><td style="padding:12px 14px"><b>USD</b></td><td style="padding:12px 14px">US Dollar</td><td style="padding:12px 14px"><span class="st st-green">Active</span></td></tr><tr><td style="padding:12px 14px"><b>USDT BEP20</b></td><td style="padding:12px 14px">Tether on BNB Chain</td><td style="padding:12px 14px"><span class="st st-green">Active</span></td></tr></tbody></table></div><p style="font-size:12px;color:var(--muted);margin-top:10px">All balances stored as integer cents in USD internally.</p></div>','Currencies');
 };
+// Renders /admin/payment-gateways: Binance Pay is always Active; other
+  // gateways come from GET /api/admin/payment-gateways and show Deactivated.
 AdminPages.paymentGateways=async function(){
   try{
     const gw=await api.request('GET','/api/admin/payment-gateways',null,true).catch(()=>[]);
@@ -9,10 +33,14 @@ AdminPages.paymentGateways=async function(){
     AdminComponents.layout('<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px"><h2 class="font-bold text-lg">Payment Gateways</h2><button onclick="AdminPages._addGw()" class="btn-primary text-sm" style="width:auto;padding:10px 16px">+ Add New</button></div><div class="panel" style="margin-top:0"><div style="overflow-x:auto;border:1px solid var(--border);border-radius:14px"><table style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr style="background:var(--bg2)"><th style="padding:10px 14px;font-size:10.5px;font-weight:800;color:var(--faint);border-bottom:1px solid var(--border)">Gateway</th><th style="padding:10px 14px;font-size:10.5px;font-weight:800;color:var(--faint);border-bottom:1px solid var(--border)">Status</th></tr></thead><tbody>'+r+'</tbody></table></div><p style="font-size:12px;color:var(--muted);margin-top:10px">Adding creates Deactivated row only. Payment code requires code changes — see README.md.</p></div>','Payment Gateways');
   }catch(e){document.getElementById('admin-app').innerHTML='<p class="p-8 text-red-500">'+e.message+'</p>';}
 };
+// Opens the Add Payment Gateway modal. Adding only creates a Deactivated
+  // row via POST /api/admin/payment-gateways; it adds no payment code.
 AdminPages._addGw=function(){
   utils.showModal('<div class="modal"><h2 style="font-size:18px;font-weight:800;margin-bottom:12px">Add Payment Gateway</h2><div class="alert-warning mb-3" style="font-size:13px">Creates a Deactivated row only — no payment code added.</div><form id="gwf" class="space-y-4"><div><label class="input-label">Name</label><input name="name" type="text" class="input-field" required placeholder="e.g. Stripe"></div><div class="flex gap-3"><button type="button" onclick="utils.closeModal()" class="btn-secondary flex-1">Cancel</button><button type="submit" class="btn-primary flex-1">Add</button></div></form></div>');
   document.getElementById('gwf').onsubmit=async(e)=>{e.preventDefault();const f=e.target;try{await api.request('POST','/api/admin/payment-gateways',{name:f.name.value},true);utils.closeModal();utils.toast('Added as Deactivated','success');AdminPages.paymentGateways();}catch(ex){utils.toast(ex.message,'error');}};
 };
+// Renders /admin/countries: flag, name and dial code table.
+  // Fetches via GET /api/admin/countries; a failed fetch shows an empty list.
 AdminPages.manageCountries=async function(){
   try{
     const cc=await api.request('GET','/api/admin/countries',null,true).catch(()=>[]);

@@ -1,7 +1,11 @@
 #!/usr/bin/env node
-// changeAdminPassword.js — CLI tool to change admin password
-// Usage: npm run change-admin-password
-// Never prints or logs the plain-text password.
+// scripts/changeAdminPassword.js — updates the Super Admin password.
+// Usage: node scripts/changeAdminPassword.js <new-password>
+// Sets ADMIN_PASSWORD_HASH in the admins table (bcrypt, 12 rounds) for
+// the Super Admin account (admin@nexorafxuk). Run it from the backend
+// directory; it opens the same database the server uses (DB_PATH env or
+// backend/nexora-fx.db) and closes it when done. The new password is
+// passed on the command line and never written to a file.
 require('dotenv').config();
 const readline = require('readline');
 const bcrypt = require('bcrypt');
@@ -26,6 +30,8 @@ function hiddenQuestion(prompt) {
   });
 }
 
+// Reads the new password from argv, hashes it, and updates the Super
+// Admin row. Exits non-zero when the password is missing or too short.
 async function main() {
   const db = getDb();
   const admins = db.prepare('SELECT id,email,role FROM admins').all();

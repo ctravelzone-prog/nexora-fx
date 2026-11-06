@@ -1,4 +1,11 @@
-/* nexora-theme.css — matches reference layout (Part 1) */
+/* nexora-theme.css - Nexora FX theme, Part 1 (matches reference layout).
+ * Sections below: theme variables, the dashboard value band (total value,
+ * actions, stats), and the balance breakdown (Main vs Copy Invested
+ * buckets with the allocation bar).
+ * Brand color is orange #FF6A00; the value band is dark (#181A20 / #1E2329).
+ * Gotcha: this file uses CRLF line endings - keep them when editing. */
+/* Theme variables: brand orange, backgrounds, text colors, status colors,
+   borders, corner radii and shadows used across the theme files. */
 :root{
   --orange:#FF6A00;--orange2:#FF7A00;--orange-soft:#FFF1E6;--orange-line:#FFD9BE;
   --bg:#F8F9FA;--bg2:#F3F4F6;--card:#FFFFFF;

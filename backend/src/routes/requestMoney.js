@@ -1,4 +1,10 @@
-// requestMoney.js — user requests a balance correction; admin approves (adds Main Balance) or rejects
+// routes/requestMoney.js — user asks the admin for a balance correction.
+// POST / creates a money_requests row (one pending request at a time,
+// max $1,000,000, reason up to 500 chars) and notifies the admin.
+// GET / lists the user's own requests, newest first.
+// When an admin approves, the amount is added to the user's Main Balance
+// (see admin/moneyRequests.js). This is a manual correction flow, not a
+// deposit: no Binance Pay transaction is involved.
 const router = require('express').Router();
 const { getDb } = require('../models/database');
 const { authImpersonation } = require('../middleware/auth');

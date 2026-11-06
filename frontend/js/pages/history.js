@@ -1,4 +1,26 @@
-// pages/history.js — Transaction history with tabs + dark summary band
+/*
+ * history.js — Transaction History page for Nexora FX.
+ *
+ * Shows all transactions (GET /api/transactions, limit 100) with a
+ * dark summary band, filter tabs and a table. Pending deposits and
+ * withdrawals appear in the list with a Pending badge.
+ *
+ * Key functions:
+ * - Pages.history — loads transactions, computes the completed-only
+ *   totals, and renders the summary band, tabs and table.
+ * - Pages._hrows — renders table rows for a list of transactions.
+ * - Pages._htab — switches the visible tab (All / Dep / Wd / Copy / Ref)
+ *   by reading the stored rows, without another API call.
+ *
+ * Rules: money is integer cents; display via utils.fmtMoney. Totals
+ * count completed money only — a pending deposit or withdrawal must
+ * not inflate the balance before the admin approves it. Net is
+ * amount minus fee. Website UI text is always English.
+ * Gotcha: the ?v= cache version in script tags must be bumped on every
+ * release, or browsers may serve stale code.
+ * Note: this file uses CRLF line endings — preserve them on every edit.
+ */
+// Transaction History page: summary band, tabs and table. See header.
 Pages.history=async function(){
   try{
     const txns=await api.getTransactions({limit:100});
@@ -19,10 +41,14 @@ Pages.history=async function(){
     Components.layout('<div class="flex items-center gap-3 mb-4">'+backBtn+'<div><h1 style="font-size:21px;font-weight:800">Transactions</h1><p style="font-size:13px;color:var(--muted)">Full history</p></div></div>'+darkBand+tabs+tbl+store,'Transactions','');
   }catch(e){document.getElementById('app').innerHTML='<p class="p-8" style="color:var(--red)">'+e.message+'</p>';}
 };
+// Render table rows for a list of transactions; empty list shows
+// a single "No transactions" row.
 Pages._hrows=function(rows){
   if(!rows.length)return'<tr><td colspan="7" style="text-align:center;padding:32px;color:var(--muted)">No transactions</td></tr>';
   return rows.map(t=>'<tr><td style="font-size:12px;color:var(--muted);white-space:nowrap">'+utils.fmtDateTime(t.created_at)+'</td><td><b style="color:var(--ink)">'+t.type.replace(/_/g,' ')+'</b></td><td style="font-weight:800;color:'+(t.direction==='in'?'var(--green-d)':'var(--red)')+'">'+( t.direction==='in'?'+':'-')+utils.fmtMoney(t.amount_cents)+'</td><td style="color:var(--muted)">'+utils.fmtMoney(t.fee_cents)+'</td><td style="font-weight:700;color:'+(t.direction==='in'?'var(--green-d)':'var(--red)')+'">'+( t.direction==='in'?'+':'-')+utils.fmtMoney(t.net_cents)+'</td><td>'+utils.statusBadge(t.status)+'</td><td style="font-size:12px;color:var(--muted)">'+( t.reference||'—')+'</td></tr>').join('');
 };
+// Switch the history tab: highlight the clicked tab and render the
+// rows stored for that tab (no extra API call).
 Pages._htab=function(k){
   document.querySelectorAll('[id^="htab-"]').forEach(b=>{b.style.background='#fff';b.style.color='var(--body)';b.style.borderColor='var(--border)';});
   const btn=document.getElementById('htab-'+k);

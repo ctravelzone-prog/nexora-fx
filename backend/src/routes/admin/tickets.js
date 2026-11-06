@@ -1,8 +1,15 @@
-// admin/tickets.js — support ticket management
+// routes/admin/tickets.js — admin side of support tickets.
+// GET / lists all tickets with user name/username, newest first. GET /:id
+// returns one ticket with its message thread. POST /:id/reply adds an
+// admin message (and marks the ticket 'answered'). PUT /:id/status
+// closes or reopens a ticket.
+// Rule: closed tickets disappear from the USER's ticket list but stay
+// visible here, so the admin can reopen them.
 const router = require('express').Router();
 const { getDb } = require('../../models/database');
 const { authAdmin } = require('../../middleware/auth');
 
+// GET / — all support tickets with user name/username, newest first.
 router.get('/', authAdmin, (req,res)=>{
   const db=getDb(); const {status,limit=50,offset=0}=req.query;
   let q=`SELECT t.*,u.full_name,u.username FROM support_tickets t JOIN users u ON t.user_id=u.id`;
@@ -12,6 +19,7 @@ router.get('/', authAdmin, (req,res)=>{
   res.json(db.prepare(q).all(...p));
 });
 
+// GET /:id — one ticket with its full message thread.
 router.get('/:id', authAdmin, (req,res)=>{
   const db=getDb();
   const ticket=db.prepare('SELECT t.*,u.full_name,u.username,u.email FROM support_tickets t JOIN users u ON t.user_id=u.id WHERE t.id=?').get(req.params.id);
@@ -20,6 +28,8 @@ router.get('/:id', authAdmin, (req,res)=>{
   res.json({...ticket,messages});
 });
 
+// POST /:id/reply — adds an admin message and marks the ticket
+// 'answered'.
 router.post('/:id/reply', authAdmin, (req,res)=>{
   const {message}=req.body;
   if(!message) return res.status(400).json({error:'Message required'});
@@ -33,6 +43,8 @@ router.post('/:id/reply', authAdmin, (req,res)=>{
   res.json({success:true});
 });
 
+// PUT /:id/status — closes or reopens a ticket (status 'closed' or
+// 'open').
 router.put('/:id/status', authAdmin, (req,res)=>{
   const {status}=req.body;
   if(!['open','answered','closed'].includes(status)) return res.status(400).json({error:'Invalid status'});

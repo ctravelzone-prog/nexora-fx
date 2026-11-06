@@ -1,10 +1,19 @@
-// admin/finance.js — deposits, withdrawals, transactions, referrals
+// routes/admin/finance.js — admin money screens: deposits, withdrawals,
+// transactions ledger and referrals.
+// Deposits: list / approve (credits Main Balance via moneyService) /
+// reject. Withdrawals: list / process (approve or reject, via
+// withdrawService). GET /transactions is the full ledger; GET /referrals
+// lists every referral commission.
+// Rule: every list here filters is_showcase=0 — showcase accounts never
+// appear in admin finance.
 const router = require('express').Router();
 const { getDb } = require('../../models/database');
 const { authAdmin } = require('../../middleware/auth');
 const { applyDeposit } = require('../../services/moneyService');
 const { processWithdrawal } = require('../../services/withdrawService');
 
+// GET /deposits — all deposit requests with user name/username, newest
+// first. Showcase deposits are excluded (is_showcase=0).
 router.get('/deposits', authAdmin, (req,res)=>{
   const db=getDb(); const {status,limit=50,offset=0}=req.query;
   let q=`SELECT d.*,u.full_name,u.username,u.email FROM deposits d JOIN users u ON d.user_id=u.id WHERE u.is_showcase=0`;
@@ -14,6 +23,9 @@ router.get('/deposits', authAdmin, (req,res)=>{
   res.json(db.prepare(q).all(...p));
 });
 
+// POST /deposits/:id/approve — approves a pending deposit: credits the
+// user's Main Balance via moneyService.applyDeposit (also pays the
+// referrer on a first deposit).
 router.post('/deposits/:id/approve', authAdmin, (req,res)=>{
   try{
     const dep=getDb().prepare('SELECT * FROM deposits WHERE id=?').get(req.params.id);
@@ -23,6 +35,8 @@ router.post('/deposits/:id/approve', authAdmin, (req,res)=>{
   }catch(e){res.status(500).json({error:e.message});}
 });
 
+// POST /deposits/:id/reject — rejects a pending deposit: marks the
+// deposit and its pending History row rejected. No money moves.
 router.post('/deposits/:id/reject', authAdmin, (req,res)=>{
   try{
     const {note}=req.body; const db=getDb();
@@ -36,6 +50,8 @@ router.post('/deposits/:id/reject', authAdmin, (req,res)=>{
   }catch(e){res.status(500).json({error:e.message});}
 });
 
+// GET /withdrawals — all withdrawal requests with user name/username
+// and wallet address, newest first. Showcase withdrawals excluded.
 router.get('/withdrawals', authAdmin, (req,res)=>{
   const db=getDb(); const {status,type,limit=50,offset=0}=req.query;
   let q=`SELECT w.*,u.full_name,u.username,u.email FROM withdrawals w JOIN users u ON w.user_id=u.id WHERE u.is_showcase=0`;
@@ -46,6 +62,9 @@ router.get('/withdrawals', authAdmin, (req,res)=>{
   res.json(db.prepare(q).all(...p));
 });
 
+// POST /withdrawals/:id/process — approves or rejects a pending
+// withdrawal (body: action 'approve'|'reject') via
+// withdrawService.processWithdrawal.
 router.post('/withdrawals/:id/process', authAdmin, (req,res)=>{
   try{
     const {action,note}=req.body;
@@ -55,6 +74,8 @@ router.post('/withdrawals/:id/process', authAdmin, (req,res)=>{
   }catch(e){res.status(400).json({error:e.message});}
 });
 
+// GET /transactions — the full transaction ledger with user name/
+// username, newest first. Showcase transactions are excluded.
 router.get('/transactions', authAdmin, (req,res)=>{
   const db=getDb(); const {type,user_id,from,to,limit=100,offset=0}=req.query;
   let q=`SELECT t.*,u.full_name,u.username FROM transactions t JOIN users u ON t.user_id=u.id WHERE u.is_showcase=0`;
@@ -71,6 +92,8 @@ router.get('/transactions', authAdmin, (req,res)=>{
   res.json({transactions:rows,totals:{in:totalIn,out:totalOut,fees:totalFees,net:totalIn-totalOut-totalFees}});
 });
 
+// GET /referrals — every referral commission with referrer and
+// referred user names, newest first.
 router.get('/referrals', authAdmin, (req,res)=>{
   const db=getDb();
   res.json(db.prepare(`SELECT r.*,ru.full_name as referrer_name,ru.username as referrer_username,rd.full_name as referred_name,rd.username as referred_username FROM referrals r JOIN users ru ON r.referrer_user_id=ru.id JOIN users rd ON r.referred_user_id=rd.id ORDER BY r.created_at DESC`).all());

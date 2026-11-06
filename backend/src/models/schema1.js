@@ -1,4 +1,14 @@
-// schema1.js — core user/money tables
+// models/schema1.js — core user and money tables (created once on startup).
+// Tables: admins, users, balances, transactions, deposits, withdrawals,
+// traders, copies, profit_schedule, daily_pnl_log, referrals.
+// Rules: all money is stored as integer cents (never floats). users holds
+// the showcase display fields (showcase_main_cents, showcase_copy_cents,
+// showcase_profit_cents, showcase_withdraw_cents) — demo accounts
+// (is_showcase=1) keep their money there, never in the balances table.
+// CREATE TABLE IF NOT EXISTS is used throughout, so re-running the schema
+// on an existing database is a no-op; new columns are added by the
+// migrations in models/database.js instead.
+// Creates the core tables. Runs once when the database handle is opened.
 module.exports = function(db) {
   db.exec(`
     CREATE TABLE IF NOT EXISTS admins (id INTEGER PRIMARY KEY AUTOINCREMENT,email TEXT NOT NULL UNIQUE,password_hash TEXT NOT NULL,role TEXT NOT NULL DEFAULT 'Super Admin',two_fa_enabled INTEGER NOT NULL DEFAULT 0,two_fa_secret TEXT,created_at INTEGER NOT NULL DEFAULT (unixepoch()),updated_at INTEGER NOT NULL DEFAULT (unixepoch()));
@@ -8,6 +18,8 @@ module.exports = function(db) {
     CREATE TABLE IF NOT EXISTS deposits (id INTEGER PRIMARY KEY AUTOINCREMENT,user_id INTEGER NOT NULL REFERENCES users(id),amount_cents INTEGER NOT NULL,txid TEXT,method TEXT NOT NULL DEFAULT 'Binance Pay',status TEXT NOT NULL DEFAULT 'pending',admin_note TEXT,approved_by INTEGER,approved_at INTEGER,created_at INTEGER NOT NULL DEFAULT (unixepoch()),updated_at INTEGER NOT NULL DEFAULT (unixepoch()));
     CREATE TABLE IF NOT EXISTS withdrawals (id INTEGER PRIMARY KEY AUTOINCREMENT,user_id INTEGER NOT NULL REFERENCES users(id),type TEXT NOT NULL,amount_cents INTEGER NOT NULL,fee_cents INTEGER NOT NULL DEFAULT 0,net_cents INTEGER NOT NULL,wallet_address TEXT,method TEXT NOT NULL DEFAULT 'USDT BEP20',status TEXT NOT NULL DEFAULT 'pending',admin_note TEXT,processed_by INTEGER,processed_at INTEGER,created_at INTEGER NOT NULL DEFAULT (unixepoch()),updated_at INTEGER NOT NULL DEFAULT (unixepoch()));
   `);
+// Trading tables: traders users can copy, active copies, the 22-day
+// profit schedule, the per-copy daily profit log, and referrals.
   db.exec(`
     CREATE TABLE IF NOT EXISTS traders (id INTEGER PRIMARY KEY AUTOINCREMENT,name TEXT NOT NULL,username TEXT NOT NULL UNIQUE,avatar TEXT,flag_emoji TEXT DEFAULT '🇬🇧',verified INTEGER NOT NULL DEFAULT 1,roi_percent REAL NOT NULL DEFAULT 10.0,win_rate REAL NOT NULL DEFAULT 75.0,drawdown REAL NOT NULL DEFAULT 5.0,risk_level TEXT NOT NULL DEFAULT 'Medium',min_copy_cents INTEGER NOT NULL DEFAULT 1000,followers INTEGER NOT NULL DEFAULT 0,strategy TEXT,equity_data TEXT,is_hidden INTEGER NOT NULL DEFAULT 0,created_at INTEGER NOT NULL DEFAULT (unixepoch()));
     CREATE TABLE IF NOT EXISTS copies (id INTEGER PRIMARY KEY AUTOINCREMENT,user_id INTEGER NOT NULL REFERENCES users(id),trader_id INTEGER NOT NULL REFERENCES traders(id),amount_cents INTEGER NOT NULL,profit_cents INTEGER NOT NULL DEFAULT 0,daily_pnl_cents INTEGER NOT NULL DEFAULT 0,status TEXT NOT NULL DEFAULT 'active',cycle_day INTEGER NOT NULL DEFAULT 0,cycle_start_date TEXT,stopped_at INTEGER,created_at INTEGER NOT NULL DEFAULT (unixepoch()),updated_at INTEGER NOT NULL DEFAULT (unixepoch()));

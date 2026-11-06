@@ -1,15 +1,26 @@
-// admin/forget.js — password forget requests (message to admin) + one-time OTP
+// routes/admin/forget.js — admin side of password-reset requests.
+// GET / lists forget requests (pending first). POST /:id/generate-otp
+// (Super Admin only) creates a one-time 8-digit OTP that works as the
+// user's current password for 24 hours, and returns it ONCE to the admin
+// (the admin passes it to the user out of band). POST /:id/reject turns
+// a request down (and revokes any OTP already sent for it).
+// Rule: the user then changes their password with the OTP as the current
+// password; using it clears the OTP and marks the request completed.
 const router = require('express').Router();
 const bcrypt = require('bcrypt');
 const crypto = require('crypto');
 const { getDb } = require('../../models/database');
 const { authAdmin, superAdminOnly } = require('../../middleware/auth');
 
+// GET / — all forget requests with user name/username, pending first.
 router.get('/', authAdmin, (req,res)=>{
   const rows=getDb().prepare(`SELECT fr.*,u.full_name,u.username,u.email FROM forget_requests fr JOIN users u ON fr.user_id=u.id ORDER BY CASE WHEN fr.status='pending' THEN 0 WHEN fr.status='otp_sent' THEN 1 ELSE 2 END, fr.created_at DESC`).all();
   res.json(rows);
 });
 
+// POST /:id/generate-otp — Super Admin only. Generates the 8-digit OTP
+// (bcrypt-hashed, 24h, one use) and returns the plain code ONCE.
+// The OTP is stored hashed; the plain code is never stored anywhere.
 router.post('/:id/generate-otp', authAdmin, superAdminOnly, async (req,res)=>{
   try{
     const db=getDb();
@@ -28,6 +39,8 @@ router.post('/:id/generate-otp', authAdmin, superAdminOnly, async (req,res)=>{
   }catch(e){res.status(500).json({error:e.message});}
 });
 
+// POST /:id/reject — rejects the request (revokes any OTP already sent
+// for it). The user must wait 1 hour before sending a new request.
 router.post('/:id/reject', authAdmin, (req,res)=>{
   const db=getDb();
   const fr=db.prepare('SELECT * FROM forget_requests WHERE id=?').get(req.params.id);

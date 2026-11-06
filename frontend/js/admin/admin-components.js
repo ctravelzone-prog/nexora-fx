@@ -1,5 +1,29 @@
-// admin-components.js — Admin sidebar + layout (responsive)
+/*
+ * admin-components.js — Admin shared layout: sidebar, top bar, badges.
+ *
+ * Owns the AdminComponents object. layout() wraps every admin page with the
+ * sidebar and top bar; sidebar() builds the navigation, topbar() the header
+ * with the notification bell and admin avatar.
+ * Key functions: layout, sidebar, topbar, openSidebar, closeSidebar,
+ * toggleGroup, openGroup, closeGroup, maybeCloseGroup, syncGroups,
+ * _activeGroup, loadBadges.
+ *
+ * Gotchas:
+ * - Sidebar groups open on hover (desktop) and by click (touch). _hoverGroup
+ *   survives re-renders so the 1s auto-refresh cannot close a hovered group.
+ * - Links that share one page (Logo / Favicon / Website Contents all go to
+ *   /admin/settings) use hash-aware active state, so only one lights up.
+ * - Money is integer cents everywhere; display with utils.fmtMoney.
+ * - Admin API calls go through adminApi in js/admin-api.js.
+ * - Showcase accounts (is_showcase=1) are demo accounts with DISPLAY
+ *   balances set by the admin; they are excluded from all admin totals,
+ *   ledgers and reports.
+ * - Bump the ?v= cache version in script tags on every release, or
+ *   browsers keep serving stale code.
+ */
 const AdminComponents = {
+// Wraps a page's HTML with the sidebar, top bar and mobile overlay,
+  // then refreshes the notification badge and sidebar group state.
   layout(content, title) {
     document.getElementById('admin-app').innerHTML = `
       ${AdminComponents.sidebar()}
@@ -11,17 +35,21 @@ const AdminComponents = {
     AdminComponents.loadBadges();
     AdminComponents.syncGroups();
   },
+// Opens the mobile sidebar drawer and locks page scrolling behind it.
   openSidebar(){
     document.getElementById('admin-sidebar')?.classList.add('open');
     document.getElementById('admin-ov')?.classList.add('show');
     document.body.style.overflow='hidden';
   },
+// Closes the mobile sidebar drawer and restores page scrolling.
   closeSidebar(){
     document.getElementById('admin-sidebar')?.classList.remove('open');
     document.getElementById('admin-ov')?.classList.remove('show');
     document.body.style.overflow='';
   },
 
+// Renders the sticky top bar: page title, admin role/email, the
+  // notification bell (with unread count, capped at 9+) and avatar initial.
   topbar(title) {
     const a=AdminApp.state.admin||{};
     const n=AdminApp.state.notifCount||0;
@@ -45,6 +73,9 @@ const AdminComponents = {
     </div>`;
   },
 
+// Renders the left navigation with grouped sections (USERS, FINANCE,
+  // GENERAL SETTINGS, TEAM & SYSTEM, CONTENT, PAYMENT SETTINGS, TRADING,
+  // SUPPORT) and the Exit to User Site / Sign Out footer links.
   sidebar() {
     const path = window.location.pathname;
     const link = (href,label,badge)=>{
@@ -140,6 +171,7 @@ const AdminComponents = {
     </aside>`;
   },
 
+// Click-toggle for a collapsible sidebar group (touch / non-hover use).
   toggleGroup(id) {
     // If the mouse opened this group by hovering, a click must not close it while
     // the cursor is still over it. Click-toggle is only for touch / non-hover use.
@@ -148,6 +180,7 @@ const AdminComponents = {
     if(el) el.classList.toggle('open');
   },
 
+// Route map used to decide which collapsible sidebar group holds a page.
   // Which admin routes live inside each collapsible sidebar group
   _groupRoutes: {
     general: ['/settings','/loader','/breadcrumb','/countries'],
@@ -156,6 +189,8 @@ const AdminComponents = {
     payment: ['/deposit-wallet','/currencies','/payment-gateways','/menu-page-settings','/holidays'],
   },
   // The group that holds the current page (null when the page is outside all groups)
+// Returns the sidebar group that holds the current page, or null when
+  // the page lives outside all groups.
   _activeGroup() {
     const p=(window.location.pathname||'').replace('/admin','')||'/dashboard';
     for (const [g,routes] of Object.entries(AdminComponents._groupRoutes)) {
@@ -163,26 +198,33 @@ const AdminComponents = {
     }
     return null;
   },
+// The group the mouse is currently hovering. Kept across re-renders so
+  // the 1s auto-refresh cannot close a group the admin just hovered open.
   // The group the mouse is currently over (survives re-renders, so a hover-opened
   // group is not closed by the dashboard's 1s auto-refresh re-rendering the sidebar).
   _hoverGroup: null,
   // Hover in: open the group and remember it
+// Hover in: remembers the group and opens it.
   openGroup(id) {
     AdminComponents._hoverGroup=id;
     const el=document.getElementById(`${id}-group`);
     if(el) el.classList.add('open');
   },
+// Closes a group and forgets it as the hovered group.
   closeGroup(id) {
     if(AdminComponents._hoverGroup===id) AdminComponents._hoverGroup=null;
     const el=document.getElementById(`${id}-group`);
     if(el) el.classList.remove('open');
   },
   // Hover out: close it again, unless the current page lives inside it
+// Hover out: closes the group, unless the current page lives inside it.
   maybeCloseGroup(id) {
     if(AdminComponents._hoverGroup===id) AdminComponents._hoverGroup=null;
     if(AdminComponents._activeGroup()!==id) AdminComponents.closeGroup(id);
   },
   // After every render: keep the active group AND the hovered group open, close the rest
+// After every render: keeps the active group and the hovered group open
+  // and closes the rest.
   syncGroups() {
     const active=AdminComponents._activeGroup();
     const hover=AdminComponents._hoverGroup;
@@ -192,6 +234,8 @@ const AdminComponents = {
     });
   },
 
+// Fetches unread admin notifications (adminApi.notifications) and stores
+  // the count, so the sidebar and top bar badges stay in sync.
   async loadBadges() {
     try{const d=await adminApi.notifications();AdminApp.state.notifCount=d.unread||0;}catch(e){}
   }

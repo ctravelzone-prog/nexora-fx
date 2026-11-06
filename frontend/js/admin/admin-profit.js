@@ -1,11 +1,38 @@
-// admin-profit.js — Profit System
+/*
+ * admin-profit.js — Profit System page (22-day cycle).
+ *
+ * Renders /admin/profit: the current month's daily-rate schedule grid, the
+ * Auto Profit switch (Mon-Fri, 12:00 PM Dhaka), Apply Daily PnL to all
+ * active copies or one user, and the per-user profit data table.
+ * Key functions: AdminPages.profit, AdminPages._getDay, AdminPages._genSched,
+ * AdminPages._applyAll, AdminPages._applySingle, AdminPages._toggleAuto,
+ * AdminPages._manualEdit.
+ *
+ * Gotchas:
+ * - Profit target is 10% over 22 weekdays (Sat/Sun skipped); Day 22
+ *   balances to exactly the target. Rates are basis points (100 bp = 1%)
+ *   and apply to Copy Invested only, never compounded.
+ * - Profit is a target of up to the target percent, never a guarantee.
+ * - Applied days are locked and shown grey; _manualEdit only points at the
+ *   API, it does not edit in the browser.
+ * - Money is integer cents everywhere; display with utils.fmtMoney.
+ * - Admin API calls go through adminApi in js/admin-api.js.
+ * - Showcase accounts (is_showcase=1) are demo accounts with DISPLAY
+ *   balances set by the admin; they are excluded from all admin totals,
+ *   ledgers and reports.
+ * - Bump the ?v= cache version in script tags on every release, or
+ *   browsers keep serving stale code.
+ */
+// Renders /admin/profit: Auto Profit switch, the month's 22-day schedule
+  // grid, Apply Daily PnL controls and the per-user profit table.
+  // Data: adminApi.getProfitSchedule, getUserProfitData, getAutoProfitStatus.
 AdminPages.profit=async function(){
   try{
     const now=new Date(),y=now.getFullYear(),m=now.getMonth()+1;
     const d=await adminApi.getProfitSchedule({year:y,month:m});
     const pdata=await adminApi.getUserProfitData();
     let auto={}; try{auto=await adminApi.getAutoProfitStatus();}catch(e){}
-    const tbp=d.schedule.reduce((a,s)=>a+s.rate_bp,0);
+    const tbp=d.schedule.reduce((a,s)=>a+s.rate_bp,0); // Total schedule rate in basis points (100 bp = 1%).
     let targetPct=tbp>0?(tbp/100).toFixed(2):'10.00';
     try{const money=await adminApi.getMoney(); if(money&&money.profit_target_bp) targetPct=(parseInt(money.profit_target_bp)/100).toFixed(2);}catch(e){}
     AdminComponents.layout(`
@@ -43,14 +70,22 @@ AdminPages.profit=async function(){
       </div>`,'Profit System · 22-Day Cycle');
   }catch(e){document.getElementById('admin-app').innerHTML=`<p class="p-8 text-red-500">${e.message}</p>`;}
 };
+// Reads the selected unapplied schedule day and its rate from the
+  // dropdown. Returns null (with a toast) when no day is selected.
 AdminPages._getDay=function(){
   const sel=document.getElementById('pnl-day');
-  const day=parseInt(sel.value),rate=parseInt(sel.selectedOptions[0]?.dataset.rate||0);
+  const day=parseInt(sel.value),rate=parseInt(sel.selectedOptions[0]?.dataset.rate||0); // The day rate is stored in basis points (100 bp = 1%).
   if(!day){utils.toast('Please select a day','error');return null;}
   return {day,rate};
 };
+// Confirms, then asks the server for a new dynamic schedule via
+  // adminApi.generateSchedule and reloads the profit page.
 AdminPages._genSched=function(y,m){utils.confirm(`Generate new schedule for ${y}-${m}?`,async()=>{try{await adminApi.generateSchedule({year:y,month:m});utils.toast('Schedule generated!','success');AdminPages.profit();}catch(e){utils.toast(e.message,'error');};},'Generate');};
+// Confirms, then applies the selected day's rate to ALL active copies
+  // via adminApi.applyPnl.
 AdminPages._applyAll=function(y,m){const d=AdminPages._getDay();if(!d)return;utils.confirm(`Apply Day ${d.day} (${(d.rate/100).toFixed(2)}%) to ALL active copies?`,async()=>{try{const r=await adminApi.applyPnl({rate_bp:d.rate,day_number:d.day,year:y,month:m});utils.toast(`Applied to ${r.count} copies!`,'success');AdminPages.profit();}catch(e){utils.toast(e.message,'error');};},'Apply PnL');};
+// Applies the selected day's rate to one user (looked up by username
+  // via adminApi.getUsers) through adminApi.applyPnl with user_id.
 AdminPages._applySingle=async function(y,m){
   const d=AdminPages._getDay();if(!d)return;
   const uname=document.getElementById('pnl-uname').value.trim();
@@ -58,5 +93,8 @@ AdminPages._applySingle=async function(y,m){
   try{const us=await adminApi.getUsers({search:uname,limit:1});if(!us.length){utils.toast('User not found','error');return;}await adminApi.applyPnl({rate_bp:d.rate,day_number:d.day,year:y,month:m,user_id:us[0].id});utils.toast(`Applied to ${uname}!`,'success');}
   catch(e){utils.toast(e.message,'error');}
 };
+// Flips Auto Profit on/off via adminApi.toggleAutoProfit and reloads.
 AdminPages._toggleAuto=async function(){try{const s=await adminApi.getAutoProfitStatus();const next=!(s.enabled!==false);const r=await adminApi.toggleAutoProfit({enabled:next});utils.toast('Auto Profit '+(r.enabled?'ON':'OFF'),'success');AdminPages.profit();}catch(e){utils.toast(e.message,'error');};};
+// Manual day edits are API-only: shows the PUT schedule endpoint.
+  // No edit happens in the browser.
 AdminPages._manualEdit=function(y,m){utils.toast('To manually edit a day, use the API: PUT /api/admin/profit/schedule/:year/:month/:day with {rate_bp}','info');};

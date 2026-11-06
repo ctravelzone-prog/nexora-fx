@@ -1,7 +1,33 @@
-// pages/withdraw.js
+/*
+ * pages/withdraw.js — Withdraw page (Main Balance + Profit Balance).
+ * Two separate forms: Main Balance withdraw and Profit Balance withdraw.
+ * Both pay out in USDT (BEP20) only, to the wallet address the user
+ * enters. Withdraw requests go to the admin for approval (no auto payout).
+ * Key functions:
+ * - Pages.withdraw() renders both forms (api.getWithdrawInfo() for
+ *   lock / fee state, api.getMe() for balances).
+ * - Pages._mfee() shows the live fee preview under the Main amount field.
+ * Rules / gotchas:
+ * - Money is integer cents; display with utils.fmtMoney.
+ * - Main Balance has a 3-month lock: early withdrawal deducts the
+ *   early fee percent; after the lock there is no fee (regular fee 0%).
+ * - Profit Balance withdraw needs a $10.00 minimum (1000 cents) and
+ *   has no fee; the button stays disabled below the minimum.
+ * - BEP20 only: sending to another network may lose funds permanently.
+ * - Money is integer cents everywhere; display with utils.fmtMoney.
+ * - Balances come from GET /api/user/me; showcase accounts
+ *   (is_showcase=1) show DISPLAY balances set by the admin.
+ * - The ?v= cache version in script tags must be bumped on every
+ *   release or browsers may serve stale code.
+ */
+// Renders the Withdraw page: Main Balance form (with lock banner and fee
+// preview) and Profit Balance form (with $10 minimum). On success the
+// user is sent to History. APIs: api.getWithdrawInfo(), api.getMe().
 Pages.withdraw=async function(){
   try{
     const [info,me]=await Promise.all([api.getWithdrawInfo(),api.getMe()]);
+// Fee for this withdraw: the early fee percent while locked, otherwise
+// the regular fee percent (0% once the lock has expired).
     const b=me.balance,locked=info.is_locked,fee=locked?info.early_fee_percent:(info.regular_fee_percent||0);
     Components.layout(`<div class="max-w-4xl">
       <div class="flex items-center gap-3 mb-6"><button onclick="history.back()" class="p-2 rounded-lg hover:bg-gray-100">${svgIcons.arrow_left}</button><h1 class="text-xl font-bold">Withdraw</h1><button onclick="App.navigate('/history')" class="ml-auto btn-secondary text-sm" style="padding:8px 16px">Withdraw History →</button></div>
@@ -38,8 +64,13 @@ Pages.withdraw=async function(){
           </form>
         </div>
       </div></div>`,'Withdraw','');
+// Main withdraw submit. API: api.withdrawMain(). Goes to History on success.
     document.getElementById('main-wd-form').onsubmit=async(e)=>{e.preventDefault();const f=e.target,err=document.getElementById('main-err'),btn=document.getElementById('main-btn');err.classList.add('hidden');utils.loading(btn,true);try{await api.withdrawMain({amount:parseFloat(f.amount.value),wallet_address:f.wallet.value});utils.toast('Main withdraw submitted!','success');App.navigate('/history');}catch(ex){err.textContent=ex.message;err.classList.remove('hidden');}utils.loading(btn,false);};
+// Profit withdraw submit. API: api.withdrawProfit(). Goes to History on success.
     document.getElementById('profit-wd-form').onsubmit=async(e)=>{e.preventDefault();const f=e.target,err=document.getElementById('profit-err'),btn=document.getElementById('profit-btn');err.classList.add('hidden');utils.loading(btn,true);try{await api.withdrawProfit({amount:parseFloat(f.amount.value),wallet_address:f.wallet.value});utils.toast('Profit withdraw submitted!','success');App.navigate('/history');}catch(ex){err.textContent=ex.message;err.classList.remove('hidden');}utils.loading(btn,false);};
   }catch(e){document.getElementById('app').innerHTML=`<p class="p-8 text-red-500">${e.message}</p>`;}
 };
+// Live fee preview for the Main withdraw amount field: shows the fee
+// (percent and dollars) and the amount the user will receive.
+// The fee applies only while the lock is active; after the lock it is $0.
 Pages._mfee=function(inp,feePct,isLocked){const v=parseFloat(inp.value)||0,fee=isLocked?parseFloat((v*feePct/100).toFixed(2)):0;const el=document.getElementById('main-fee-info');if(el&&v>0)el.innerHTML=`Fee: <strong class="${fee>0?'text-orange-500':'text-green-500'}">${fee>0?`${feePct}%=$${fee.toFixed(2)}`:'$0'}</strong> · Receive: <strong>$${(v-fee).toFixed(2)}</strong>`;};

@@ -1,4 +1,12 @@
-// auth.js — register + login (fixed: SQL uses template literals)
+// routes/auth.js — user registration and login.
+// POST /register creates a user (with an empty balances row and, when a
+// referral code was used, a pending referrals row). POST /login returns a
+// user JWT (7 days) and enforces 2FA when the admin has enabled it.
+// Rules: one account per email (case-insensitive), per username and per
+// phone number (normalized, so +8801712..., 01712... count as one; phone
+// is optional). Passwords are bcrypt-hashed (12 rounds), minimum 8 chars.
+// A one-time admin OTP can be used as the current password (24 hours,
+// one use) and then forces a password change.
 const router = require('express').Router();
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
@@ -6,6 +14,7 @@ const { v4: uuidv4 } = require('uuid');
 const { getDb } = require('../models/database');
 const { getOrCreateBalance } = require('../services/moneyHelpers');
 const emailSvc = require('../services/emailService');
+// Signs a user JWT (type 'user'). All user tokens expire in 7 days.
 function mkT(p){return jwt.sign(p,process.env.JWT_SECRET,{expiresIn:'7d'});}
 
 // Normalize a phone number to digits-only with country code, so the same number
@@ -24,6 +33,10 @@ function normalizePhone(countryCode, phone){
   return ccDigits ? ccDigits+digits : digits;
 }
 
+// POST /register — creates a user. Body: full_name, username, email,
+// password, optional phone/country_code/referral_code. Side effects:
+// inserts the user row, creates the empty balances row, records a pending
+// referral link when a code was given, and notifies the admin.
 router.post('/register', async (req,res)=>{
   try{
     const {full_name,username,email,phone,country_code,password,referral_code}=req.body;
@@ -60,6 +73,9 @@ router.post('/register', async (req,res)=>{
   }catch(e){res.status(500).json({error:e.message});}
 });
 
+// POST /login — checks username (or email) + password, then returns a
+// user JWT plus basic profile info. Wrong credentials answer 401; a
+// disabled account cannot log in.
 router.post('/login', async (req,res)=>{
   try{
     const {username,password,totp_code}=req.body;
@@ -68,6 +84,9 @@ router.post('/login', async (req,res)=>{
     const user=db.prepare('SELECT * FROM users WHERE username=? OR LOWER(email)=LOWER(?)').get(username,username);
     if(!user) return res.status(401).json({error:"Credentials doesn't match"});
     if(!user.is_active) return res.status(401).json({error:'Account is disabled'});
+// A one-time admin OTP (set from a forget request) works as the current
+// password while it is active and unexpired; using it forces a password
+// change on this login. An expired OTP is marked expired.
     let ok=false, forcePC=false;
     if(user.temp_password_hash && user.temp_password_status==='active' && !user.temp_password_used){
       const now=Math.floor(Date.now()/1000);
@@ -81,6 +100,8 @@ router.post('/login', async (req,res)=>{
       }
     }
     if(!ok){ if(!await bcrypt.compare(password,user.password_hash)) return res.status(401).json({error:"Credentials doesn't match"}); ok=true; }
+// 2FA is only enforced when the admin turned it on AND the user enabled
+// it. Without a TOTP code the login answers {require_2fa:true}.
     const g2=db.prepare(`SELECT value FROM site_settings WHERE key='user_2fa_enabled'`).get();
     if(g2&&g2.value==='1'&&user.two_fa_enabled&&!forcePC){
       if(!totp_code) return res.json({require_2fa:true});

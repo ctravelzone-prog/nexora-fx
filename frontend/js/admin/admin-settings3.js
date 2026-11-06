@@ -1,4 +1,32 @@
-// admin-settings3.js — 2FA Control, KYC, Audit Log, Reports
+/*
+ * admin-settings3.js — 2FA Control, KYC Control, Audit Log, Reports.
+ *
+ * Renders /admin/2fa-control (admin and user 2FA switches, both OFF by
+ * default), /admin/kyc-control (global KYC switch plus single-user KYC
+ * requests), /admin/audit-log (who changed what, before/after) and
+ * /admin/reports (platform totals).
+ * Key functions: AdminPages.twoFAControl, AdminPages._set2FA,
+ * AdminPages.kycControl, AdminPages._requestSingleKYC,
+ * AdminPages._cancelSingleKYC, AdminPages._setKYC, AdminPages.auditLog,
+ * AdminPages.reports.
+ *
+ * Gotchas:
+ * - The 2FA / KYC switches flip back visually until the admin confirms;
+ *   the saved value only changes after OK is pressed.
+ * - KYC OFF means no banner and no block. Global KYC ON notifies all
+ *   users; a single-user request affects only that user, even with global
+ *   KYC OFF. Verified and pending users are excluded from bulk actions.
+ * - 2FA and KYC changes are audit-logged.
+ * - Money is integer cents everywhere; display with utils.fmtMoney.
+ * - Admin API calls go through adminApi in js/admin-api.js.
+ * - Showcase accounts (is_showcase=1) are demo accounts with DISPLAY
+ *   balances set by the admin; they are excluded from all admin totals,
+ *   ledgers and reports.
+ * - Bump the ?v= cache version in script tags on every release, or
+ *   browsers keep serving stale code.
+ */
+// Renders /admin/2fa-control: Admin 2FA and User 2FA switches, both OFF
+  // by default. State comes from adminApi.get2FAControl.
 AdminPages.twoFAControl=async function(){
   try{
     const s=await adminApi.get2FAControl();
@@ -16,6 +44,8 @@ AdminPages.twoFAControl=async function(){
     </div>`,'2FA Control');
   }catch(e){document.getElementById('admin-app').innerHTML=`<p class="p-8 text-red-500">${e.message}</p>`;}
 };
+// Asks for confirmation before saving a 2FA switch via
+  // adminApi.set2FAControl. The switch flips back until OK is pressed.
 AdminPages._set2FA=function(type,cb){
   const en=cb.checked;cb.checked=!en; // switch stays on the saved value until OK is pressed
   utils.confirm(`${en?'Enable':'Disable'} ${type} 2FA? This is audit-logged.`,async()=>{
@@ -24,6 +54,9 @@ AdminPages._set2FA=function(type,cb){
   },en?'Enable':'Disable');
 };
 
+// Renders /admin/kyc-control: the global KYC switch, the single-user
+  // KYC request form, and the list of users KYC was requested from.
+  // Data: adminApi.getKYCControl and adminApi.getUsers.
 AdminPages.kycControl=async function(){
   try{
     const d=await adminApi.getKYCControl();
@@ -46,6 +79,8 @@ AdminPages.kycControl=async function(){
     </div>`,'KYC Control');
   }catch(e){document.getElementById('admin-app').innerHTML=`<p class="p-8 text-red-500">${e.message}</p>`;}
 };
+// Requests KYC from the selected user only, via
+  // adminApi.requestSingleKYC. Other users are not affected.
 AdminPages._requestSingleKYC=function(){
   const sel=document.getElementById('kyc-single-user');const id=sel.value;
   if(!id){utils.toast('Please select a user first','error');return;}
@@ -55,12 +90,16 @@ AdminPages._requestSingleKYC=function(){
     catch(e){utils.toast(e.message,'error');}
   },'Request KYC');
 };
+// Cancels a single-user KYC request via adminApi.cancelSingleKYC, so
+  // the user no longer sees the KYC banner.
 AdminPages._cancelSingleKYC=function(id){
   utils.confirm('Cancel this single-user KYC request? The user will no longer see the KYC banner.',async()=>{
     try{await adminApi.cancelSingleKYC({user_id:id});utils.toast('KYC request cancelled','success');AdminPages.kycControl();}
     catch(e){utils.toast(e.message,'error');}
   },'Cancel Request');
 };
+// Asks for confirmation before saving the global KYC switch via
+  // adminApi.setKYCControl. The switch flips back until OK is pressed.
 AdminPages._setKYC=function(cb){
   const en=cb.checked;cb.checked=!en; // switch stays on the saved value until OK is pressed
   utils.confirm(`${en?'Enable':'Disable'} KYC requirement? Audit-logged.`,async()=>{
@@ -70,6 +109,8 @@ AdminPages._setKYC=function(cb){
 };
 
 
+// Renders /admin/audit-log: admin email, action, before/after values
+  // and date. Data comes from adminApi.getAuditLog().
 AdminPages.auditLog=async function(){
   try{
     const rows=await adminApi.getAuditLog();
@@ -81,6 +122,8 @@ AdminPages.auditLog=async function(){
   }catch(e){document.getElementById('admin-app').innerHTML=`<p class="p-8 text-red-500">${e.message}</p>`;}
 };
 
+// Renders /admin/reports: deposit, withdrawal, profit paid, referral
+  // paid, user and active-copy totals via adminApi.getReports().
 AdminPages.reports=async function(){
   try{
     const r=await adminApi.getReports();

@@ -1,6 +1,9 @@
 <!DOCTYPE html>
+<!-- Nexora FX - user site entry point. The app is a single-page app: this
+     file only provides the shell, and js/app.js renders every page into #app. -->
 <html lang="en">
 <head>
+  <!-- Head: meta, title, favicon, fonts, Tailwind config, stylesheets. -->
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Nexora Fx — Copy Trading Platform</title>
@@ -11,6 +14,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <!-- Tailwind CSS (CDN). Brand colors are set below: orange #FF6A00 and dark #1E2329. -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
@@ -26,15 +30,22 @@
       }
     }
   </script>
+  <!-- App stylesheets, loaded in this order (later files override earlier ones). -->
   <link rel="stylesheet" href="/css/app.css">
   <link rel="stylesheet" href="/css/responsive.css">
   <link rel="stylesheet" href="/css/nexora-theme.css">
   <link rel="stylesheet" href="/css/nexora-theme2.css">
 </head>
 <body class="bg-[#F8F9FA] font-sans text-[#0F172A] min-h-screen">
+  <!-- App mount points: #app is rendered by js/app.js, #modal-root holds
+       dialogs (utils.showModal), #toast-root holds popup messages. -->
   <div id="app"></div>
   <div id="modal-root"></div>
   <div id="toast-root" class="fixed bottom-4 right-4 z-50 flex flex-col gap-2 max-w-sm"></div>
+<!-- Scripts, in load order: API clients and helpers first, then shared
+       components and templates, then the router (app.js), then the page
+       handlers in js/pages/. The ?v=v59 cache version must be bumped on
+       every release or browsers keep serving stale code. -->
   <script src="/js/api.js?v=v59"></script>
   <script src="/js/admin-api.js?v=v59"></script>
   <script src="/js/utils.js?v=v59"></script>

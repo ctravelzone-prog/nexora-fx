@@ -1,7 +1,20 @@
-// app.js — Nexora Fx SPA router
+/*
+ * app.js - Single-page app router and startup for the Nexora FX user site.
+ * What it does: loads public settings on startup, validates the user
+ * token, routes paths to Pages.* handlers (defined in js/pages/*.js),
+ * and intercepts internal link clicks so navigation stays in-page.
+ * Key functions: init(), navigate(), logout(), route(),
+ * showImpersonationBanner(), backToAdmin(), updateUser().
+ * Important rules: public paths need no login; all other paths redirect
+ * to /login when there is no token. /admin is a separate app and is
+ * never intercepted. Money is integer cents; balances come from
+ * GET /api/user/me (see js/api.js).
+ */
 const App = {
   state: { user: null, settings: {}, unreadCount: 0 },
 
+  // App startup: load public settings, handle maintenance mode and
+  // email/reset URL tokens, validate the saved token, then route.
   async init() {
     // Load public settings (never block on failure)
     try { App.state.settings = await api.getSettings(); } catch(e) {}
@@ -48,11 +61,14 @@ const App = {
     window.onpopstate = () => App.route(window.location.pathname);
   },
 
+  // In-page navigation: push the URL into history, then route to it.
   navigate(path) {
     history.pushState({}, '', path);
     App.route(path);
   },
 
+  // Log out: clear the user token (and any saved admin token used for
+  // login-as-user), remove the impersonation banner, go to the home page.
   logout() {
     api.clearToken();
     App.state.user = null;
@@ -61,6 +77,9 @@ const App = {
     window.location.href = '/';
   },
 
+  // Route a path to its page handler. Redirects to /login when a
+  // protected page is opened without a token, and to /dashboard when a
+  // logged-in user opens /login or /register.
   route(path) {
     // Release the mobile sidebar scroll-lock on every navigation.
     // openSidebar() sets body overflow hidden; a sidebar link tap re-renders
@@ -143,6 +162,8 @@ const App = {
     }
   },
 
+  // Show the orange banner while an admin is viewing the site as a user
+  // (login-as-user). Withdraw, password and 2FA actions are blocked then.
   showImpersonationBanner() {
     // Remove any existing banner first
     document.getElementById('impersonation-banner')?.remove();
@@ -153,6 +174,8 @@ const App = {
     document.body.prepend(banner);
   },
 
+  // End impersonation: restore the admin's own user token if one was
+  // saved, otherwise log the user site out, then open /admin.
   backToAdmin() {
     // End the impersonation session: restore the admin's own user token if there was one, else log the user site out
     const prev = localStorage.getItem('nx_prev_user_token');
@@ -161,14 +184,17 @@ const App = {
     window.location.href = '/admin';
   },
 
+  // Merge updated profile fields into the cached user in App.state.
   updateUser(user) {
     App.state.user = Object.assign({}, App.state.user, user);
   }
 };
 
+// Pages.* handlers are defined in js/pages/*.js and filled in here.
 const Pages = {};
 
-// Intercept all internal link clicks
+// Intercept all internal link clicks so the SPA routes without a full
+// page reload. External links, mailto/tel, anchors and /admin are left alone.
 document.addEventListener('click', function(e) {
   const a = e.target.closest('a[href]');
   if (!a) return;
@@ -178,6 +204,8 @@ document.addEventListener('click', function(e) {
   App.navigate(href);
 });
 
+// On load: show a readable error box if an uncaught JS error leaves the
+// app empty, log unhandled promise rejections, then start the app.
 window.addEventListener('DOMContentLoaded', function() {
   window.onerror = function(msg, src, line, col, err) {
     console.error('JS Error:', msg, 'at', src, line, col);

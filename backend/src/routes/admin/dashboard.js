@@ -1,8 +1,16 @@
-// admin/dashboard.js — dashboard stats + notifications
+// routes/admin/dashboard.js — admin dashboard totals and notifications.
+// GET /dashboard returns user counts, total Main / Copy / Profit balances,
+// total deposits and withdrawals, today's counts, recent users and recent
+// deposits/withdrawals. The /notifications routes list, mark read and
+// send admin notifications (to all users or to one user).
+// Rule: showcase accounts (is_showcase=1) are excluded from EVERY total
+// here — their display money must never appear in admin figures.
 const router = require('express').Router();
 const { getDb } = require('../../models/database');
 const { authAdmin } = require('../../middleware/auth');
 
+// GET /dashboard — all dashboard numbers + recent users/deposits/
+// withdrawals. Totals count real users only (is_showcase=0).
 router.get('/dashboard', authAdmin, (req,res)=>{
   const db=getDb();
   const totalUsers=db.prepare(`SELECT COUNT(*) as c FROM users WHERE is_showcase=0`).get().c;
@@ -27,6 +35,8 @@ router.get('/dashboard', authAdmin, (req,res)=>{
   res.json({stats:{totalUsers,newThisWeek,totalDeposit,totalWithdraw,pendingDepCount:pendingDep.c,pendingDepAmount:pendingDep.s,pendingWdCount:pendingWd.c,pendingWdAmount:pendingWd.s,pendingKyc,openTickets,highTickets,totalMain,totalCopy,totalProfit,todayPnl,totalRef},activity});
 });
 
+// GET /notifications — admin notifications, newest first, enriched
+// with the related user's name, username and email.
 router.get('/notifications', authAdmin, (req,res)=>{
   const db=getDb();
   let notifs=db.prepare('SELECT * FROM admin_notifications ORDER BY created_at DESC LIMIT 100').all();
@@ -50,15 +60,19 @@ router.get('/notifications', authAdmin, (req,res)=>{
   res.json({notifications:notifs,unread,badges:{deposits,withdrawals,kyc,tickets,messages,newUsers,finance:deposits+withdrawals,support:tickets+messages}});
 });
 
+// PUT /notifications/read-all — marks all admin notifications read.
 router.put('/notifications/read-all', authAdmin, (req,res)=>{
   getDb().prepare('UPDATE admin_notifications SET is_read=1').run();
   res.json({success:true});
 });
+// PUT /notifications/:id/read — marks one admin notification read.
 router.put('/notifications/:id/read', authAdmin, (req,res)=>{
   getDb().prepare('UPDATE admin_notifications SET is_read=1 WHERE id=?').run(req.params.id);
   res.json({success:true});
 });
 
+// POST /notifications/send — sends a notification to all users or to
+// one user (creates a notifications row; the admin panel shows it).
 router.post('/notifications/send', authAdmin, (req,res)=>{
   const {user_id,title,message,type,action_url,action_label}=req.body;
   if(!title||!message) return res.status(400).json({error:'Title and message required'});

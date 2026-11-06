@@ -1,4 +1,24 @@
-// pages/kyc.js — KYC Verification
+/*
+ * kyc.js — KYC Verification page for Nexora FX.
+ *
+ * Checks the user's KYC status (api.getKycStatus) and shows one of
+ * four screens: KYC not required, approved, under review, or the
+ * document upload form.
+ *
+ * Key function:
+ * - Pages.kyc — loads the KYC status, renders the matching screen,
+ *   and on submit uploads the documents (POST /api/kyc/submit).
+ *
+ * Rules: KYC unlocks Main Balance withdrawals. The form sends the
+ * document type, document front (required), document back (optional)
+ * and a selfie with the document (required) as multipart form data.
+ * KYC is off by default; the admin turns it on for all users or for
+ * a single user. Website UI text is always English.
+ * Gotcha: the ?v= cache version in script tags must be bumped on every
+ * release, or browsers may serve stale code.
+ * Note: this file uses CRLF line endings — preserve them on every edit.
+ */
+// KYC Verification page: status check + document upload. See header.
 Pages.kyc=async function(){
   try{
     const status=await api.getKycStatus();

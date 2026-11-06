@@ -1,5 +1,24 @@
-// pages/schedule.js — International holiday calendar for major financial markets.
-// Data: backend /api/market/holidays (Nager.Date, free) — 24h server cache.
+/*
+ * pages/schedule.js — Market Holidays: international holiday calendar
+ * for major financial markets (when exchanges are closed).
+ * Data: backend GET /api/market/holidays (Nager.Date, free source),
+ * with a 24h server cache. Public page: no login needed.
+ * Key functions:
+ * - Pages.schedule() loads the holidays and opens the current month.
+ * - Pages._holCountries() lists the countries present in the data.
+ * - Pages._holForDay() returns the holidays on one day (with filter).
+ * - Pages._renderHol() draws the month grid, day detail and upcoming list.
+ * - Pages._holNav() moves to the previous / next month.
+ * Rules / gotchas:
+ * - Money is integer cents everywhere; display with utils.fmtMoney.
+ * - Balances come from GET /api/user/me; showcase accounts
+ *   (is_showcase=1) show DISPLAY balances set by the admin.
+ * - The ?v= cache version in script tags must be bumped on every
+ *   release or browsers may serve stale code.
+ */
+// Loads the holiday calendar and renders the current month.
+// API: direct fetch to /api/market/holidays (not the api helper).
+// Shows a loading line first, then the calendar or an error message.
 Pages.schedule=async function(){
   var app=document.getElementById('app');
   app.innerHTML='<p class="p-8 text-gray-400">Loading holiday calendar…</p>';
@@ -15,20 +34,29 @@ Pages.schedule=async function(){
     Pages._renderHol();
   }catch(e){ app.innerHTML='<p class="p-8 text-red-500">'+e.message+'</p>'; }
 };
+// Returns the distinct [code, country] pairs in the loaded data,
+// sorted by country name, for the country filter dropdown.
 Pages._holCountries=function(){
   var seen={}, out=[];
   (Pages._holData||[]).forEach(function(h){ if(!seen[h.code]){ seen[h.code]=1; out.push([h.code,h.country]); } });
   return out.sort(function(a,b){ return a[1]<b[1]?-1:1; });
 };
+// Returns the holidays on one calendar day (year, month 0-based, day),
+// honouring the selected country filter ('ALL' means every country).
 Pages._holForDay=function(y,m,d){
+// Build an ISO date string (YYYY-MM-DD) to match h.date exactly.
   var ds=y+'-'+String(m+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
   return (Pages._holData||[]).filter(function(h){
     return h.date===ds && (Pages._holFilter==='ALL' || h.code===Pages._holFilter);
   });
 };
+// Renders the month grid for the selected month, the selected-day
+// detail card, and the next 10 upcoming holidays from today.
 Pages._renderHol=function(){
   var y=Pages._holY, m=Pages._holM;
   var monthName=new Date(y,m,1).toLocaleString('en-US',{month:'long',year:'numeric'});
+// Weekday of the 1st (0 = Sunday) decides the leading blank cells;
+// new Date(y, m+1, 0) gives the last day, i.e. the days in the month.
   var first=new Date(y,m,1).getDay();
   var days=new Date(y,m+1,0).getDate();
   var today=new Date();
@@ -56,6 +84,7 @@ Pages._renderHol=function(){
   }
   // Upcoming holidays (from today)
   var tds=new Date(today.getFullYear(),today.getMonth(),today.getDate());
+// Upcoming holidays: from today onwards, at most 10, honouring the filter.
   var up=(Pages._holData||[]).filter(function(h){
     var hd=new Date(h.date+'T00:00:00');
     return hd>=tds && (Pages._holFilter==='ALL' || h.code===Pages._holFilter);
@@ -88,6 +117,8 @@ Pages._renderHol=function(){
   if(utils.isLoggedIn()&&App.state.user!==null) Components.layout(_html,'Market Holidays','International calendar');
   else Components.publicLayout(_html);
 };
+// Moves the calendar one month back (dir -1) or forward (dir +1),
+// wrapping the year at January / December. Clears the selected day.
 Pages._holNav=function(dir){
   Pages._holM+=dir;
   if(Pages._holM<0){Pages._holM=11;Pages._holY--;}

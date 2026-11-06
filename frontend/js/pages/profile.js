@@ -1,4 +1,26 @@
-// pages/profile.js — Edit Profile + Change Password
+/*
+ * pages/profile.js — Edit Profile + Change Password.
+ * Edit Profile: change full name, phone and profile photo. Email and
+ * username are shown read-only and cannot be changed here.
+ * Change Password: set a new password (minimum 8 characters). Users
+ * who logged in with a one-time OTP enter that OTP as the current
+ * password; a forgotten password is handled by requesting an 8-digit
+ * OTP from the admin (no email/SMTP reset flow).
+ * Key functions:
+ * - Pages.editProfile() renders the form (GET /api/user/me).
+ * - Pages._uploadPhoto() / Pages._removePhoto() manage the photo.
+ * - Pages.changePassword() renders the password + forgot-password forms.
+ * - Pages._toggleForgot() shows or hides the forgot-password section.
+ * Rules / gotchas:
+ * - Money is integer cents everywhere; display with utils.fmtMoney.
+ * - Balances come from GET /api/user/me; showcase accounts
+ *   (is_showcase=1) show DISPLAY balances set by the admin.
+ * - The ?v= cache version in script tags must be bumped on every
+ *   release or browsers may serve stale code.
+ */
+// Renders the Edit Profile page: avatar with Change / Remove Photo,
+// plus full name, email (read-only), username (read-only) and phone.
+// API: api.getMe(). Saving calls api.updateProfile().
 Pages.editProfile=async function(){
   try{
     const me=await api.getMe();const u=me.user;
@@ -22,6 +44,8 @@ Pages.editProfile=async function(){
           <button type="submit" id="profile-btn" class="btn-primary">Save Changes</button>
         </form>
       </div></div>`,'Edit Profile','');
+// Profile form submit: saves full name and phone, then refreshes
+// App.state.user so the header shows the new name immediately.
     document.getElementById('profile-form').onsubmit=async(e)=>{
       e.preventDefault();const f=e.target,err=document.getElementById('profile-err'),btn=document.getElementById('profile-btn');
       err.classList.add('hidden');utils.loading(btn,true);
@@ -31,16 +55,23 @@ Pages.editProfile=async function(){
     };
   }catch(e){document.getElementById('app').innerHTML=`<p class="p-8 text-red-500">${e.message}</p>`;}
 };
+// Uploads a new profile photo (multipart form, field name 'photo').
+// API: POST /api/user/profile-photo. Refreshes App.state.user after.
 Pages._uploadPhoto=async function(input){
   const file=input.files[0];if(!file)return;
   const form=new FormData();form.append('photo',file);
   try{const r=await api.upload('/api/user/profile-photo',form);document.getElementById('avatar-preview').innerHTML=`<img src="${r.url}" class="w-16 h-16 rounded-full object-cover mx-auto">`;utils.toast('Photo updated!','success');const me=await api.getMe();App.state.user=me.user;}
   catch(e){utils.toast(e.message,'error');}
 };
+// Removes the profile photo. API: DELETE /api/user/profile-photo.
+// Falls back to the initials avatar afterwards.
 Pages._removePhoto=async function(){
   try{await api.request('DELETE','/api/user/profile-photo');document.getElementById('avatar-preview').innerHTML=utils.avatar(App.state.user?.full_name||'',null,72);utils.toast('Photo removed','success');}
   catch(e){utils.toast(e.message,'error');}
 };
+// Renders the Change Password page, including the hidden
+// forgot-password section (request an OTP from the admin).
+// No API call on render; the forms submit on user action.
 Pages.changePassword=function(){
   const u=App.state.user||{};
   Components.layout(`<div class="max-w-md card">
@@ -66,6 +97,8 @@ Pages.changePassword=function(){
         <button type="submit" id="fp-btn" class="btn-primary">Send Request to Admin</button>
       </form>
     </div></div>`,'Change Password','');
+// Forgot-password form submit: asks the admin for a one-time OTP.
+// API: api.forgetRequest(). The OTP is then used as Current Password above.
   document.getElementById('fp-form').onsubmit=async(e)=>{
     e.preventDefault();const f=e.target,err=document.getElementById('fp-err'),ok=document.getElementById('fp-ok'),btn=document.getElementById('fp-btn');
     err.classList.add('hidden');ok.classList.add('hidden');utils.loading(btn,true);
@@ -73,6 +106,9 @@ Pages.changePassword=function(){
     catch(ex){err.textContent=ex.message;err.classList.remove('hidden');}
     utils.loading(btn,false);
   };
+// Change-password form submit. The new password must match its
+// confirmation; the check below runs before any API call.
+// API: api.changePassword().
   document.getElementById('cpw-form').onsubmit=async(e)=>{
     e.preventDefault();const f=e.target,err=document.getElementById('cpw-err'),btn=document.getElementById('cpw-btn');
     if(f.new_password.value!==f.confirm_password.value){err.textContent='Passwords do not match';err.classList.remove('hidden');return;}
@@ -82,4 +118,5 @@ Pages.changePassword=function(){
     utils.loading(btn,false);
   };
 };
+// Shows or hides the forgot-password section on the Change Password page.
 Pages._toggleForgot=function(){const s=document.getElementById('fp-section');if(s)s.classList.toggle('hidden');};

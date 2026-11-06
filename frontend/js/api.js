@@ -1,5 +1,18 @@
-// api.js — Nexora Fx API client
+/*
+ * api.js - API client for the Nexora FX user site.
+ * What it does: token storage (localStorage), the core request() helper
+ * used by every page, file uploads, and one wrapper per user backend
+ * endpoint (auth, profile, deposit, withdraw, copy trade, KYC, support,
+ * 2FA, referral). Admin calls live in js/admin-api.js and reuse request().
+ * Key functions: request(), upload(), uploadPut(), getMe().
+ * Important rules: money is integer cents everywhere - display it only
+ * through utils.fmtMoney(). Dashboard balances come from GET /api/user/me.
+ * Gotcha: a 401 on an admin call clears the admin token and redirects to
+ * /admin login (see _adminAuthFail); the login endpoint is excluded.
+ */
 const api = {
+  // Token storage. User token (nx_token) and admin token (nx_admin_token)
+  // are kept separate so admin login-as-user can restore the admin token.
   getToken(){ return localStorage.getItem('nx_token'); },
   getAdminToken(){ return localStorage.getItem('nx_admin_token'); },
   setToken(t){ localStorage.setItem('nx_token',t); },
@@ -17,6 +30,8 @@ const api = {
     window.location.href='/admin';
   },
 
+  // Core request helper: adds the Bearer token, sends JSON, parses the
+  // response, and throws an Error with the backend message on failure.
   async request(method,path,data,admin=false){
     const token=admin?this.getAdminToken():this.getToken();
     const headers={'Content-Type':'application/json'};
@@ -29,6 +44,8 @@ const api = {
     return json;
   },
 
+  // File upload helper (multipart form data, e.g. profile photo, KYC
+  // documents). No Content-Type header - the browser sets the boundary.
   async upload(path,formData,admin=false){
     const token=admin?this.getAdminToken():this.getToken();
     const headers={};
@@ -39,6 +56,7 @@ const api = {
     return json;
   },
 
+  // Same as upload() but with a PUT request (used for profile updates).
   async uploadPut(path,formData,admin=false){
     const token = admin ? this.getAdminToken() : this.getToken();
     const headers={};
@@ -59,6 +77,8 @@ const api = {
   verifyEmail:(t)=>api.request('GET',`/api/auth/verify-email?token=${t}`),
 
   // User
+  // getMe() returns the user plus balances (Main / Copy Invested / Profit).
+  // Showcase accounts (is_showcase=1) get DISPLAY balances set by admin.
   getMe:()=>api.request('GET','/api/user/me'),
   updateProfile:(d)=>api.request('PUT','/api/user/profile',d),
   changePassword:(d)=>api.request('POST','/api/user/change-password',d),
@@ -67,12 +87,14 @@ const api = {
   readAllNotifications:()=>api.request('PUT','/api/user/notifications/read-all'),
   getSettings:()=>api.request('GET','/api/settings'),
 
-  // Deposit
+  // Deposit: Binance Pay with TxID + amount, approved by an admin.
+  // Until approval the deposit shows as Pending in History.
   submitDeposit:(d)=>api.request('POST','/api/deposit',d),
   getDepositHistory:()=>api.request('GET','/api/deposit/history'),
   getDepositWallet:()=>api.request('GET','/api/deposit/wallet'),
 
-  // Withdraw
+  // Withdraw: USDT BEP20 only, from Main Balance. Profit Balance has a
+  // $10 minimum; Main Balance withdrawn before 3 months loses 15%.
   getWithdrawInfo:()=>api.request('GET','/api/withdraw/info'),
   withdrawMain:(d)=>api.request('POST','/api/withdraw/main',d),
   withdrawProfit:(d)=>api.request('POST','/api/withdraw/profit',d),
@@ -82,7 +104,9 @@ const api = {
   requestMoney:(d)=>api.request('POST','/api/request-money',d),
   getMyMoneyRequests:()=>api.request('GET','/api/request-money'),
 
-  // Copy
+  // Copy Trade: real traders only (no fake numbers). Copy money moves
+  // from Main Balance to a separate Copy Invested bucket; profit applies
+  // only to Copy Invested, and Stop Copy settles it back to Main.
   getTraders:()=>api.request('GET','/api/copy/traders'),
   getTrader:(id)=>api.request('GET',`/api/copy/traders/${id}`),
   getMyCopies:()=>api.request('GET','/api/copy/my-copies'),

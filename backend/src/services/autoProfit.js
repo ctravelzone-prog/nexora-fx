@@ -17,6 +17,7 @@ const { generateSchedule, getSchedule, applyDailyPnl } = require('./profitServic
 
 const AUTO_HOUR_DHAKA = 12; // 12:00 PM Dhaka (noon)
 
+// Returns the year/month/day of a Date in Asia/Dhaka time.
 function dhakaParts(date) {
   const parts = new Intl.DateTimeFormat('en-US', {
     timeZone: 'Asia/Dhaka', year: 'numeric', month: 'numeric', day: 'numeric',
@@ -35,6 +36,8 @@ function dhakaParts(date) {
   };
 }
 
+// Returns the last auto-applied Dhaka date (YYYY-MM-DD) when it falls
+// in the given month, else null — the once-per-day guard.
 function lastAppliedDhakaDate(year, month) {
   const row = getDb().prepare(
     'SELECT applied_at FROM profit_schedule WHERE cycle_year=? AND cycle_month=? AND applied=1 ORDER BY day_number DESC LIMIT 1'
@@ -43,6 +46,7 @@ function lastAppliedDhakaDate(year, month) {
   return dhakaParts(new Date(row.applied_at * 1000)).dateStr;
 }
 
+// Returns the last auto-applied date string, or null when never run.
 function getAutoLastDate() {
   try {
     const row = getDb().prepare("SELECT value FROM site_settings WHERE key='auto_profit_last_date'").get();
@@ -50,12 +54,14 @@ function getAutoLastDate() {
   } catch (_) { return null; }
 }
 
+// Records the last auto-applied date (settings key auto_profit_last_date).
 function setAutoLastDate(dateStr) {
   try {
     getDb().prepare("INSERT INTO site_settings (key,value) VALUES ('auto_profit_last_date',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value").run(dateStr);
   } catch (_) { /* never break the apply */ }
 }
 
+// True when the auto-profit switch is on (default ON).
 function isAutoEnabled() {
   try {
     const row = getDb().prepare("SELECT value FROM site_settings WHERE key='auto_profit_enabled'").get();
@@ -64,6 +70,7 @@ function isAutoEnabled() {
   } catch (_) { return true; }
 }
 
+// Turns the auto-profit switch on or off.
 function setAutoEnabled(enabled) {
   try {
     getDb().prepare("INSERT INTO site_settings (key,value) VALUES ('auto_profit_enabled',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value").run(enabled ? '1' : '0');
@@ -71,10 +78,15 @@ function setAutoEnabled(enabled) {
   return enabled;
 }
 
+// Returns the year/month after the given month (rolls over December).
 function nextMonth(year, month) {
   return month === 12 ? { year: year + 1, month: 1 } : { year, month: month + 1 };
 }
 
+// Applies one day's profit when it is time: only Mon-Fri, only at or
+// after 12:00 PM Dhaka, and only once per Dhaka day. If the whole month
+// is already applied it generates next month's schedule once and applies
+// its Day 1. Returns what was applied (or why it skipped).
 function runAutoProfit(now = new Date(), opts = {}) {
   const { force = false } = opts; // force bypasses ONLY the 12 PM time gate
   if (!isAutoEnabled()) {
@@ -116,6 +128,8 @@ function runAutoProfit(now = new Date(), opts = {}) {
   };
 }
 
+// Returns the auto-profit status for the admin panel: on/off, the last
+// applied date, today's date (Dhaka) and whether today is a profit day.
 function autoStatus(now = new Date()) {
   const p = dhakaParts(now);
   const schedule = getSchedule(p.year, p.month);
@@ -132,6 +146,8 @@ function autoStatus(now = new Date()) {
   };
 }
 
+// Starts the scheduler: runs once on boot, then checks every 15 min
+// (the server only runs it while it is up — a spun-down host pauses it).
 function startAutoProfit() {
   const tick = () => {
     try {

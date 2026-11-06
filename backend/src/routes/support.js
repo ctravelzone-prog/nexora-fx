@@ -1,12 +1,22 @@
-// support.js — support tickets (clean template literals)
+// routes/support.js — user support tickets.
+// GET /tickets lists the user's tickets; POST /tickets opens one (the
+// first message is stored as a ticket_messages row and the admin is
+// notified); GET /tickets/:id returns a ticket with all its messages;
+// POST /tickets/:id/reply adds a user message and reopens the ticket.
+// Rule: a closed ticket cannot be replied to. All write routes refuse
+// impersonation sessions (admin 'Login as User').
 const router = require('express').Router();
 const { getDb } = require('../models/database');
 const { authImpersonation } = require('../middleware/auth');
 
+// GET /tickets — the user's tickets, newest first.
 router.get('/tickets', authImpersonation, (req,res)=>{
   res.json(getDb().prepare('SELECT * FROM support_tickets WHERE user_id=? ORDER BY created_at DESC').all(req.userId));
 });
 
+// POST /tickets — opens a ticket. Body: subject, message, optional
+// priority. Side effects: support_tickets row (status 'open') + first
+// ticket_messages row + admin notification.
 router.post('/tickets', authImpersonation, (req,res)=>{
   if(req.isImpersonation) return res.status(403).json({error:'Not allowed during Login as User session'});
   const {subject,message,priority}=req.body;
@@ -20,6 +30,8 @@ router.post('/tickets', authImpersonation, (req,res)=>{
   res.json({success:true,id:tid});
 });
 
+// GET /tickets/:id — one ticket with its full message thread. A user
+// can only open their own tickets (404 otherwise).
 router.get('/tickets/:id', authImpersonation, (req,res)=>{
   const db=getDb();
   const ticket=db.prepare('SELECT * FROM support_tickets WHERE id=? AND user_id=?').get(req.params.id,req.userId);
@@ -28,6 +40,8 @@ router.get('/tickets/:id', authImpersonation, (req,res)=>{
   res.json({...ticket,messages});
 });
 
+// POST /tickets/:id/reply — adds a user message and sets the ticket
+// back to 'open'. Refused when the ticket is closed.
 router.post('/tickets/:id/reply', authImpersonation, (req,res)=>{
   if(req.isImpersonation) return res.status(403).json({error:'Not allowed during Login as User session'});
   const {message}=req.body;
