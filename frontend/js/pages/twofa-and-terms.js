@@ -123,6 +123,6 @@ Pages.riskTerms=function(){
     +'<h2 style="font-size:17px;font-weight:800;margin-top:16px;margin-bottom:8px">3 · Fee structure</h2>'
     +'<p style="font-size:13.5px;color:var(--body);line-height:1.7;margin-bottom:12px">Main Balance deposits have a 3-month lock. Early withdrawal incurs a 15% fee. Profit Balance withdrawals require a $10.00 minimum with no fee. Referral commissions are one-time, 4% of the referred user\'s first deposit only.</p>'
     +'<h2 style="font-size:17px;font-weight:800;margin-top:16px;margin-bottom:8px">4 · Terms &amp; Conditions</h2>'
-    +'<p style="font-size:13.5px;color:var(--body);line-height:1.7">By using Nexora FX you agree to our terms of service. All amounts shown are sample design data. Nexora FX is a UK-based platform.</p>'
+    +'<p style="font-size:13.5px;color:var(--body);line-height:1.7">By using Nexora FX you agree to our terms of service. All amounts shown are sample design data. Nexora FX is a US-based platform.</p>'
     +'</div>','Risk Disclosure &amp; Terms','');
 };

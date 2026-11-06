@@ -1,7 +1,7 @@
 {
   "name": "nexora-fx",
   "version": "1.0.0",
-  "description": "Nexora Fx \u2014 UK-based copy trading platform",
+  "description": "Nexora Fx \u2014 US-based copy trading platform",
   "scripts": {
     "start": "node backend/src/app.js",
     "dev": "cd backend && npm run dev",

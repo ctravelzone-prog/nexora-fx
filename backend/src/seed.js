@@ -28,7 +28,7 @@ async function seed() {
     console.log('[SEED] Super Admin:', email);
   }
   // Default settings
-  const defs = {site_name:'Nexora Fx',hero_title:'Trade Smarter, Not Harder.',hero_subtitle:'Join thousands of traders worldwide. Start your journey today.',withdraw_early_fee_bp:'1500',withdraw_regular_fee_bp:'0',profit_target_bp:'1000',withdraw_lock_months:'3',profit_min_cents:'1000',referral_bp:'400',deposit_enabled:'1',withdraw_enabled:'1',kyc_enabled:'0',admin_2fa_enabled:'0',user_2fa_enabled:'0',maintenance_mode:'0',binance_wallet_address:'',binance_wallet_qr:'',footer_about:'Nexora Fx is a UK-based copy trading platform.',announcement_bar:'',site_font:'Plus Jakarta Sans',site_loader:'1',error_title:'Page Not Found',error_message:'The page you are looking for does not exist.'};
+  const defs = {site_name:'Nexora Fx',hero_title:'Trade Smarter, Not Harder.',hero_subtitle:'Join thousands of traders worldwide. Start your journey today.',withdraw_early_fee_bp:'1500',withdraw_regular_fee_bp:'0',profit_target_bp:'1000',withdraw_lock_months:'3',profit_min_cents:'1000',referral_bp:'400',deposit_enabled:'1',withdraw_enabled:'1',kyc_enabled:'0',admin_2fa_enabled:'0',user_2fa_enabled:'0',maintenance_mode:'0',binance_wallet_address:'',binance_wallet_qr:'',footer_about:'Nexora Fx is a US-based copy trading platform.',announcement_bar:'',site_font:'Plus Jakarta Sans',site_loader:'1',error_title:'Page Not Found',error_message:'The page you are looking for does not exist.'};
   const ins=db.prepare('INSERT OR IGNORE INTO site_settings (key,value) VALUES (?,?)');
   db.transaction(e=>{for(const[k,v]of e)ins.run(k,v);})(Object.entries(defs));
   // Pages

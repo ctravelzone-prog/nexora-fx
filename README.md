@@ -1,11 +1,11 @@
 # Nexora Fx — Full-Stack Copy Trading Platform
 
-UK-based copy-trading / fund-management platform for forex and crypto traders.
+US-based copy-trading / fund-management platform for forex and crypto traders.
 Users deposit (Binance Pay), copy top traders, earn a daily profit target, and
 withdraw (USDT BEP20). Admins approve deposits/withdrawals and manage users,
 traders, profit schedules, and site settings from a separate admin panel.
 
-**Version in this zip: v27 (cache v72)
+**Version in this zip: v28 (cache v73)
 
 > **A new developer should read this file first, then the header comment at
 > the top of any source file.** Every source file has a header comment that
