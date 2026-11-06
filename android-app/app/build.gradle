@@ -1,0 +1,57 @@
+// Nexora FX Android app — app module build file.
+// Produces one APK (app-release.apk) that opens the live Nexora FX site
+// in a WebView. Version 1.0, versionCode 1 — bump BOTH on every release
+// (versionCode must always go up, or Android refuses the update).
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'com.nexorafx.app'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId "com.nexorafx.app"
+        minSdk 24          // Android 7.0 and newer
+        targetSdk 34
+        versionCode 1
+        versionName "1.0"
+    }
+
+    signingConfigs {
+        release {
+            // The keystore lives OUTSIDE this repo (see android-app/README.md).
+            // Its path/passwords come from keystore.properties, never from git.
+            def props = new Properties()
+            def propsFile = rootProject.file("keystore.properties")
+            if (propsFile.exists()) {
+                props.load(new FileInputStream(propsFile))
+                storeFile file(props['storeFile'])
+                storePassword props['storePassword']
+                keyAlias props['keyAlias']
+                keyPassword props['keyPassword']
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            signingConfig signingConfigs.release
+        }
+        debug {
+            // Debug builds are signed with the debug key automatically.
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+// No third-party dependencies: the app uses Android framework APIs
+// only (WebView, Activity), so it builds with the SDK tools alone.
+dependencies {
+}

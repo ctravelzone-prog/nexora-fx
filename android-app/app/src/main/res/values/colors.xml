@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Nexora FX Android app — brand colors (orange theme, same as the site). -->
+<resources>
+    <color name="orange">#F97316</color>
+    <color name="dark">#111827</color>
+    <color name="gray">#6B7280</color>
+    <color name="white">#FFFFFF</color>
+</resources>

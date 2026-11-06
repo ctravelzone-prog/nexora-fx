@@ -247,7 +247,7 @@ Pages.landing = async function() {
       <!-- Download app -->
       <section class="nx-container pb-10">
         <div class="flex justify-center">
-          <a href="#" class="inline-flex items-center gap-3 bg-gray-900 text-white rounded-2xl px-5 py-3 text-sm font-semibold" style="max-width:280px">
+          <a href="https://github.com/ctravelzone-prog/nexora-fx/releases/download/v1.0-android/NexoraFX.apk" class="inline-flex items-center gap-3 bg-gray-900 text-white rounded-2xl px-5 py-3 text-sm font-semibold" style="max-width:280px">
             <span>📱</span> Download Android App
           </a>
         </div>

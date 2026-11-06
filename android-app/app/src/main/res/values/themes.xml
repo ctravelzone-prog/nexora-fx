@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Nexora FX Android app — theme (plain light theme, no action bar). -->
+<resources>
+    <style name="Theme.NexoraFX" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/white</item>
+        <item name="android:colorPrimary">@color/orange</item>
+        <item name="android:colorAccent">@color/orange</item>
+    </style>
+</resources>

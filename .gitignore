@@ -32,3 +32,7 @@ npm-debug.log*
 # Build artifacts
 dist/
 build/
+
+# Android app — build intermediates + signing secrets (never commit)
+android-app/build-manual/
+android-app/keystore.properties

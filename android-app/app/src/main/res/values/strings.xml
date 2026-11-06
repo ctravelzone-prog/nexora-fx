@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Nexora FX Android app — text shown in the app. -->
+<resources>
+    <string name="app_name">Nexora FX</string>
+    <string name="loading_text">Loading Nexora FX…</string>
+    <string name="error_load_failed">Could not load Nexora FX. Check your internet connection and try again.</string>
+    <string name="retry">Retry</string>
+</resources>
