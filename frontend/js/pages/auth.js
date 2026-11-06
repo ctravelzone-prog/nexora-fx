@@ -25,9 +25,12 @@ Pages.register=function(){
   document.getElementById('app').innerHTML=Templates.register();
   // Referral link: /register?ref=CODE — auto-fill the referral field so
   // the referrer gets counted (a bare link visit left it empty before).
+  // A code that came from a link is LOCKED: the new user cannot change or
+  // clear it — readonly + blur on focus, so a click does nothing — while
+  // a manually typed code stays editable. Readonly still submits the code.
   try{
     const refCode=new URLSearchParams(window.location.search).get('ref')||new URLSearchParams(window.location.search).get('referral_code');
-    if(refCode){const el=document.querySelector('#reg-form [name="ref"]');if(el)el.value=refCode;}
+    if(refCode){const el=document.querySelector('#reg-form [name="ref"]');if(el){el.value=refCode;el.readOnly=true;el.setAttribute('tabindex','-1');el.style.background='#F1F5F9';el.addEventListener('focus',function(){el.blur();});var note=document.createElement('p');note.className='text-xs text-gray-400 mt-1';note.textContent="🔒 Locked — from your friend's referral link.";el.parentNode.insertBefore(note,el.nextSibling);}}
   }catch(e){}
   // Live username check: only a-z, 0-9, - and _ are allowed. While the
   // name is invalid, fetch a free suggestion and show it as a button.
