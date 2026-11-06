@@ -36,10 +36,12 @@ Pages.copyTrade=async function(){
     Pages._ctTraders=traders; Pages._ctCopies=copies;
     Pages._ct={q:'',f:'all',sort:'win',my:false};
     const totalCopied=copies.reduce((a,c)=>a+c.amount_cents,0);
-    const rois=traders.map(t=>t.roi_percent||0);
-    const roiMin=rois.length?Math.min(...rois):0, roiMax=rois.length?Math.max(...rois):0;
-    const roiLabel=roiMin===roiMax?roiMin.toFixed(1)+'%':roiMin.toFixed(1)+'–'+roiMax.toFixed(1)+'%';
     const totalFollowers=traders.reduce((a,t)=>a+(t.followers||0),0);
+    // COPYING on the hero: admin-set copying_count wins (Admin > Traders card);
+    // empty or unset falls back to this user's own active copies.
+    const _cs=App.state.settings&&App.state.settings.copying_count;
+    let copyingShown=copies.length;
+    if(_cs!==undefined&&_cs!==null&&String(_cs).trim()!==''){const _n=Number(String(_cs).replace(/,/g,''));if(!isNaN(_n))copyingShown=_n.toLocaleString('en-US');}
     // Trending: top 5 by ROI. Top 5: ranked by win rate, not ROI.
     const trending=[...traders].sort((a,b)=>(b.roi_percent||0)-(a.roi_percent||0)).slice(0,5);
     const top=[...traders].sort((a,b)=>(b.win_rate||0)-(a.win_rate||0)).slice(0,5);
@@ -48,11 +50,10 @@ Pages.copyTrade=async function(){
         <h2 class="text-2xl font-bold mb-1">Copy Top Traders</h2>
         <p class="text-orange-100 text-sm mb-4">Mirror their trades automatically. Earn while you sleep.</p>
         <button onclick="document.getElementById('all-traders').scrollIntoView({behavior:'smooth'})" class="text-sm font-bold px-4 py-2 rounded-full mb-5" style="background:#fff;color:#EA580C">Start Copying →</button>
-        <div class="grid grid-cols-4 gap-2 text-center">
+        <div class="grid grid-cols-3 gap-2 text-center">
           <div><div class="font-extrabold text-lg leading-none">${traders.length}</div><div class="text-[10px] tracking-wide text-orange-100 mt-1">TRADERS</div></div>
-          <div><div class="font-extrabold text-lg leading-none">${roiLabel}</div><div class="text-[10px] tracking-wide text-orange-100 mt-1">AVG PROFIT</div></div>
           <div><div class="font-extrabold text-lg leading-none">${totalFollowers.toLocaleString('en-US')}</div><div class="text-[10px] tracking-wide text-orange-100 mt-1">FOLLOWERS</div></div>
-          <div><div class="font-extrabold text-lg leading-none">● ${copies.length}</div><div class="text-[10px] tracking-wide text-orange-100 mt-1">COPYING</div></div>
+          <div><div class="font-extrabold text-lg leading-none">● ${copyingShown}</div><div class="text-[10px] tracking-wide text-orange-100 mt-1">COPYING</div></div>
         </div>
       </div>
       ${trending.length?`<div class="mb-6"><div class="text-sm font-bold mb-2">🔥 TRENDING NOW</div><div class="flex gap-2 overflow-x-auto pb-1" style="scrollbar-width:none">${trending.map(t=>`<button onclick="App.navigate('/trader/${t.id}')" class="flex items-center gap-2.5 px-3 py-2 rounded-2xl border border-gray-200 bg-white whitespace-nowrap hover:border-orange-300 text-left flex-shrink-0"><span style="width:38px;height:38px;border-radius:50%;overflow:hidden;display:inline-block;flex-shrink:0">${utils.avatar(t.name,t.avatar,38)}</span><span><span class="block text-sm font-bold leading-tight">${t.name}</span><span class="block text-xs font-bold text-green-500">+${(t.roi_percent||0).toFixed(1)}%</span></span></button>`).join('')}</div></div>`:''}
