@@ -37,11 +37,11 @@ AdminPages.profit=async function(){
     try{const money=await adminApi.getMoney(); if(money&&money.profit_target_bp) targetPct=(parseInt(money.profit_target_bp)/100).toFixed(2);}catch(e){}
     AdminComponents.layout(`
       <h2 class="font-bold text-xl mb-1">Profit System · 22-Day Cycle</h2>
-      <p class="text-sm text-gray-400 mb-4">Every day pays a different rate. Sat/Sun skipped. Day 22 balances to exactly ${targetPct}% of Copy Invested. This is a <strong>target of up to ${targetPct}%</strong> — never a guarantee.</p>
+      <p class="text-sm text-gray-400 mb-4">Every day pays a different rate — and at a different time: the 22 times from 12:00 PM to 7:00 PM are shuffled fresh every month. Sat/Sun skipped. Day 22 balances to exactly ${targetPct}% of Copy Invested. This is a <strong>target of up to ${targetPct}%</strong> — never a guarantee.</p>
       <div class="card mb-4">
         <div class="flex items-center justify-between mb-1"><h3 class="font-bold">Auto Profit (Mon\u2013Fri)</h3><span id="auto-pill" style="display:inline-flex;align-items:center;gap:6px;padding:4px 12px;border-radius:999px;font-size:12px;font-weight:700;${auto.enabled===false?'background:#F1F5F9;color:#64748B;':'background:#DCFCE7;color:#15803D;'}"><span style="width:8px;height:8px;border-radius:50%;background:${auto.enabled===false?'#94A3B8':'#22C55E'};display:inline-block"></span>${auto.enabled===false?'AUTO OFF':'AUTO RUNNING'}</span></div>
         <p class="text-sm text-gray-500">Mon\u2013Fri, 12:00 PM Dhaka time-e porer din-er profit auto add hobe. Sat/Sun off. Profit alada Profit Balance-e jog hobe, prothome copy kora amount-er upori 22 din-e ${targetPct}% hiseb hobe (compound hobe na). Manual Apply emergency-r jonno thakbe.</p>
-        <p class="text-sm text-gray-500 mt-1" id="auto-status">Auto: ${auto.enabled===false?'OFF':'ON'} \u00b7 Dhaka: ${auto.dhakaDate||''} (${auto.weekday||''}) \u00b7 Next Day: ${auto.nextDay?('Day '+auto.nextDay+' ('+(auto.nextRateBp/100).toFixed(2)+'%)'):(auto.nextMonthReady?'Cycle complete \u00b7 Next shuffle ready':'Cycle complete')} \u00b7 Last applied: ${auto.lastAppliedDate||'none'}</p>
+        <p class="text-sm text-gray-500 mt-1" id="auto-status">Auto: ${auto.enabled===false?'OFF':'ON'} \u00b7 Dhaka: ${auto.dhakaDate||''} (${auto.weekday||''}) \u00b7 Next Day: ${auto.nextDay?('Day '+auto.nextDay+' ('+(auto.nextRateBp/100).toFixed(2)+'%)'+(auto.nextRunTime?(' at '+auto.nextRunTime):'')):(auto.nextMonthReady?'Cycle complete \u00b7 Next shuffle ready':'Cycle complete')} \u00b7 Last applied: ${auto.lastAppliedDate||'none'}</p>
         <style>#auto-toggle-btn.off:hover{border-color:#E2E8F0 !important;color:#0F172A !important;} #auto-toggle-btn.on:hover{opacity:.92;}</style><button id="auto-toggle-btn" onclick="AdminPages._toggleAuto()" class="${auto.enabled===false?'btn-secondary off':'btn-primary on'} text-sm mt-2" style="width:auto;padding:8px 14px">${auto.enabled===false?'Turn On':'Turn Off'}</button>
       </div>
       <div class="card mb-4">
@@ -49,7 +49,7 @@ AdminPages.profit=async function(){
           <div class="flex gap-2"><button onclick="AdminPages._genSched(${y},${m})" class="btn-primary text-sm" style="width:auto;padding:8px 14px">Generate Dynamic Shuffle</button><button onclick="AdminPages._manualEdit(${y},${m})" class="btn-secondary text-sm" style="padding:8px 14px">Manual Edit</button></div>
         </div>
         <div class="sched-grid">
-          ${d.schedule.map(s=>`<div class="sched-day${s.is_loss?' loss':''}${s.day_number===22?' final':''}${s.applied?' applied':''}"><small>DAY ${s.day_number}${s.day_number===22?'<br>BALANCE':''}</small><b>${s.rate_bp>=0?'+':''}${(s.rate_bp/100).toFixed(2)}%</b></div>`).join('')}
+          ${d.schedule.map(s=>`<div class="sched-day${s.is_loss?' loss':''}${s.day_number===22?' final':''}${s.applied?' applied':''}"><small>DAY ${s.day_number}${s.day_number===22?'<br>BALANCE':''}</small><b>${s.rate_bp>=0?'+':''}${(s.rate_bp/100).toFixed(2)}%</b><small>${s.run_time||''}</small></div>`).join('')}
         </div>
       </div>
       <div class="card mb-4">

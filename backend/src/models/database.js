@@ -41,6 +41,7 @@ function getDb() {
     try{const cols=db.prepare("PRAGMA table_info(users)").all();if(!cols.some(c=>c.name==='kyc_requested')){db.exec('ALTER TABLE users ADD COLUMN kyc_requested INTEGER NOT NULL DEFAULT 0');}}catch(_){}
     try{const cols=db.prepare("PRAGMA table_info(users)").all();if(!cols.some(c=>c.name==='profit_target_bp')){db.exec('ALTER TABLE users ADD COLUMN profit_target_bp INTEGER');}}catch(_){}
     try{const cols=db.prepare("PRAGMA table_info(users)").all();if(!cols.some(c=>c.name==='showcase_withdraw_cents')){db.exec('ALTER TABLE users ADD COLUMN showcase_withdraw_cents INTEGER DEFAULT 0');}}catch(_){}
+    try{const cols=db.prepare("PRAGMA table_info(profit_schedule)").all();if(!cols.some(c=>c.name==='run_minutes')){db.exec('ALTER TABLE profit_schedule ADD COLUMN run_minutes INTEGER');}}catch(_){}
   }
   return db;
 }

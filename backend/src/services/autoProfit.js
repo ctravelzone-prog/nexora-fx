@@ -5,23 +5,28 @@
 //   compounded) and added to the separate Profit Balance (balances.profit_cents)
 //   — the Copy Invested amount itself never changes.
 // - Manual Apply (/api/admin/profit/apply) stays as-is for emergencies.
-// - Auto runs at/after 12:00 PM Dhaka time, every 15 minutes, and never applies
-//   twice on the same Dhaka calendar day (guarded by the last applied day's
-//   Dhaka date, so a manual Apply earlier that day also blocks auto that day).
+// - Auto runs at/after THAT DAY's stored time (see profitService), every 5 minutes,
+//   and never applies twice on the same Dhaka calendar day (guarded by the
+//   last applied day's Dhaka date, so a manual Apply earlier that day also
+//   blocks auto that day).
 // - Sat/Sun in Dhaka time are always skipped, even on a forced run.
 // - After all 22 days are applied, auto (ON only) shuffles the NEXT month's
 //   schedule once, so the next cycle is ready. If auto is OFF, no shuffle
 //   happens — admin clicks Generate Dynamic Shuffle after 22 days.
 const { getDb } = require('../models/database');
-const { generateSchedule, getSchedule, applyDailyPnl } = require('./profitService');
+const { generateSchedule, getSchedule, applyDailyPnl, dayRunTime, formatDayRunTime } = require('./profitService');
 
-const AUTO_HOUR_DHAKA = 12; // 12:00 PM Dhaka (noon)
+// Profit times live in profitService: each month the 22 slots 12:00 PM–7:00 PM
+// are shuffled (like the rates) and stored per day in profit_schedule.
+// run_minutes — dayRunTime/formatDayRunTime read the stored time (with a
+// fixed-formula fallback for pre-change rows). The gate below uses the
+// NEXT unapplied day's stored time.
 
 // Returns the year/month/day of a Date in Asia/Dhaka time.
 function dhakaParts(date) {
   const parts = new Intl.DateTimeFormat('en-US', {
     timeZone: 'Asia/Dhaka', year: 'numeric', month: 'numeric', day: 'numeric',
-    weekday: 'short', hour: 'numeric', hour12: false,
+    weekday: 'short', hour: 'numeric', minute: 'numeric', hour12: false,
   }).formatToParts(date);
   const get = (t) => parts.find((p) => p.type === t).value;
   const wd = get('weekday'); // Sun, Mon, Tue, Wed, Thu, Fri, Sat
@@ -32,6 +37,7 @@ function dhakaParts(date) {
     weekday: wd,
     isWeekend: wd === 'Sat' || wd === 'Sun',
     hour: parseInt(get('hour'), 10) % 24,
+    minute: parseInt(get('minute'), 10),
     dateStr: `${get('year')}-${String(get('month')).padStart(2, '0')}-${String(get('day')).padStart(2, '0')}`,
   };
 }
@@ -83,12 +89,13 @@ function nextMonth(year, month) {
   return month === 12 ? { year: year + 1, month: 1 } : { year, month: month + 1 };
 }
 
-// Applies one day's profit when it is time: only Mon-Fri, only at or
-// after 12:00 PM Dhaka, and only once per Dhaka day. If the whole month
-// is already applied it generates next month's schedule once and applies
-// its Day 1. Returns what was applied (or why it skipped).
+// Applies one day's profit when it is time: only Mon-Fri, only at or after
+// THAT DAY's stored time (that month's shuffle, 12:00 PM–7:00 PM Dhaka), and only once
+// per Dhaka day. If the whole month is already applied it generates next
+// month's schedule once and applies its Day 1. Returns what was applied
+// (or why it skipped).
 function runAutoProfit(now = new Date(), opts = {}) {
-  const { force = false } = opts; // force bypasses ONLY the 12 PM time gate
+  const { force = false } = opts; // force bypasses ONLY the day's time gate
   if (!isAutoEnabled()) {
     const pd = dhakaParts(now);
     return { applied: false, reason: 'auto_disabled', dhakaDate: pd.dateStr, weekday: pd.weekday };
@@ -96,9 +103,6 @@ function runAutoProfit(now = new Date(), opts = {}) {
   const p = dhakaParts(now);
   if (p.isWeekend) {
     return { applied: false, reason: 'weekend_skip', dhakaDate: p.dateStr, weekday: p.weekday };
-  }
-  if (!force && p.hour < AUTO_HOUR_DHAKA) {
-    return { applied: false, reason: 'not_yet_12pm_dhaka', dhakaDate: p.dateStr, weekday: p.weekday, hour: p.hour };
   }
   let schedule = getSchedule(p.year, p.month);
   if (!schedule.length) { generateSchedule(p.year, p.month); schedule = getSchedule(p.year, p.month); }
@@ -112,8 +116,17 @@ function runAutoProfit(now = new Date(), opts = {}) {
     if (!getSchedule(nm.year, nm.month).length) { generateSchedule(nm.year, nm.month); generated = true; }
     return { applied: false, reason: 'cycle_complete_next_generated', dhakaDate: p.dateStr, weekday: p.weekday, nextYear: nm.year, nextMonth: nm.month, nextGenerated: generated };
   }
+  // Once-per-day guard first (same as before): if today already paid,
+  // say so — even when the NEXT day's time has not come yet.
   if (getAutoLastDate() === p.dateStr || lastAppliedDhakaDate(p.year, p.month) === p.dateStr) {
     return { applied: false, reason: 'already_applied_today', dhakaDate: p.dateStr, weekday: p.weekday, day: next.day_number };
+  }
+  // Today's time gate: this day applies at/after its stored shuffled time.
+  const target = dayRunTime(next);
+  const nowMin = p.hour * 60 + p.minute;
+  const targetMin = target.hour * 60 + target.minute;
+  if (!force && nowMin < targetMin) {
+    return { applied: false, reason: 'not_yet_today', dhakaDate: p.dateStr, weekday: p.weekday, hour: p.hour, minute: p.minute, day: next.day_number, runTime: formatDayRunTime(next) };
   }
   const result = applyDailyPnl(next.rate_bp, p.year, p.month, next.day_number, null);
   setAutoLastDate(p.dateStr);
@@ -123,7 +136,7 @@ function runAutoProfit(now = new Date(), opts = {}) {
   } catch (_) { /* audit log must never break the apply */ }
   return {
     applied: true, dhakaDate: p.dateStr, weekday: p.weekday,
-    day: next.day_number, rate_bp: next.rate_bp,
+    day: next.day_number, rate_bp: next.rate_bp, runTime: formatDayRunTime(next),
     count: result.count, totalApplied: result.totalApplied,
   };
 }
@@ -136,31 +149,33 @@ function autoStatus(now = new Date()) {
   const next = schedule.find((s) => !s.applied) || null;
   return {
     enabled: isAutoEnabled(),
-    dhakaDate: p.dateStr, weekday: p.weekday, isWeekend: p.isWeekend, hour: p.hour,
-    autoHour: AUTO_HOUR_DHAKA,
+    dhakaDate: p.dateStr, weekday: p.weekday, isWeekend: p.isWeekend, hour: p.hour, minute: p.minute,
     lastAppliedDate: lastAppliedDhakaDate(p.year, p.month),
     nextDay: next ? next.day_number : null,
     nextRateBp: next ? next.rate_bp : null,
+    nextRunTime: next ? formatDayRunTime(next) : null,
     cycleComplete: !next && schedule.length > 0,
     nextMonthReady: (!next && schedule.length > 0) ? getSchedule(nextMonth(p.year, p.month).year, nextMonth(p.year, p.month).month).length > 0 : false,
   };
 }
 
-// Starts the scheduler: runs once on boot, then checks every 15 min
-// (the server only runs it while it is up — a spun-down host pauses it).
+// Starts the scheduler: runs once on boot, then checks every 5 min (the
+// 20-minute time steps are multiples of 5, so the apply lands on the
+// exact minute; the server only runs it while it is up — a spun-down
+// host pauses it).
 function startAutoProfit() {
   const tick = () => {
     try {
       const r = runAutoProfit(new Date());
-      if (r.applied) console.log(`[auto-profit] Applied Day ${r.day} (${r.rate_bp / 100}%) to ${r.count} copies on ${r.dhakaDate}`);
-      else if (r.reason !== 'not_yet_12pm_dhaka') console.log(`[auto-profit] Skipped (${r.reason}) on ${r.dhakaDate}`);
+      if (r.applied) console.log(`[auto-profit] Applied Day ${r.day} (${r.rate_bp / 100}%) at ${r.runTime} to ${r.count} copies on ${r.dhakaDate}`);
+      else if (r.reason !== 'not_yet_today') console.log(`[auto-profit] Skipped (${r.reason}) on ${r.dhakaDate}`);
     } catch (e) {
       console.error('[auto-profit] Error:', e.message);
     }
   };
   tick(); // check once on startup (gates still apply)
-  setInterval(tick, 15 * 60 * 1000); // every 15 minutes
-  console.log('[auto-profit] Scheduler started — Mon–Fri, 12:00 PM Dhaka, Sat/Sun skipped');
+  setInterval(tick, 5 * 60 * 1000); // every 5 minutes
+  console.log('[auto-profit] Scheduler started — Mon–Fri, per-day shuffled time 12:00 PM–7:00 PM Dhaka, Sat/Sun skipped');
 }
 
 module.exports = { runAutoProfit, autoStatus, startAutoProfit, dhakaParts, isAutoEnabled, setAutoEnabled };

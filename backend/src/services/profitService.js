@@ -5,6 +5,10 @@
 // whatever remains so the month lands exactly on the target — target
 // wording, never a guarantee. applyDailyPnl applies one day to every
 // active copy (and to showcase display balances, via applyShowcasePnl).
+// Times: each month the 22 slots 12:00 PM-7:00 PM (20-min steps) are
+// SHUFFLED like the rates and stored per day (run_minutes) — so every
+// month each day pays at a different time; regenerating a month's
+// schedule re-shuffles its times too.
 // A per-user profit target scales that user's rates. All money is
 // integer cents; the profit goes to Copy Invested only, on the first
 // copied amount, no compounding.
@@ -13,6 +17,50 @@ const H = require('./moneyHelpers');
 
 // Global cycle target in basis points (100 = 1%). Admin sets it in Money Settings.
 function getTargetBp() { const v = parseInt(H.getSetting('profit_target_bp','1000')); return Number.isFinite(v) && v >= 0 ? v : 1000; }
+
+// Profit time cycle (owner, 6 Nov): the daily profit no longer lands at a
+// fixed 12:00 PM. Each month, the 22 time slots 12:00 PM-7:00 PM (20-min
+// steps) are SHUFFLED — like the rates — and stored per day in
+// profit_schedule.run_minutes (minutes since midnight Dhaka). So every
+// month each day pays at a different time, and the next month's mapping
+// is a fresh shuffle. Regenerating a month's schedule re-shuffles its
+// times too. Rows made before this change have NULL run_minutes and fall
+// back to the fixed formula (Day N = 12:00 PM + (N-1) x 20 min).
+const CYCLE_START_MIN = 12 * 60; // 12:00 PM Dhaka
+const CYCLE_STEP_MIN = 20;
+const CYCLE_DAYS = 22;
+function timeSlots() {
+  const slots = [];
+  for (let m = CYCLE_START_MIN; m <= CYCLE_START_MIN + (CYCLE_DAYS - 1) * CYCLE_STEP_MIN; m += CYCLE_STEP_MIN) slots.push(m);
+  return slots;
+}
+function shuffleTimes() {
+  const slots = timeSlots();
+  for (let i = slots.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [slots[i], slots[j]] = [slots[j], slots[i]]; }
+  return slots;
+}
+function formatMinutes(mins) {
+  const hour = Math.floor(mins / 60), minute = mins % 60;
+  const h12 = hour % 12 === 0 ? 12 : hour % 12;
+  return `${h12}:${String(minute).padStart(2, '0')} ${hour < 12 ? 'AM' : 'PM'}`;
+}
+// Fallback for pre-change rows (NULL run_minutes).
+function profitTimeForDay(dayNumber) {
+  const mins = CYCLE_START_MIN + (dayNumber - 1) * CYCLE_STEP_MIN;
+  return { hour: Math.floor(mins / 60), minute: mins % 60 };
+}
+function formatProfitTime(dayNumber) { return formatMinutes(CYCLE_START_MIN + (dayNumber - 1) * CYCLE_STEP_MIN); }
+// The {hour, minute} a schedule row pays at (stored shuffle, else fallback).
+function dayRunTime(row) {
+  if (row && row.run_minutes !== null && row.run_minutes !== undefined) {
+    return { hour: Math.floor(row.run_minutes / 60), minute: row.run_minutes % 60 };
+  }
+  return profitTimeForDay(row ? row.day_number : 1);
+}
+function formatDayRunTime(row) {
+  if (row && row.run_minutes !== null && row.run_minutes !== undefined) return formatMinutes(row.run_minutes);
+  return formatProfitTime(row ? row.day_number : 1);
+}
 
 // Builds the month's 22 daily rates from the global target: 2 or 3 loss
 // days (-20 to -40 bp, never Day 1 or Day 22), varied positive rates,
@@ -38,8 +86,11 @@ function generateSchedule(year, month) {
   const sumWithout22 = days.slice(0,21).reduce((a,r)=>a+r.rate,0);
   days[21].rate = TARGET_BP - sumWithout22;
   days[21].isLoss = days[21].rate < 0 ? 1 : 0;
-  const ins = db.prepare('INSERT INTO profit_schedule (cycle_year,cycle_month,day_number,rate_bp,is_loss) VALUES (?,?,?,?,?)');
-  db.transaction(rows=>{ for(const r of rows) ins.run(year,month,r.day,r.rate,r.isLoss); })(days);
+  // Times: the 22 slots, freshly shuffled for this month.
+  const times = shuffleTimes();
+  days.forEach((d, idx) => { d.runMin = times[idx]; });
+  const ins = db.prepare('INSERT INTO profit_schedule (cycle_year,cycle_month,day_number,rate_bp,is_loss,run_minutes) VALUES (?,?,?,?,?,?)');
+  db.transaction(rows=>{ for(const r of rows) ins.run(year,month,r.day,r.rate,r.isLoss,r.runMin); })(days);
   return days;
 }
 
@@ -221,4 +272,4 @@ function retargetSchedule(year,month,newTargetBp){
   })();
 }
 
-module.exports = { generateSchedule, getSchedule, applyDailyPnl, rebalanceSchedule, retargetSchedule, getTargetBp };
+module.exports = { generateSchedule, getSchedule, applyDailyPnl, rebalanceSchedule, retargetSchedule, getTargetBp, profitTimeForDay, formatProfitTime, formatMinutes, dayRunTime, formatDayRunTime, timeSlots };

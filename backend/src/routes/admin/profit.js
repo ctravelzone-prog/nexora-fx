@@ -11,7 +11,7 @@
 const router = require('express').Router();
 const { getDb } = require('../../models/database');
 const { authAdmin, superAdminOnly } = require('../../middleware/auth');
-const { generateSchedule, getSchedule, applyDailyPnl, rebalanceSchedule } = require('../../services/profitService');
+const { generateSchedule, getSchedule, applyDailyPnl, rebalanceSchedule, formatDayRunTime } = require('../../services/profitService');
 const { runAutoProfit, autoStatus, isAutoEnabled, setAutoEnabled } = require('../../services/autoProfit');
 
 // GET /schedule — the month's 22-day schedule (generated first when
@@ -20,7 +20,7 @@ router.get('/schedule', authAdmin, (req,res)=>{
   const now=new Date(); const {year=now.getFullYear(),month=now.getMonth()+1}=req.query;
   const schedule=getSchedule(parseInt(year),parseInt(month));
   const total=schedule.reduce((a,d)=>a+d.rate_bp,0);
-  res.json({schedule,total_bp:total,year:parseInt(year),month:parseInt(month)});
+  res.json({schedule:schedule.map(s=>({...s,run_time:formatDayRunTime(s)})),total_bp:total,year:parseInt(year),month:parseInt(month)});
 });
 
 // POST /schedule/generate — Super Admin only. Regenerates the month's
@@ -67,9 +67,9 @@ router.get('/auto-status', authAdmin, (req,res)=>{
 });
 
 // POST /auto-run — runs the auto-profit check once, right now (same
-// Mon-Fri / 12 PM Dhaka / once-per-day rules as the scheduler).
+// Mon-Fri / day's shuffled time / once-per-day rules as the scheduler).
 router.post('/auto-run', authAdmin, (req,res)=>{
-  // Emergency/test trigger for the auto logic: bypasses only the 11 PM gate.
+  // Emergency/test trigger for the auto logic: bypasses only the day's time gate.
   // Weekend skip + once-per-day guard still apply, so it can never double-apply.
   try{ res.json({success:true,...runAutoProfit(new Date(),{force:true})}); }
   catch(e){ res.status(500).json({error:e.message}); }
