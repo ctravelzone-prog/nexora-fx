@@ -60,6 +60,9 @@ Pages._db2=function(b,u,copies,f){
     + '<div id="nx-tv-chart" style="margin-top:14px;border:1px solid var(--border);border-radius:14px;overflow:hidden;height:560px"></div>'
     + '<div id="nx-chart-fallback" style="display:none;margin-top:12px;padding:14px;background:#FEF2F2;border:1px solid #FCA5A5;border-radius:12px;color:#991B1B;font-size:13px">Live chart unavailable — TradingView load hoyni. Connection check kore page refresh dao. Fake chart dekhano hobe na.</div>'
     + '</div>';
+  // Where We Work (same section as the home page): below the market chart,
+  // above the Referral card.
+  html+='<div style="margin-top:16px">'+Components.whereWeWork()+'</div>';
   var refUrl=window.location.origin+'/register?ref='+(u.referral_code||'');
   html+='<div class="card" style="padding:20px;margin-top:16px"><span style="font-size:11px;font-weight:800;letter-spacing:.7px;color:var(--faint);display:block;margin-bottom:8px">REFERRAL URL</span><div style="display:flex"><input id="ref-inp" readonly value="'+refUrl+'" style="flex:1;border:1.5px solid var(--border);border-right:0;border-radius:12px 0 0 12px;padding:12px 14px;font-size:12px;color:var(--body);background:var(--bg);min-width:0;font-family:inherit"><button onclick="navigator.clipboard.writeText(document.getElementById(\'ref-inp\').value);utils.toast(\'Copied!\',\'success\')" style="border:0;background:var(--orange);color:#fff;font-weight:800;font-size:13px;padding:0 16px;border-radius:0 12px 12px 0;cursor:pointer;font-family:inherit">COPY</button></div><p style="font-size:12px;color:var(--muted);margin-top:8px">Share your link and earn 4% commission.</p></div>';
   return html;
