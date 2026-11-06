@@ -18,6 +18,32 @@ const H = require('./moneyHelpers');
 // Global cycle target in basis points (100 = 1%). Admin sets it in Money Settings.
 function getTargetBp() { const v = parseInt(H.getSetting('profit_target_bp','1000')); return Number.isFinite(v) && v >= 0 ? v : 1000; }
 
+// Per-trader variation for the daily PnL split (owner, 7 Nov): when a user
+// copies several traders, every trader showing the exact same rate looked
+// artificial. So the day's schedule rate is the user's TOTAL for the day,
+// and each copy earns a slightly different rate — same sign, a
+// deterministic 0.7x-1.3x factor per (user, cycle, day, copy) — so every
+// day looks different for every trader, 22 days 22 ways. The factors are
+// normalized so the amount-weighted average is exactly 1, and the shares
+// sum exactly to the uniform day total (remainder on the largest copy),
+// so the day total, the 22-day target and every notification are
+// unchanged — only the per-trader split varies.
+function _hashSeed(str){ let h=2166136261; for(let i=0;i<str.length;i++){ h^=str.charCodeAt(i); h=Math.imul(h,16777619); } return h>>>0; }
+function _mulberry32(seed){ let a=seed>>>0; return function(){ a|=0; a=(a+0x6D2B79F5)|0; let t=Math.imul(a^(a>>>15),1|a); t=(t+Math.imul(t^(t>>>7),61|t))^t; return ((t^(t>>>14))>>>0)/4294967296; }; }
+// Splits a day total (cents, may be negative) across copy amounts with
+// per-trader variation. Returns integer amounts summing exactly to total.
+function variedSplit(seedKey, amounts, total){
+  if(amounts.length<=1) return [total];
+  const rnd=_mulberry32(_hashSeed(seedKey));
+  const w=amounts.map(()=>0.7+rnd()*0.6); // 0.7-1.3x per copy
+  const totAmt=amounts.reduce((a,b)=>a+b,0);
+  const wAvg=amounts.reduce((s,a,i)=>s+a*w[i],0)/totAmt;
+  const shares=amounts.map((a,i)=>Math.round(total*a*(w[i]/wAvg)/totAmt));
+  let diff=total-shares.reduce((a,b)=>a+b,0);
+  if(diff!==0){ let bi=0; amounts.forEach((a,i)=>{ if(a>amounts[bi]) bi=i; }); shares[bi]+=diff; }
+  return shares;
+}
+
 // Profit time cycle (owner, 6 Nov): the daily profit no longer lands at a
 // fixed 12:00 PM. Each month, the 22 time slots 12:00 PM-7:00 PM (20-min
 // steps) are SHUFFLED — like the rates — and stored per day in
@@ -142,13 +168,14 @@ function applyShowcasePnl(db, rateBp, yr, mo, day) {
     // Mirror the real-user flow: spread the day's profit across the user's
     // active copies (proportional to each copy's amount) so the trader
     // profile in Your Copies / My Copies shows its own profit too.
-    const copies = db.prepare("SELECT id, amount_cents FROM copies WHERE user_id=? AND status='active'").all(u.id);
+    const copies = db.prepare("SELECT id, amount_cents FROM copies WHERE user_id=? AND status='active' ORDER BY id").all(u.id);
     const totCopy = copies.reduce((s, c) => s + c.amount_cents, 0);
     if (totCopy > 0) {
-      let remaining = ac;
+      // Same per-trader variation as real users: each copy's share varies
+      // (same day total, same sign) so the trader rows don't look identical.
+      const shares = variedSplit(`${u.id}:${yr}:${mo}:${day}:showcase`, copies.map(c=>c.amount_cents), ac);
       copies.forEach((c, i) => {
-        const share = (i === copies.length - 1) ? remaining : Math.round(ac * c.amount_cents / totCopy);
-        remaining -= share;
+        const share = shares[i];
         db.prepare('UPDATE copies SET profit_cents=profit_cents+?,daily_pnl_cents=?,updated_at=unixepoch() WHERE id=?').run(share, share, c.id);
       });
     }
@@ -167,29 +194,44 @@ function applyShowcasePnl(db, rateBp, yr, mo, day) {
 function applyDailyPnl(rateBp, yr, mo, day, targetUserId) {
   const db = getDb();
   return db.transaction(()=>{
-    let q="SELECT c.*, u.profit_target_bp FROM copies c JOIN users u ON c.user_id=u.id WHERE c.status='active' AND u.is_showcase=0";
+    let q="SELECT c.*, u.profit_target_bp FROM copies c JOIN users u ON c.user_id=u.id WHERE c.status='active' AND u.is_showcase=0 ORDER BY c.id";
     const p=[]; if(targetUserId){q+=' AND c.user_id=?';p.push(targetUserId);}
     const copies=db.prepare(q).all(...p);
     let cnt=0,tot=0;
     const perUser={};
     const globalTarget=getTargetBp();
+    // Group the still-unlogged copies by user: the per-trader variation is
+    // computed per user (one user's copies share one day total).
+    const byUser=new Map();
     for(const copy of copies){
       if(db.prepare('SELECT id FROM daily_pnl_log WHERE copy_id=? AND cycle_year=? AND cycle_month=? AND day_number=?').get(copy.id,yr,mo,day)) continue;
-      const userTarget=(copy.profit_target_bp!==null&&copy.profit_target_bp!==undefined)?copy.profit_target_bp:globalTarget;
+      if(!byUser.has(copy.user_id)) byUser.set(copy.user_id,[]);
+      byUser.get(copy.user_id).push(copy);
+    }
+    for(const [uid,userCopies] of byUser){
+      const first=userCopies[0];
+      const userTarget=(first.profit_target_bp!==null&&first.profit_target_bp!==undefined)?first.profit_target_bp:globalTarget;
       const rateBpEff=globalTarget>0?Math.round(rateBp*userTarget/globalTarget):rateBp;
-      const ac=Math.round(copy.amount_cents*rateBpEff/10000);
-      db.prepare('INSERT INTO daily_pnl_log (copy_id,user_id,trader_id,cycle_year,cycle_month,day_number,rate_bp,amount_cents) VALUES (?,?,?,?,?,?,?,?)')
-        .run(copy.id,copy.user_id,copy.trader_id,yr,mo,day,rateBpEff,ac);
-      db.prepare('UPDATE copies SET profit_cents=profit_cents+?,daily_pnl_cents=?,cycle_day=cycle_day+1,updated_at=unixepoch() WHERE id=?')
-        .run(ac,ac,copy.id);
-      db.prepare('UPDATE balances SET profit_cents=profit_cents+?,updated_at=unixepoch() WHERE user_id=?').run(ac,copy.user_id);
-      db.prepare('INSERT INTO transactions (user_id,type,amount_cents,fee_cents,net_cents,direction,status,reason,formula) VALUES (?,?,?,0,?,?,?,?,?)')
-        .run(copy.user_id,'daily_pnl',Math.abs(ac),Math.abs(ac),ac>=0?'in':'out','completed',
-          `Daily PnL — Day ${day} of 22`,
-          `Profit ${ac>=0?'+=':'-='} ${Math.abs(rateBpEff)/100}% x $${H.fmtC(copy.amount_cents)} = $${H.fmtC(Math.abs(ac))}${ac<0?' (loss)':''}`);
-      cnt++;tot+=ac;
-      // v1.3 phone notifications: one row per user per applied day.
-      perUser[copy.user_id]=(perUser[copy.user_id]||0)+ac;
+      // The day total is exactly what the uniform split would have paid;
+      // variedSplit only re-slices it across this user's copies.
+      const uniformTotal=userCopies.reduce((s,c)=>s+Math.round(c.amount_cents*rateBpEff/10000),0);
+      const shares=variedSplit(`${uid}:${yr}:${mo}:${day}`,userCopies.map(c=>c.amount_cents),uniformTotal);
+      userCopies.forEach((copy,i)=>{
+        const ac=shares[i];
+        const rateBpCopy=copy.amount_cents>0?Math.round(ac*10000/copy.amount_cents):0;
+        db.prepare('INSERT INTO daily_pnl_log (copy_id,user_id,trader_id,cycle_year,cycle_month,day_number,rate_bp,amount_cents) VALUES (?,?,?,?,?,?,?,?)')
+          .run(copy.id,copy.user_id,copy.trader_id,yr,mo,day,rateBpCopy,ac);
+        db.prepare('UPDATE copies SET profit_cents=profit_cents+?,daily_pnl_cents=?,cycle_day=cycle_day+1,updated_at=unixepoch() WHERE id=?')
+          .run(ac,ac,copy.id);
+        db.prepare('UPDATE balances SET profit_cents=profit_cents+?,updated_at=unixepoch() WHERE user_id=?').run(ac,copy.user_id);
+        db.prepare('INSERT INTO transactions (user_id,type,amount_cents,fee_cents,net_cents,direction,status,reason,formula) VALUES (?,?,?,0,?,?,?,?,?)')
+          .run(copy.user_id,'daily_pnl',Math.abs(ac),Math.abs(ac),ac>=0?'in':'out','completed',
+            `Daily PnL — Day ${day} of 22`,
+            `Profit ${ac>=0?'+=':'-='} ${Math.abs(rateBpCopy)/100}% x $${H.fmtC(copy.amount_cents)} = $${H.fmtC(Math.abs(ac))}${ac<0?' (loss)':''}`);
+        cnt++;tot+=ac;
+        // v1.3 phone notifications: one row per user per applied day.
+        perUser[uid]=(perUser[uid]||0)+ac;
+      });
     }
     // One notification row per user for this day's profit/loss, so the
     // phone app can alert them. Naturally once-per-day: a re-apply of
@@ -272,4 +314,4 @@ function retargetSchedule(year,month,newTargetBp){
   })();
 }
 
-module.exports = { generateSchedule, getSchedule, applyDailyPnl, rebalanceSchedule, retargetSchedule, getTargetBp, profitTimeForDay, formatProfitTime, formatMinutes, dayRunTime, formatDayRunTime, timeSlots };
+module.exports = { generateSchedule, getSchedule, applyDailyPnl, rebalanceSchedule, retargetSchedule, getTargetBp, profitTimeForDay, formatProfitTime, formatMinutes, dayRunTime, formatDayRunTime, timeSlots, variedSplit };
