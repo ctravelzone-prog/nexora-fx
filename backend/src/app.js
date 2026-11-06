@@ -57,6 +57,7 @@ app.use('/api/request-money', require('./routes/requestMoney'));
 app.use('/api/2fa', require('./routes/twofa'));
 app.use('/api/referral', require('./routes/referral'));
 app.use('/api/market', require('./routes/market'));
+app.use('/api/app', require('./routes/app'));
 
 // Admin routes (all under /api/admin/*)
 app.use('/api/admin/auth', require('./routes/admin/auth'));

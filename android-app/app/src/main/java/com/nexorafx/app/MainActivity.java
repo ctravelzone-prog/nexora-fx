@@ -1,7 +1,18 @@
 package com.nexorafx.app;
 
+import android.Manifest;
 import android.app.Activity;
+import android.app.AlertDialog;
+import android.app.DownloadManager;
+import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
+import android.net.Uri;
+import android.os.Build;
+import android.os.Environment;
+import android.provider.Settings;
+import android.widget.Toast;
 import android.net.Uri;
 import android.os.Bundle;
 import android.view.View;
@@ -46,6 +57,10 @@ public class MainActivity extends Activity {
     private View errorView;
     private TextView errorText;
 
+    // Page to open when the app was launched from a notification tap
+    // (e.g. "/notifications"), or null for the home page.
+    private String openPath;
+
     // File picker result (for profile-photo / KYC uploads on the site).
     private ValueCallback<Uri[]> filePathCallback;
 
@@ -62,8 +77,110 @@ public class MainActivity extends Activity {
         Button retryButton = findViewById(R.id.retry_button);
         retryButton.setOnClickListener(v -> loadSite());
 
+        // v1.3: phone notifications (polling, no Firebase).
+        NotificationHelper.createChannel(this);
+        NotificationHelper.scheduleJob(this);
+        requestNotificationPermission();
+        // Open on the notification's page when launched from a tap.
+        openPath = getIntent() != null ? getIntent().getStringExtra("open_path") : null;
+
         setupWebView();
         loadSite();
+
+        // v1.3: launched from the update notification — start the
+        // download right away. Otherwise, if the poller found a newer
+        // version, offer it with an in-app dialog.
+        if (getIntent() != null && getIntent().getBooleanExtra("update_apk", false)) {
+            String u = getIntent().getStringExtra("update_url");
+            if (u != null && !u.isEmpty()) startApkUpdate(u);
+        } else {
+            maybeShowUpdateDialog();
+        }
+    }
+
+    // This app's own versionCode (from the manifest).
+    private int ownVersionCode() {
+        try {
+            return getPackageManager().getPackageInfo(getPackageName(), 0).versionCode;
+        } catch (Exception e) {
+            return 0;
+        }
+    }
+
+    // If the background poller found a newer version, offer it once per
+    // version. "Later" silences the dialog for that version (the
+    // notification already fired once); "Update" starts the download.
+    private void maybeShowUpdateDialog() {
+        SharedPreferences prefs = NotificationHelper.prefs(this);
+        int code = prefs.getInt(NotificationHelper.KEY_UPDATE_CODE, 0);
+        String url = prefs.getString(NotificationHelper.KEY_UPDATE_URL, null);
+        String name = prefs.getString(NotificationHelper.KEY_UPDATE_NAME, "");
+        if (code <= 0 || code <= ownVersionCode() || url == null || url.isEmpty()) return;
+        if (prefs.getInt(NotificationHelper.KEY_UPDATE_DISMISSED, 0) == code) return;
+        new AlertDialog.Builder(this)
+                .setTitle("New version " + name + " available")
+                .setMessage("A new version of Nexora FX is available. Update now to get the latest features and fixes.")
+                .setPositiveButton("Update", (d, w) -> startApkUpdate(url))
+                .setNegativeButton("Later", (d, w) ->
+                        prefs.edit().putInt(NotificationHelper.KEY_UPDATE_DISMISSED, code).apply())
+                .setCancelable(true)
+                .show();
+    }
+
+    // Downloads the new APK and opens the installer when it finishes
+    // (DownloadCompleteReceiver). Android 8+ needs "Install unknown
+    // apps" allowed for Nexora FX first — if it is off, the user is
+    // sent to that setting and taps Update again after allowing it.
+    private void startApkUpdate(String url) {
+        if (url == null || url.isEmpty()) return;
+        if (Build.VERSION.SDK_INT >= 26 && !getPackageManager().canRequestPackageInstalls()) {
+            Toast.makeText(this,
+                    "Allow \"Install unknown apps\" for Nexora FX, then tap Update again.",
+                    Toast.LENGTH_LONG).show();
+            Intent i = new Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
+                    Uri.parse("package:" + getPackageName()));
+            startActivity(i);
+            return;
+        }
+        DownloadManager dm = (DownloadManager) getSystemService(Context.DOWNLOAD_SERVICE);
+        if (dm == null) return;
+        DownloadManager.Request req = new DownloadManager.Request(Uri.parse(url));
+        req.setTitle("Nexora FX update");
+        req.setDescription("Downloading the new version...");
+        req.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
+        req.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, "NexoraFX-update.apk");
+        req.setMimeType("application/vnd.android.package-archive");
+        long id = dm.enqueue(req);
+        NotificationHelper.prefs(this).edit().putLong(NotificationHelper.KEY_DOWNLOAD_ID, id).apply();
+        Toast.makeText(this, "Downloading update...", Toast.LENGTH_SHORT).show();
+    }
+
+    // Android 13+ needs a runtime permission before any notification
+    // can appear in the notification bar. If the user denies it, the
+    // app still works — notifications just stay inside the app (bell).
+    private void requestNotificationPermission() {
+        if (Build.VERSION.SDK_INT >= 33
+                && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)
+                        != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, 101);
+        }
+    }
+
+    // Notification tap while the app is already running: open the
+    // notification's page instead of staying where the user was.
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        String p = intent.getStringExtra("open_path");
+        if (p != null) {
+            openPath = p;
+            loadSite();
+        }
+        if (intent.getBooleanExtra("update_apk", false)) {
+            String u = intent.getStringExtra("update_url");
+            if (u != null && !u.isEmpty()) startApkUpdate(u);
+        }
     }
 
     // WebView settings: JavaScript on (the site is a JS app), DOM storage
@@ -111,6 +228,18 @@ public class MainActivity extends Activity {
                 loadingView.setVisibility(View.GONE);
                 errorView.setVisibility(View.GONE);
                 progressBar.setVisibility(View.GONE);
+                // v1.3: keep the login token available to the background
+                // poller so it can fetch new notifications while the app
+                // is closed. The token lives in localStorage; read it
+                // after every page load (it refreshes on each login).
+                webView.evaluateJavascript("localStorage.getItem('nx_token')", value -> {
+                    if (value == null || value.length() < 4 || "null".equals(value)) return;
+                    String token = value.replaceAll("^\"|\"$", "");
+                    if (!token.isEmpty()) {
+                        NotificationHelper.prefs(MainActivity.this)
+                                .edit().putString(NotificationHelper.KEY_TOKEN, token).apply();
+                    }
+                });
             }
 
             @Override
@@ -177,7 +306,7 @@ public class MainActivity extends Activity {
     private void loadSite() {
         errorView.setVisibility(View.GONE);
         loadingView.setVisibility(View.VISIBLE);
-        webView.loadUrl(SITE_URL);
+        webView.loadUrl(SITE_URL + (openPath != null ? openPath : ""));
     }
 
     // Back button: go back inside the site first; exit only when there

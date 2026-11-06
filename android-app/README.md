@@ -4,7 +4,29 @@ A native Android wrapper for the Nexora FX website. The app opens the live
 site in a WebView — login, trading, admin, everything works exactly as on
 the web. There is no separate app code for trading features.
 
-- **Package:** `com.nexorafx.app` — **App name:** Nexora FX — **Version:** 1.2 (versionCode 3)
+- **Package:** `com.nexorafx.app` — **App name:** Nexora FX — **Version:** 1.3 (versionCode 4)
+
+**v1.3 (6 Nov) — phone notifications + in-app updates, no Firebase.**
+A background job (`NotificationJobService`, every 15 min — the JobScheduler
+minimum) polls `GET /api/user/notifications` with the user's login token
+(synced from the WebView's localStorage on every page load) and shows each
+new row as a phone notification; tapping one opens the app on that
+notification's page. It covers deposit approve/reject, withdrawal,
+KYC, support replies, admin messages — and daily profit (the backend
+now writes a notification row per user per applied profit day in
+`applyDailyPnl`). Notifications arrive up to ~15 min after the event,
+not instantly — that is the trade-off of polling without Firebase.
+Android 13+ asks for the notification permission on first launch; if
+denied, alerts stay inside the app (bell). The same job also checks
+`GET /api/app/version` (public; values from site_settings with code
+defaults = current release): when a newer version exists it notifies
+once and shows an in-app Update dialog on launch. Tapping Update
+downloads the APK with DownloadManager and opens the installer
+(`DownloadCompleteReceiver`); Android 8+ needs "Install unknown apps"
+allowed for Nexora FX first (the app opens that setting). If the phone's
+battery optimization kills the background job, notifications stop until
+the app is opened again. v1.3 is signed with the same keystore, so it
+installs as an update over v1.2.
 - **Site address:** `https://nexora-fx-uxvy.onrender.com` (see `MainActivity.java`, `SITE_URL`)
 
 **v1.2 fix (6 Nov):** the Copy Trade page rendered cut off on the right in

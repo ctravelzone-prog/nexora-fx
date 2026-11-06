@@ -120,6 +120,7 @@ function applyDailyPnl(rateBp, yr, mo, day, targetUserId) {
     const p=[]; if(targetUserId){q+=' AND c.user_id=?';p.push(targetUserId);}
     const copies=db.prepare(q).all(...p);
     let cnt=0,tot=0;
+    const perUser={};
     const globalTarget=getTargetBp();
     for(const copy of copies){
       if(db.prepare('SELECT id FROM daily_pnl_log WHERE copy_id=? AND cycle_year=? AND cycle_month=? AND day_number=?').get(copy.id,yr,mo,day)) continue;
@@ -136,7 +137,19 @@ function applyDailyPnl(rateBp, yr, mo, day, targetUserId) {
           `Daily PnL — Day ${day} of 22`,
           `Profit ${ac>=0?'+=':'-='} ${Math.abs(rateBpEff)/100}% x $${H.fmtC(copy.amount_cents)} = $${H.fmtC(Math.abs(ac))}${ac<0?' (loss)':''}`);
       cnt++;tot+=ac;
+      // v1.3 phone notifications: one row per user per applied day.
+      perUser[copy.user_id]=(perUser[copy.user_id]||0)+ac;
     }
+    // One notification row per user for this day's profit/loss, so the
+    // phone app can alert them. Naturally once-per-day: a re-apply of
+    // the same day finds every copy already logged (cnt=0, empty map).
+    const insN=db.prepare("INSERT INTO notifications (user_id,title,message,type,action_url) VALUES (?,?,?,?,?)");
+    for(const [uid,amt] of Object.entries(perUser)){
+      if(!amt) continue;
+      if(amt>=0) insN.run(uid,`Daily profit — Day ${day} of 22`,`Your daily profit of $${H.fmtC(amt)} was added to your Profit Balance.`,'success','/dashboard');
+      else insN.run(uid,`Daily loss — Day ${day} of 22`,`A daily loss of $${H.fmtC(Math.abs(amt))} was applied to your Profit Balance.`,'warning','/dashboard');
+    }
+
     // Showcase accounts earn the same daily rate on their DISPLAY copy balance.
     // Only on a full apply — a single-user manual apply must not touch showcase.
     let sc = { count: 0, totalApplied: 0 };

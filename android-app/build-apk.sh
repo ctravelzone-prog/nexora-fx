@@ -59,6 +59,10 @@ echo "== 3. javac (MainActivity + R.java) =="
 "$JAVA_HOME/bin/javac" -encoding UTF-8 -d "$BUILD/classes" \
     -cp "$PLATFORM" -sourcepath "$BUILD/classes" \
     "$APP_DIR/app/src/main/java/com/nexorafx/app/MainActivity.java" \
+    "$APP_DIR/app/src/main/java/com/nexorafx/app/NotificationHelper.java" \
+    "$APP_DIR/app/src/main/java/com/nexorafx/app/NotificationJobService.java" \
+    "$APP_DIR/app/src/main/java/com/nexorafx/app/BootReceiver.java" \
+    "$APP_DIR/app/src/main/java/com/nexorafx/app/DownloadCompleteReceiver.java" \
     "$BUILD/classes/com/nexorafx/app/R.java"
 
 echo "== 4. d8 (classes -> classes.dex) =="
