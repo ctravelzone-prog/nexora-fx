@@ -34,6 +34,7 @@ body{font-family:"Plus Jakarta Sans",Inter,system-ui,sans-serif;-webkit-font-smo
 .vb-stat .vb-amt{font-size:20px;font-weight:800;color:#fff;margin-top:5px;letter-spacing:-.3px;}
 .vb-stat .vb-amt.orange{color:#FF9A40;}
 .vb-stat .vb-amt.green{color:#34D399;}
+.vb-stat .vb-amt.red{color:var(--red);}
 .vb-stat .vb-sub{display:block;font-size:11px;color:#94A3B8;margin-top:3px;font-weight:600;}
 .vb-stat+.vb-stat{border-left:1px solid rgba(255,255,255,.08);padding-left:18px;}
 .vb-note{font-size:12px;color:#94A3B8;margin-top:10px;line-height:1.6;font-weight:500;}

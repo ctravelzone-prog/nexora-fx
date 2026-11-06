@@ -26,7 +26,7 @@ Pages._db2=function(b,u,copies,f){
   html+='<h3 style="font-size:14.5px;font-weight:800;color:var(--ink);margin-bottom:8px">Quick actions &amp; balances</h3><div class="compact-grid">';
   html+='<div class="c-card"><small>MAIN BALANCE</small><div class="cv">'+f(b.main_cents)+'</div></div>';
   html+='<div class="c-card"><small>REFERRAL BONUS</small><div class="cv">'+f(b.referral_cents)+'</div></div>';
-  html+='<div class="c-card"><small>TOTAL PNL</small><div class="cv '+(b.profit_cents>=0?'green':'')+'">'+f(b.profit_cents)+'</div></div>';
+  html+='<div class="c-card"><small>TOTAL PNL</small><div class="cv '+(b.profit_cents>=0?'green':'red')+'">'+f(b.profit_cents)+'</div></div>';
   html+='<div class="c-card"><small>TOTAL DEPOSIT</small><div class="cv">'+f(b.total_deposited_cents)+'</div></div>';
   html+='<div class="c-card"><small>TOTAL WITHDRAW</small><div class="cv">'+f(b.total_withdrawn_cents)+'</div></div>';
   html+=b.main_cents>0?'<div class="c-card withdrawable"><small>WITHDRAWABLE</small><div class="cv"><span onclick="App.navigate(\'/withdraw\')" style="cursor:pointer;color:var(--orange)">Withdraw '+f(b.main_cents)+' →</span></div></div>':'<div class="c-card"><small>COPY INVESTED</small><div class="cv">'+f(b.copy_cents)+'</div></div>';
@@ -35,7 +35,7 @@ Pages._db2=function(b,u,copies,f){
   var act=(copies||[]).filter(function(c){return c.status==='active';});
   if(act.length>0){
     html+='<div class="card" style="padding:20px;margin-top:16px"><div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px"><h3 style="font-size:16px;font-weight:800">My Copies</h3><span style="background:#ECFDF5;color:#059669;font-size:11px;font-weight:800;padding:4px 10px;border-radius:999px">'+act.length+' ACTIVE</span><button onclick="App.navigate(\'/my-copies\')" style="margin-left:auto;background:linear-gradient(135deg,var(--orange),var(--orange2));color:#fff;border:none;border-radius:10px;padding:9px 16px;font-weight:700;font-size:13px;cursor:pointer;font-family:inherit">Manage →</button></div>';
-    act.forEach(function(c){html+='<div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-top:1px solid var(--border)">'+utils.avatar(c.trader_name||'T',null,36)+'<div style="flex:1"><div style="font-weight:700;font-size:14px">'+c.trader_name+'</div><div style="font-size:12px;color:var(--muted)">'+f(c.amount_cents)+' copied</div></div><div style="font-weight:800;font-size:15px;color:var(--green-d)">'+(c.daily_pnl_cents>=0?'+':'')+f(c.daily_pnl_cents)+'</div></div>';});
+    act.forEach(function(c){html+='<div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-top:1px solid var(--border)">'+utils.avatar(c.trader_name||'T',null,36)+'<div style="flex:1"><div style="font-weight:700;font-size:14px">'+c.trader_name+'</div><div style="font-size:12px;color:var(--muted)">'+f(c.amount_cents)+' copied</div></div><div style="font-weight:800;font-size:15px;color:'+(c.daily_pnl_cents>=0?'var(--green-d)':'var(--red)')+'">'+(c.daily_pnl_cents>=0?'+':'')+f(c.daily_pnl_cents)+'</div></div>';});
     html+='</div>';
   }
   html+='<div class="card" style="padding:22px;margin-top:16px">'

@@ -9,6 +9,7 @@
 .c-card small{font-size:10px;font-weight:800;letter-spacing:.7px;color:var(--faint);display:block;}
 .c-card .cv{font-size:19px;font-weight:800;color:var(--ink);margin-top:4px;letter-spacing:-.3px;}
 .c-card .cv.green{color:var(--green-d);}
+.c-card .cv.red{color:var(--red);}
 .c-card.withdrawable{background:var(--orange-soft);border-color:var(--orange-line);text-align:center;}
 .c-card.withdrawable small{color:var(--orange);}
 @media(max-width:620px){.compact-grid{gap:8px;}.c-card{padding:9px 8px;border-radius:12px;}.c-card small{font-size:8.5px;}.c-card .cv{font-size:15px;}}
