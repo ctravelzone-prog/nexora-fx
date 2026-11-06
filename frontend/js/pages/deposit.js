@@ -56,7 +56,7 @@ Pages.deposit=async function(){
     if(enabled) document.getElementById('dep-form').onsubmit=async(e)=>{
       e.preventDefault();const f=e.target,err=document.getElementById('dep-err'),btn=document.getElementById('dep-btn');
       err.classList.add('hidden');utils.loading(btn,true);
-      try{await api.submitDeposit({txid:f.txid.value,amount:parseFloat(f.amount.value)});utils.toast('Deposit submitted! Awaiting admin approval.','success');App.navigate('/history');}
+      try{await api.submitDeposit({txid:f.txid.value,amount:parseFloat(f.amount.value)});utils.toast('Deposit submitted successfully','success');App.navigate('/history');}
       catch(ex){err.textContent=ex.message;err.classList.remove('hidden');}
       utils.loading(btn,false);
     };
