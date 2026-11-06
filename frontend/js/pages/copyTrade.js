@@ -1,6 +1,34 @@
-// pages/copyTrade.js — Copy Trade page (screenshot design, real trader data)
+/*
+ * copyTrade.js — Copy Trade page for Nexora FX.
+ *
+ * Shows real traders only (no fake numbers): a hero summary, a
+ * TRENDING NOW strip, a Top 5 list ranked by win rate, the user's own
+ * copies, and a searchable, filterable, sortable list of all traders.
+ *
+ * Key functions:
+ * - Pages.copyTrade — loads traders (api.getTraders) and the user's
+ *   copies (api.getMyCopies), then renders the page.
+ * - Pages._ctList / Pages._ctSet — filter and sort the trader list
+ *   (search text, My Traders, risk, Top/New, win rate / ROI / followers).
+ * - Pages._tCard — one trader card, with tier frame and crown badge
+ *   for the Top 5, real flag image, ROI, win rate, drawdown and risk.
+ * - Pages._copyModal / Pages._doCopy — start copying a trader
+ *   (api.getMe for the Main Balance, then api.startCopy).
+ * - Pages.traderDetail — single trader page (api.getTrader).
+ *
+ * Rules: money is integer cents; display via utils.fmtMoney. Copying
+ * moves money from Main Balance to Copy Invested. Flags are real
+ * flagcdn.com images, mapped from flag emoji in Pages._flagInfo.
+ * Gotcha: the ?v= cache version in script tags must be bumped on every
+ * release, or browsers may serve stale code.
+ */
+// Map of flag emoji to flagcdn country code and display name.
 Pages._flagInfo={'🇬🇧':{c:'gb',n:'United Kingdom'},'🇺🇸':{c:'us',n:'United States'},'🇧🇷':{c:'br',n:'Brazil'},'🇯🇵':{c:'jp',n:'Japan'},'🇮🇳':{c:'in',n:'India'},'🇧🇩':{c:'bd',n:'Bangladesh'},'🇩🇪':{c:'de',n:'Germany'},'🇫🇷':{c:'fr',n:'France'},'🇦🇺':{c:'au',n:'Australia'},'🇨🇦':{c:'ca',n:'Canada'},'🇦🇪':{c:'ae',n:'UAE'},'🇸🇬':{c:'sg',n:'Singapore'},'🇭🇰':{c:'hk',n:'Hong Kong'},'🇳🇬':{c:'ng',n:'Nigeria'},'🇿🇦':{c:'za',n:'South Africa'},'🇹🇷':{c:'tr',n:'Turkey'},'🇮🇹':{c:'it',n:'Italy'},'🇪🇸':{c:'es',n:'Spain'},'🇳🇱':{c:'nl',n:'Netherlands'},'🇨🇭':{c:'ch',n:'Switzerland'},'🇦🇹':{c:'at',n:'Austria'}};
+// Build a real flag image tag for a flag emoji (flagcdn.com).
+// Returns an empty string for an unknown emoji.
 Pages._flagImg=function(emoji,px,round){var f=Pages._flagInfo[emoji];if(!f)return '';var st=round?('width:'+px+'px;height:'+px+'px;border-radius:50%;object-fit:cover'):('width:'+px+'px;height:auto;border-radius:2px');return '<img src="https://flagcdn.com/w40/'+f.c+'.png" alt="'+f.n+'" style="'+st+'" onerror="this.remove()">';};
+// Copy Trade page. Loads traders and the user's copies, computes the
+// hero stats and the Trending / Top 5 lists, then renders the page.
 Pages.copyTrade=async function(){
   try{
     const traders=await api.getTraders();
@@ -12,6 +40,7 @@ Pages.copyTrade=async function(){
     const roiMin=rois.length?Math.min(...rois):0, roiMax=rois.length?Math.max(...rois):0;
     const roiLabel=roiMin===roiMax?roiMin.toFixed(1)+'%':roiMin.toFixed(1)+'–'+roiMax.toFixed(1)+'%';
     const totalFollowers=traders.reduce((a,t)=>a+(t.followers||0),0);
+    // Trending: top 5 by ROI. Top 5: ranked by win rate, not ROI.
     const trending=[...traders].sort((a,b)=>(b.roi_percent||0)-(a.roi_percent||0)).slice(0,5);
     const top=[...traders].sort((a,b)=>(b.win_rate||0)-(a.win_rate||0)).slice(0,5);
     Components.layout(`
@@ -36,10 +65,12 @@ Pages.copyTrade=async function(){
     `,'Copy Trade','Copy top traders and earn daily profit.');
   }catch(e){document.getElementById('app').innerHTML=`<p class="p-8 text-red-500">${e.message}</p>`;}
 };
+// Render the All / Top / Low Risk / New filter pills.
 Pages._ctPills=function(){
   const pills=[['all','All'],['top','Top'],['low','Low Risk'],['new','New']];
   return pills.map(([k,label])=>`<button onclick="Pages._ctSet('f','${k}')" class="text-sm font-semibold px-4 py-1.5 rounded-full ${Pages._ct.f===k?'text-white':'bg-white border border-gray-200 text-gray-600'}" style="${Pages._ct.f===k?'background:#EA580C':''}">${label}</button>`).join('');
 };
+// Apply the current search, filter and sort to the trader list.
 Pages._ctList=function(){
   let list=[...(Pages._ctTraders||[])];
   const q=(Pages._ct.q||'').toLowerCase();
@@ -54,6 +85,8 @@ Pages._ctList=function(){
   else list=[...list].sort((a,b)=>(b.win_rate||0)-(a.win_rate||0));
   return list;
 };
+// Update one filter/sort state value, then re-render the trader
+// grid, the pills and the My Traders button in place.
 Pages._ctSet=function(key,val){
   Pages._ct[key]=val;
   const grid=document.getElementById('ct-all-grid');
@@ -63,6 +96,9 @@ Pages._ctSet=function(key,val){
   const myBtn=document.getElementById('ct-mybtn');
   if(myBtn){myBtn.style.background=Pages._ct.my?'#EA580C':'';myBtn.style.color=Pages._ct.my?'#fff':'';myBtn.style.borderColor=Pages._ct.my?'#EA580C':'';}
 };
+// Render one trader card. Ranks 1-5 get a tier frame and crown badge
+// (Platinum, Gold, Silver, Bronze, Emerald); other traders get the
+// plain card with a risk badge. Shows real trader data only.
 Pages._tCard=function(t,copies,rank){
   const rankStyle={1:{tier:'PLATINUM',c:'#38BDF8',txt:'#fff',frame:'/assets/frames/frame-platinum.png'},2:{tier:'GOLD',c:'#FFB800',txt:'#1F2937',frame:'/assets/frames/frame-gold.png'},3:{tier:'SILVER',c:'#9CA3AF',txt:'#1F2937',frame:'/assets/frames/frame-silver.png'},4:{tier:'BRONZE',c:'#B45309',txt:'#fff',frame:'/assets/frames/frame-bronze.png'},5:{tier:'EMERALD',c:'#059669',txt:'#fff',frame:'/assets/frames/frame-emerald.png'}}[rank]||null;
   const rankBg={1:'border-color:#86EFAC;background:#F0FDF4',2:'border-color:#BFDBFE;background:#EFF6FF',3:'border-color:#FED7AA;background:#FFF7ED'}[rank]||'';
@@ -90,10 +126,14 @@ Pages._tCard=function(t,copies,rank){
     </div>
   </div>`;
 };
+// Copy confirmation modal. Shows the available Main Balance
+// (GET /api/user/me) and the trader's minimum copy amount.
 Pages._copyModal=async function(tid,name,minC){
   const me=await api.getMe().catch(()=>null),main=me?.balance?.main_cents||0;
   utils.showModal(`<div class="modal"><h2 class="text-lg font-bold mb-2">Copy ${name}</h2><p class="text-sm text-gray-400 mb-4">Main Balance available: ${utils.fmtMoney(main)}</p><label class="input-label">Amount (USD)</label><input id="copy-amt" type="number" step="0.01" min="${minC/100}" class="input-field mb-1"><p class="text-xs text-gray-400 mb-4">Min: ${utils.fmtMoney(minC)}</p><div id="copy-err" class="alert-danger hidden mb-3"></div><div class="flex gap-3"><button onclick="utils.closeModal()" class="btn-secondary flex-1">Cancel</button><button id="copy-ok" onclick="Pages._doCopy(${tid})" class="btn-primary flex-1">Confirm Copy</button></div></div>`);
 };
+// Submit a copy: validate the amount, call api.startCopy, then
+// reload the Copy Trade page so the new copy appears.
 Pages._doCopy=async function(tid){
   const btn=document.getElementById('copy-ok'),err=document.getElementById('copy-err'),amt=parseFloat(document.getElementById('copy-amt').value);
   if(!amt||amt<=0){err.textContent='Please enter a valid amount';err.classList.remove('hidden');return;}
@@ -101,6 +141,8 @@ Pages._doCopy=async function(tid){
   try{await api.startCopy({trader_id:tid,amount:amt});utils.closeModal();utils.toast('Copy started!','success');Pages.copyTrade();}
   catch(e){err.textContent=e.message;err.classList.remove('hidden');utils.loading(btn,false);}
 };
+// Trader detail page. Loads one trader (api.getTrader) and shows
+// the same trader card with a back link to Copy Trade.
 Pages.traderDetail=async function(id){
   try{const t=await api.getTrader(id);
     Components.layout(`<div class="max-w-2xl"><div class="flex items-center gap-3 mb-4"><button onclick="App.navigate('/copy-trade')" class="p-2 rounded-lg hover:bg-gray-100">${svgIcons.arrow_left}</button><h1 class="text-xl font-bold flex-1">Trader Detail</h1><button onclick="App.navigate('/copy-trade')" class="btn-secondary text-sm" style="width:auto;padding:8px 16px">← Back to Copy Trade</button></div><div class="card">${Pages._tCard(t,[])}</div></div>`,'Trader Detail','');

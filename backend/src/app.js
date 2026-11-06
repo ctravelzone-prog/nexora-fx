@@ -1,4 +1,14 @@
-// Nexora Fx — Express app entry point
+// app.js — Express app entry point: wires up the whole backend.
+// Sets up CORS, JSON parsing and static files, applies rate limits, then
+// mounts every user route (/api/auth, /api/user, /api/deposit, /api/withdraw,
+// /api/copy, /api/kyc, /api/support, /api/request-money, /api/2fa,
+// /api/referral, /api/market) and every admin route (/api/admin/*).
+// Also serves the frontend SPA and the admin page, and starts the daily
+// auto-profit scheduler on boot.
+// Gotchas: the public API is capped at 200 requests / 15 min per IP, but
+// /api/admin/* is skipped from that cap and has its own 3000 req / 15 min
+// cap, because the admin dashboard polls every second (~900 req / 15 min)
+// and would otherwise hit 429 after ~3 minutes.
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
@@ -63,6 +73,8 @@ app.use('/api/admin/money-requests', require('./routes/admin/moneyRequests'));
 app.use('/api/admin', require('./routes/admin/misc'));
 
 // Public settings API (no auth)
+// GET /api/settings — public, no auth. Returns every site_settings row
+// as one JSON object; the frontend reads branding, money rules and flags from it.
 app.get('/api/settings', (req, res) => {
   const db = getDb();
   const rows = db.prepare('SELECT key,value FROM site_settings').all();
@@ -76,14 +88,17 @@ const frontendPath = path.join(__dirname, '../../frontend');
 app.use(express.static(frontendPath));
 
 // Admin login page route
+// Serves the admin SPA page for the admin login route (see config/admin.js).
 app.get(ADMIN_LOGIN_PATH, (req, res) => {
   res.sendFile(path.join(frontendPath, 'admin.html'));
 });
+// Any other /admin/* path also serves the admin SPA (client-side routing).
 app.get('/admin/*', (req, res) => {
   res.sendFile(path.join(frontendPath, 'admin.html'));
 });
 
 // SPA fallback
+// SPA fallback: any unmatched GET serves the user frontend (index.html).
 app.get('*', (req, res) => {
   res.sendFile(path.join(frontendPath, 'index.html'));
 });

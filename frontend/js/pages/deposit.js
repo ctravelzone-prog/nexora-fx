@@ -1,4 +1,23 @@
-// pages/deposit.js — Create Deposit
+/*
+ * deposit.js — Create Deposit page for Nexora FX.
+ *
+ * Shows the Binance Pay QR code and Pay ID from the admin
+ * (GET /api/deposit/wallet via api.getDepositWallet), explains the
+ * 3 deposit steps, and submits the TxID and amount for admin approval.
+ *
+ * Key function:
+ * - Pages.deposit — loads the deposit wallet, renders the form, and
+ *   on submit calls api.submitDeposit, then goes to History.
+ *
+ * Rules: deposit is Binance Pay with TxID + amount, USDT only.
+ * Until the admin approves it, the deposit shows as Pending in
+ * History and is not counted in the totals. Wrong-account payments
+ * cannot be recovered, so the Pay ID must be double-checked.
+ * Gotcha: the ?v= cache version in script tags must be bumped on every
+ * release, or browsers may serve stale code.
+ * Note: this file uses CRLF line endings — preserve them on every edit.
+ */
+// Create Deposit page: Binance Pay QR + TxID form. See the header above.
 Pages.deposit=async function(){
   try{
     const wallet=await api.getDepositWallet();

@@ -1,4 +1,22 @@
-// pages/notifications.js
+/*
+ * pages/notifications.js — Notifications page.
+ * Lists the user's notifications newest first, with an unread-count
+ * badge, a Mark All Read button, and a per-item action link when one
+ * is provided.
+ * Key functions:
+ * - Pages.notifications() renders the page (GET notifications via
+ *   api.getNotifications(); Mark All Read uses
+ *   api.readAllNotifications()).
+ * Rules / gotchas:
+ * - Money is integer cents everywhere; display with utils.fmtMoney.
+ * - Balances come from GET /api/user/me; showcase accounts
+ *   (is_showcase=1) show DISPLAY balances set by the admin.
+ * - The ?v= cache version in script tags must be bumped on every
+ *   release or browsers may serve stale code.
+ */
+// Renders the Notifications page. API: api.getNotifications().
+// Unread items get an orange left border and an orange dot; the
+// icon colour follows the notification type (success / warning / other).
 Pages.notifications=async function(){
   try{
     const data=await api.getNotifications();

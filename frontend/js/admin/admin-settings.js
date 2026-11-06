@@ -1,4 +1,29 @@
-// admin-settings.js — Site Settings + Media
+/*
+ * admin-settings.js — Site Settings / CMS page.
+ *
+ * Renders /admin/settings: hero title/subtitle, announcement bar, header
+ * and top bar (brand name with one color picker per word, tagline, header
+ * background, Log In / Sign Up toggles) and the Media Library (logo, hero
+ * image and favicon uploads).
+ * Key functions: AdminPages.settings, AdminPages._renderBrandColors,
+ * AdminPages._upMedia, AdminPages._resetFavicon.
+ *
+ * Gotchas:
+ * - Brand word colors are stored as a JSON array of hex colors, one per
+ *   word; typing a new brand name keeps picks by word index, and the last
+ *   word defaults to orange (#f97316).
+ * - Resetting the favicon saves an empty favicon_url, which restores the
+ *   default /assets/favicon.ico.
+ * - Money is integer cents everywhere; display with utils.fmtMoney.
+ * - Admin API calls go through adminApi in js/admin-api.js.
+ * - Showcase accounts (is_showcase=1) are demo accounts with DISPLAY
+ *   balances set by the admin; they are excluded from all admin totals,
+ *   ledgers and reports.
+ * - Bump the ?v= cache version in script tags on every release, or
+ *   browsers keep serving stale code.
+ */
+// Renders /admin/settings: hero text, header / top bar controls and the
+  // Media Library. Loads current values via adminApi.getSettings.
 AdminPages.settings=async function(){
   try{
     const s=await adminApi.getSettings();
@@ -42,6 +67,9 @@ AdminPages.settings=async function(){
     };
   }catch(e){document.getElementById('admin-app').innerHTML=`<p class="p-8 text-red-500">${e.message}</p>`;}
 };
+// Builds one color picker per word of the brand name. Saved colors are
+  // reused by word index; the last word defaults to orange (#f97316),
+  // other words to near-black (#111827).
 AdminPages._renderBrandColors=function(saved){
   const inp=document.querySelector('#settings-form input[name="header_brand_name"]');
   const box=document.getElementById('brand-colors');
@@ -54,6 +82,8 @@ AdminPages._renderBrandColors=function(saved){
     return '<label class="flex items-center gap-3 text-sm"><span class="w-24 font-medium truncate">'+w.replace(/</g,'&lt;')+'</span><input type="color" value="'+val+'" class="w-12 h-8 cursor-pointer" style="padding:2px" oninput="this.nextElementSibling.textContent=this.value"><span class="text-gray-400 text-xs">'+val+'</span></label>';
   }).join('');
 };
+// Uploads the chosen logo / hero / favicon file as FormData to the
+  // given endpoint via api.upload, then reloads the settings page.
 AdminPages._upMedia=async function(field,ep){
   const fi=document.getElementById(`${field}-file`);
   if(!fi?.files[0]){utils.toast('Select file first','error');return;}
@@ -61,6 +91,8 @@ AdminPages._upMedia=async function(field,ep){
   try{await api.upload(ep,fd,true);utils.toast('Uploaded!','success');AdminPages.settings();}
   catch(e){utils.toast(e.message,'error');}
 };
+// Clears favicon_url via adminApi.saveSettings, which restores the
+  // default /assets/favicon.ico, then reloads the settings page.
 AdminPages._resetFavicon=async function(){
   try{await adminApi.saveSettings({favicon_url:''});utils.toast('Favicon reset to default','success');AdminPages.settings();}
   catch(e){utils.toast(e.message,'error');}

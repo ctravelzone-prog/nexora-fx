@@ -1,4 +1,26 @@
-// pages/support.js — Support Tickets
+/*
+ * pages/support.js — Support Tickets (user side).
+ * Lists open tickets, creates new ones, and shows a live ticket thread
+ * where the user can reply. Closed tickets are hidden from the list.
+ * Key functions:
+ * - Pages.support() lists open tickets (api.getTickets()).
+ * - Pages._newTicket() opens the create-ticket dialog (api.createTicket()).
+ * - Pages._viewTicket() opens one ticket thread (api.getTicket()).
+ * - Pages._startTicketPoll() / Pages._stopTicketPoll() /
+ *   Pages._refreshTicketMsgs() keep the open thread live.
+ * - Pages._ticketMsgsHTML() renders the message bubbles.
+ * Rules / gotchas:
+ * - The live thread polls every 3 seconds; the poll must be stopped
+ *   when leaving the page or opening another ticket, or replies and
+ *   updates can land on the wrong thread.
+ * - Money is integer cents everywhere; display with utils.fmtMoney.
+ * - Balances come from GET /api/user/me; showcase accounts
+ *   (is_showcase=1) show DISPLAY balances set by the admin.
+ * - The ?v= cache version in script tags must be bumped on every
+ *   release or browsers may serve stale code.
+ */
+// Renders the Support Tickets list (open tickets only; closed tickets
+// are filtered out). API: api.getTickets(). Stops any live ticket poll first.
 Pages.support=async function(){
   Pages._stopTicketPoll();
   try{
@@ -12,6 +34,8 @@ Pages.support=async function(){
     `,'Support Tickets','Get help from our support team');
   }catch(e){document.getElementById('app').innerHTML=`<p class="p-8 text-red-500">${e.message}</p>`;}
 };
+// Opens the Create Support Ticket dialog (subject, priority, message).
+// API: api.createTicket(). Reloads the ticket list on success.
 Pages._newTicket=function(){
   utils.showModal(`<div class="modal"><h2 class="text-lg font-bold mb-4">Create Support Ticket</h2>
     <form id="ticket-form" class="space-y-4">
@@ -29,12 +53,19 @@ Pages._newTicket=function(){
     utils.loading(btn,false);
   };
 };
+// Stops the live ticket poll and clears the active-ticket state.
+// Called when leaving a thread or before starting a new poll.
 Pages._stopTicketPoll=function(){if(Pages._ticketPoll){clearInterval(Pages._ticketPoll);Pages._ticketPoll=null;}Pages._activeTicketId=null;Pages._activeTicketStatus=null;Pages._ticketPollBusy=false;};
+// Renders message bubbles: admin messages on the right (orange),
+// user messages on the left (grey). Returns an HTML string.
 Pages._ticketMsgsHTML=function(msgs){return msgs.map(m=>`<div class="flex gap-3 ${m.sender_type==='admin'?'flex-row-reverse':''}">
               <div class="w-8 h-8 rounded-full flex-shrink-0 ${m.sender_type==='admin'?'bg-orange-500':'bg-gray-200'} flex items-center justify-center text-xs font-bold ${m.sender_type==='admin'?'text-white':'text-gray-600'}">${m.sender_type==='admin'?'A':'U'}</div>
               <div class="max-w-xs lg:max-w-md ${m.sender_type==='admin'?'bg-orange-50 text-right':'bg-gray-50'} rounded-xl p-3">
                 <p class="text-sm">${m.message}</p><p class="text-xs text-gray-400 mt-1">${utils.fmtDateTime(m.created_at)}</p>
               </div></div>`).join('');};
+// Poll tick: reloads one ticket and updates only what changed (messages,
+// status badge). Skips work if the user already left this thread, and
+// never runs two refreshes at the same time (busy flag).
 Pages._refreshTicketMsgs=async function(id,forceScroll){
   const box=document.getElementById('ticket-msgs');
   if(!box||Pages._activeTicketId!==id){Pages._stopTicketPoll();return;}
@@ -42,6 +73,8 @@ Pages._refreshTicketMsgs=async function(id,forceScroll){
   try{
     const t=await api.getTicket(id);
     if(!document.getElementById('ticket-msgs')||Pages._activeTicketId!==id){Pages._stopTicketPoll();return;}
+// If the admin closed the ticket while it was open, re-render the
+// whole thread so the reply form is replaced by the closed notice.
     if(t.status==='closed'&&document.getElementById('reply-form')){Pages._viewTicket(id);return;}
     const badge=document.getElementById('ticket-status-badge');
     if(badge&&t.status!==Pages._activeTicketStatus){badge.innerHTML=utils.statusBadge(t.status);Pages._activeTicketStatus=t.status;}
@@ -54,10 +87,15 @@ Pages._refreshTicketMsgs=async function(id,forceScroll){
   }catch(e){}
   Pages._ticketPollBusy=false;
 };
+// Starts the live poll for one ticket thread.
 Pages._startTicketPoll=function(id){
   Pages._stopTicketPoll();Pages._activeTicketId=id;
+// Poll every 3 seconds for new messages while the thread is open.
   Pages._ticketPoll=setInterval(()=>{Pages._refreshTicketMsgs(id);},3000);
 };
+// Renders one ticket thread with its messages and a reply form
+// (closed tickets show a notice instead). API: api.getTicket().
+// Starts the live poll for open tickets and scrolls to the latest message.
 Pages._viewTicket=async function(id){
   Pages._stopTicketPoll();
   try{

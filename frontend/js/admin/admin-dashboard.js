@@ -1,4 +1,26 @@
-// admin-dashboard.js — Admin Dashboard + Notifications
+/*
+ * admin-dashboard.js — Admin Dashboard and Admin Notifications pages.
+ *
+ * Renders the /admin/dashboard overview (platform totals and recent activity)
+ * and the /admin/notifications list (click a row to mark it read and jump to
+ * its destination page).
+ * Key functions: AdminPages.dashboard, AdminPages.notifications.
+ *
+ * Gotchas:
+ * - Both pages capture AdminApp._gen before their API call and skip rendering
+ *   if navigation happened while the request was in flight.
+ * - Dashboard totals exclude showcase accounts; referral totals are one-time
+ *   4% commissions on a referred user's first deposit.
+ * - Money is integer cents everywhere; display with utils.fmtMoney.
+ * - Admin API calls go through adminApi in js/admin-api.js.
+ * - Showcase accounts (is_showcase=1) are demo accounts with DISPLAY
+ *   balances set by the admin; they are excluded from all admin totals,
+ *   ledgers and reports.
+ * - Bump the ?v= cache version in script tags on every release, or
+ *   browsers keep serving stale code.
+ */
+// Renders /admin/dashboard: platform total cards plus the 12 most recent
+  // activity items. Data comes from adminApi.dashboard().
 AdminPages.dashboard=async function(){
   try{
     const _gen=AdminApp._gen;
@@ -27,6 +49,8 @@ AdminPages.dashboard=async function(){
   }catch(e){document.getElementById('admin-app').innerHTML=`<p class="p-8 text-red-500">${e.message}</p>`;}
 };
 
+// Renders /admin/notifications: unread count, Mark All Read, and the list.
+  // Clicking a row marks it read and jumps to its destination page.
 AdminPages.notifications=async function(){
   try{
     const _gen=AdminApp._gen;

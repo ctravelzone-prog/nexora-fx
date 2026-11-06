@@ -1,4 +1,27 @@
-// admin-finance.js — Deposits + Withdrawals
+/*
+ * admin-finance.js — Deposits and Withdrawals review pages.
+ *
+ * Renders the /admin/deposits list (Binance Pay deposits with TxID) and the
+ * /admin/withdrawals list (USDT BEP20 payouts with wallet address, fee and
+ * net amount), with Approve / Reject actions for pending items.
+ * Key functions: AdminPages.deposits, AdminPages._approveDep,
+ * AdminPages._rejectDep, AdminPages.withdrawals, AdminPages._processWd.
+ *
+ * Gotchas:
+ * - A deposit only credits Main Balance after admin approval; until then it
+ *   shows as Pending in the user's History.
+ * - Withdrawals come from Main Balance only. Profit withdrawals need a
+ *   $10 minimum and carry no fee or lock deduction.
+ * - Money is integer cents everywhere; display with utils.fmtMoney.
+ * - Admin API calls go through adminApi in js/admin-api.js.
+ * - Showcase accounts (is_showcase=1) are demo accounts with DISPLAY
+ *   balances set by the admin; they are excluded from all admin totals,
+ *   ledgers and reports.
+ * - Bump the ?v= cache version in script tags on every release, or
+ *   browsers keep serving stale code.
+ */
+// Renders /admin/deposits: Binance Pay deposits (TxID, amount, status).
+  // Fetches up to 50 rows via adminApi.getDeposits.
 AdminPages.deposits=async function(){
   try{
     const _gen=AdminApp._gen;
@@ -10,16 +33,21 @@ AdminPages.deposits=async function(){
     </tbody></table></div>`,'Deposits');
   }catch(e){document.getElementById('admin-app').innerHTML=`<p class="p-8 text-red-500">${e.message}</p>`;}
 };
+// Confirms, then approves a pending deposit via adminApi.approveDeposit.
+  // Approval credits the user's Main Balance.
 AdminPages._approveDep=function(id){
   utils.confirm(`Approve deposit #${id}?`,async()=>{
     try{await adminApi.approveDeposit(id);utils.toast('Deposit approved!','success');AdminPages.deposits();}
     catch(e){utils.toast(e.message,'error');}
   },'Approve');
 };
+// Opens a modal to reject a deposit with an optional admin note.
 AdminPages._rejectDep=function(id){
   utils.showModal(`<div class="modal"><h2 class="font-bold mb-3">Reject Deposit #${id}</h2><label class="input-label">Admin Note</label><input id="rej-n" type="text" class="input-field mb-3" placeholder="Reason (optional)"><div class="flex gap-3"><button onclick="utils.closeModal()" class="btn-secondary flex-1">Cancel</button><button onclick="adminApi.rejectDeposit(${id},{note:document.getElementById('rej-n').value}).then(()=>{utils.closeModal();utils.toast('Rejected','success');AdminPages.deposits();}).catch(e=>utils.toast(e.message,'error'))" class="btn-danger flex-1">Reject</button></div></div>`);
 };
 
+// Renders /admin/withdrawals: USDT BEP20 payouts with wallet address,
+  // fee and net amount. Fetches up to 50 rows via adminApi.getWithdrawals.
 AdminPages.withdrawals=async function(){
   try{
     const _gen=AdminApp._gen;
@@ -31,6 +59,8 @@ AdminPages.withdrawals=async function(){
     </tbody></table></div>`,'Withdrawals');
   }catch(e){document.getElementById('admin-app').innerHTML=`<p class="p-8 text-red-500">${e.message}</p>`;}
 };
+// Confirms, then approves or rejects a pending withdrawal via
+  // adminApi.processWithdrawal.
 AdminPages._processWd=function(id,action){
   utils.confirm(`${action==='approve'?'Approve':'Reject'} withdrawal #${id}?`,async()=>{
     try{await adminApi.processWithdrawal(id,{action});utils.toast(`${action==='approve'?'Approved':'Rejected'}!`,'success');AdminPages.withdrawals();}

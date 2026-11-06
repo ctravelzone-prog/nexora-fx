@@ -1,9 +1,48 @@
-// pages/landing.js — Landing page
+/*
+ * landing.js — Public landing page for Nexora FX.
+ *
+ * Renders the home page from App.state.settings (brand, hero image,
+ * announcement bar, logo and footer text) and starts the live market
+ * prices in the hero cards and the streaming ticker.
+ *
+ * Key function:
+ * - Pages.landing — renders the page, loads the TradingView Ticker
+ *   Tape widget, and starts the live hero prices (BTC + XAU).
+ *
+ * Page sections, in order (all inside one template literal below, so
+ * section notes live here in JS code, never inside the template):
+ * - Hero — slogan "Trade Smarter, Not Harder.", Sign Up / Log In,
+ *   SECURE / FAST / TRUSTED badges, hero image with golden particles,
+ *   smoke and fire sparks, and live BTC / XAU price cards.
+ * - LIVE MARKETS pill — centered between the hero and the ticker.
+ * - Ticker — official TradingView Ticker Tape (XAU/USD first, then
+ *   EUR/USD, BTC, USD/JPY); a labelled last-sample fallback shows
+ *   if TradingView cannot load, never passed off as live.
+ * - Quick actions — Promotion, News, Schedule and Webinar cards.
+ * - Where We Work — Binance, Exness, Bybit and XM glass cards
+ *   with real broker logos and feature lists.
+ * - Download — Android app download button.
+ * - Footer — NX logo and brand name, Risk / Terms / Privacy links.
+ *
+ * Rules: theme color is orange; brand is Nexora FX. Hero prices start
+ * as samples and are replaced as soon as live data arrives; if every
+ * live source is down, the samples stay (never a blank card).
+ * Gotcha: script tags inside innerHTML do not execute, so the
+ * TradingView widget script is appended dynamically after render.
+ * Gotcha: the ?v= cache version in script tags must be bumped on every
+ * release, or browsers may serve stale code.
+ */
+// Landing page. Renders the home page and starts live market prices.
 Pages.landing = async function() {
   const s = App.state.settings;
+  // Hero image: the admin-set image if present, else the default
+  // local WebP (with PNG fallback) trading image.
   const heroImg = s.hero_image_url ? `<img src="${s.hero_image_url}" class="w-full h-full object-cover rounded-2xl" alt="Trading">` :
     `<div class="w-full h-full rounded-2xl flex items-center justify-center" style="background:linear-gradient(135deg,#1E2329,#2D3748)"><picture class="w-full h-full"><source srcset="/assets/hero-trading.webp" type="image/webp"><img src="/assets/hero-trading.png" class="w-full h-full object-cover rounded-2xl" alt="Trading" fetchpriority="high" onerror="this.style.display='none'"></picture></div>`;
 
+  // Render the page. Sections in order: hero, LIVE MARKETS pill,
+  // ticker, quick actions, Where We Work, download, footer (see the
+  // header block above for details on each section).
   document.getElementById('app').innerHTML = `
     ${Components.topbarPublic('')}
     ${s.announcement_bar ? `<div class="bg-orange-500 text-white text-center text-sm font-medium py-2 px-4">${s.announcement_bar}</div>` : ''}
@@ -268,8 +307,9 @@ Pages.landing = async function() {
       </footer>
     </main>`;
 
-  // Load the official TradingView Ticker Tape widget (real-time data).
-  // innerHTML script tags do not execute, so the script is created here.
+  // Ticker section: load the official TradingView Ticker Tape widget
+  // (real-time data). innerHTML script tags do not execute, so the
+  // script is created here and appended after render.
   (function loadTickerTape(){
     var container = document.querySelector('.tradingview-widget-container__widget');
     if (!container) return;
@@ -303,6 +343,9 @@ Pages.landing = async function() {
     }, 6000);
   })();
 
+  // Hero price cards: live BTC + XAU prices, refreshed every 5s from
+  // /api/market/quotes. The values in the markup are samples; they are
+  // replaced as soon as live data arrives.
   // Live hero prices (BTC + XAU) — refreshed every 5s from /api/market/quotes.
   // The values in the markup are samples; they are replaced as soon as live data arrives.
   // If the quote service is down, the samples stay (never a blank card).
@@ -325,15 +368,19 @@ Pages.landing = async function() {
     var xauOffset = 9; // rough starting offset (PAXG ~$9 below spot); refined on each new spot
     var lastPaxg = 0; // last Binance PAXG/USDT price
     var xauPaxgFresh = 0; // ms timestamp of the last successful PAXG fetch
+    // Flash a price green (up) or red (down) briefly on each change.
     function flash(el, up){
       el.style.transition = 'color .45s, transform .45s';
       el.style.color = up ? '#16A34A' : '#DC2626';
       el.style.transform = up ? 'translateY(-3px) scale(1.05)' : 'translateY(3px) scale(1.05)';
       (function(e2){ setTimeout(function(){ e2.style.color=''; e2.style.transform=''; }, 900); })(el);
     }
+    // Format a price as a dollar string with fixed decimals.
     function fmt(price, decimals){
       return '$' + price.toLocaleString('en-US', {minimumFractionDigits: decimals, maximumFractionDigits: decimals});
     }
+    // Write a price into a hero card, flashing on change. Non-numbers
+    // are ignored so a bad tick never blanks the card.
     function setPrice(priceId, price, decimals){
       var p = document.getElementById(priceId);
       if(!p || typeof price !== 'number') return;
@@ -342,6 +389,8 @@ Pages.landing = async function() {
       prevPrice[priceId] = price;
       p.textContent = fmt(price, decimals);
     }
+    // Write the 24h change text into a hero card; without a number
+    // it falls back to a plain "Live market" label.
     function setChange(changeId, change){
       var c = document.getElementById(changeId);
       if(!c) return;
@@ -354,11 +403,13 @@ Pages.landing = async function() {
         c.className = 'text-xs text-green-500 font-semibold';
       }
     }
+    // Update one hero card (price + change) from a quote object.
     function setCard(priceId, changeId, q, decimals){
       if(!q || typeof q.price !== 'number') return;
       setPrice(priceId, q.price, decimals);
       setChange(changeId, q.change);
     }
+    // Update the ticker fallback marquee (price + change) for a quote.
     function setFallback(priceCls, chgCls, q, decimals){
       if(!q || typeof q.price !== 'number') return;
       var txt = fmt(q.price, decimals);
@@ -371,11 +422,14 @@ Pages.landing = async function() {
         });
       }
     }
+    // Update only the price text in the ticker fallback marquee.
     function setFallbackPrice(priceCls, price, decimals){
       if(typeof price !== 'number') return;
       var txt = fmt(price, decimals);
       document.querySelectorAll('.'+priceCls).forEach(function(el){ el.textContent = txt; });
     }
+    // BTC price: Binance public trade stream (wss). Reconnects 5s
+    // after a close; the REST poll below covers any gap.
     function startBtcStream(){
       if(window._nxBtcWs) return;
       var ws;
@@ -501,6 +555,9 @@ Pages.landing = async function() {
         }catch(e){}
       }, 1000);
     }
+    // REST poll (every 5s) for /api/market/quotes. It owns the price
+    // only when the faster live sources have gone quiet; otherwise it
+    // refreshes just the change text and the fallback marquee.
     async function refresh(){
       if(!document.getElementById('hero-btc-price') && !document.getElementById('hero-xau-price')){
         if(window._nxHeroTimer){ clearInterval(window._nxHeroTimer); window._nxHeroTimer = null; }

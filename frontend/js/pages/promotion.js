@@ -1,10 +1,28 @@
-// pages/promotion.js — Public promotion page: the Nexora FX referral program.
-// Standalone (no login needed) so visitors can read it from the landing page.
-// Logged-in users see their own referral link too.
+/*
+ * pages/promotion.js — Public promotion page: the Nexora FX referral program.
+ * Standalone page (no login needed) so visitors can read it from the
+ * landing page. Logged-in users also see their own referral link.
+ * Key functions:
+ * - Pages.promotion() renders the page. Logged-in users: their link
+ *   comes from api.getReferralLink().
+ * Rules / gotchas:
+ * - Referral bonus is 4% of the referred user's FIRST deposit only,
+ *   one time, not recurring, and paid on the deposit, not on profit.
+ * - Money is integer cents everywhere; display with utils.fmtMoney.
+ * - Balances come from GET /api/user/me; showcase accounts
+ *   (is_showcase=1) show DISPLAY balances set by the admin.
+ * - The ?v= cache version in script tags must be bumped on every
+ *   release or browsers may serve stale code.
+ */
+// Renders the public Promotion page (refer-a-friend, 4% one-time bonus).
+// Logged-in users get their personal link shown at the top; logged-out
+// visitors see a Sign Up call to action instead.
 Pages.promotion=async function(){
   var loggedIn=utils.isLoggedIn()&&App.state.user!==null;
   var linkHtml='';
   if(loggedIn){
+// The referral link is best-effort here: if it fails to load, the
+// public promotion content still renders without it.
     try{
       const link=await api.getReferralLink();
       linkHtml='<div class="card mb-6"><h3 class="font-bold mb-2">Your Referral Link</h3><div class="flex gap-2"><input type="text" value="'+link.link+'" readonly class="input-field flex-1 text-sm bg-gray-50"><button onclick="navigator.clipboard.writeText(\''+link.link+'\');utils.toast(\'Copied!\',\'success\')" class="btn-primary text-sm" style="width:auto;padding:10px 16px">Copy Link</button></div><p class="text-xs text-gray-400 mt-2">Your code: <strong>'+link.code+'</strong></p></div>';

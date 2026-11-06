@@ -1,4 +1,30 @@
-// admin-traders.js — Traders list + Copies
+/*
+ * admin-traders.js — Traders list and Active Copies pages.
+ *
+ * Renders /admin/traders (trader cards with ROI, win rate, drawdown, risk
+ * and followers, plus Add / Edit / Hide / Delete) and /admin/copies
+ * (active user copies with invested amount, profit, daily PnL and cycle
+ * day, plus admin Stop).
+ * Key functions: AdminPages.traders, AdminPages._traderForm,
+ * AdminPages._newTrader, AdminPages._editTrader, AdminPages._bindTraderForm,
+ * AdminPages._toggleTrader, AdminPages._deleteTrader, AdminPages.copies,
+ * AdminPages._adminStop.
+ *
+ * Gotchas:
+ * - Trader money fields are stored as integer cents (min_copy_cents) but
+ *   edited in dollars in the form; ROI / win rate / drawdown are percents.
+ * - The trader form is submitted as FormData (multipart) because it can
+ *   carry an avatar image upload.
+ * - Money is integer cents everywhere; display with utils.fmtMoney.
+ * - Admin API calls go through adminApi in js/admin-api.js.
+ * - Showcase accounts (is_showcase=1) are demo accounts with DISPLAY
+ *   balances set by the admin; they are excluded from all admin totals,
+ *   ledgers and reports.
+ * - Bump the ?v= cache version in script tags on every release, or
+ *   browsers keep serving stale code.
+ */
+// Renders /admin/traders: trader cards (ROI, win rate, drawdown, risk,
+  // followers) with Add / Edit / Hide / Delete. Data: adminApi.getTraders.
 AdminPages.traders=async function(){
   try{
     const traders=await adminApi.getTraders();
@@ -7,6 +33,9 @@ AdminPages.traders=async function(){
     ${traders.length===0?'<div class="card text-center py-8 text-gray-400">No traders yet</div>':''}</div>`,'Traders');
   }catch(e){document.getElementById('admin-app').innerHTML=`<p class="p-8 text-red-500">${e.message}</p>`;}
 };
+// Builds the Add / Edit Trader modal HTML. With a trader object it
+  // pre-fills the form; without one it shows blank defaults (ROI 10%,
+  // win rate 75%, drawdown 5%, risk Medium, min copy $10).
 AdminPages._traderForm=function(tr){
   const esc=s=>String(s==null?'':s).replace(/"/g,'&quot;');
   const flags=[['🇬🇧','United Kingdom'],['🇺🇸','United States'],['🇧🇷','Brazil'],['🇯🇵','Japan'],['🇮🇳','India'],['🇧🇩','Bangladesh'],['🇩🇪','Germany'],['🇫🇷','France'],['🇦🇺','Australia'],['🇨🇦','Canada'],['🇦🇪','UAE'],['🇸🇬','Singapore']];
@@ -14,8 +43,14 @@ AdminPages._traderForm=function(tr){
   const riskOpts=['Low','Medium','High'].map(r=>`<option ${(!tr&&r==='Medium')||(tr&&tr.risk_level===r)?'selected':''}>${r}</option>`).join('');
   return `<div class="modal"><h2 class="font-bold mb-4">${tr?'Edit Trader':'Add Trader'}</h2><form id="trader-form" class="space-y-3"><div class="grid grid-cols-2 gap-3"><div><label class="input-label">Name</label><input name="name" type="text" class="input-field" value="${esc(tr?tr.name:'')}" required></div><div><label class="input-label">Username</label><input name="username" type="text" class="input-field" value="${esc(tr?tr.username:'')}" required></div></div><div class="grid grid-cols-2 gap-3"><div><label class="input-label">ROI %</label><input name="roi_percent" type="number" step="0.1" class="input-field" value="${tr?tr.roi_percent:10.0}"></div><div><label class="input-label">Min Copy $</label><input name="min_copy" type="number" step="0.01" class="input-field" value="${tr?tr.min_copy_cents/100:10}"></div></div><div class="grid grid-cols-2 gap-3"><div><label class="input-label">Win Rate %</label><input name="win_rate" type="number" step="0.1" min="0" max="100" class="input-field" value="${tr?tr.win_rate:75}"></div><div><label class="input-label">Drawdown %</label><input name="drawdown" type="number" step="0.1" min="0" max="100" class="input-field" value="${tr?tr.drawdown:5}"></div></div><div class="grid grid-cols-2 gap-3"><div><label class="input-label">Followers</label><input name="followers" type="number" step="1" min="0" class="input-field" value="${tr?tr.followers:0}"></div><div><label class="input-label">Flag</label><select name="flag_emoji" class="input-field">${flagOpts}</select></div></div><div><label class="input-label">Risk Level</label><select name="risk_level" class="input-field">${riskOpts}</select></div><div><label class="input-label">Trader Picture</label><input name="avatar" type="file" accept="image/*" class="input-field">${tr&&tr.avatar?`<img src="${tr.avatar}" style="width:64px;height:64px;object-fit:cover;border-radius:12px;margin-top:8px">`:''}<img id="tr-avatar-preview" style="display:none;width:64px;height:64px;object-fit:cover;border-radius:12px;margin-top:8px"></div><div><label class="input-label">Strategy</label><input name="strategy" type="text" class="input-field" value="${esc(tr?tr.strategy:'')}"></div><div><label class="input-label"><input name="verified" type="checkbox" ${!tr||tr.verified?'checked':''}> Verified (blue tick on user side)</label></div><div id="tr-e" class="alert-danger hidden"></div><div class="flex gap-3"><button type="button" onclick="utils.closeModal()" class="btn-secondary flex-1">Cancel</button><button type="submit" class="btn-primary flex-1">${tr?'Save':'Add'}</button></div></form></div>`;
 };
+// Opens a blank trader form modal.
 AdminPages._newTrader=function(){utils.showModal(AdminPages._traderForm(null));AdminPages._bindTraderForm(null);};
+// Loads the trader list via adminApi.getTraders, finds the trader by id
+  // and opens the pre-filled edit form modal.
 AdminPages._editTrader=async function(id){try{const traders=await adminApi.getTraders();const tr=traders.find(x=>x.id===id);if(!tr){utils.toast('Trader not found','error');return;}utils.showModal(AdminPages._traderForm(tr));AdminPages._bindTraderForm(tr);}catch(e){utils.toast(e.message,'error');}};
+// Wires the trader form submit (multipart FormData, avatar upload if a
+  // file was picked) and the live avatar preview. Creates a trader, or
+  // updates it when editing.
 AdminPages._bindTraderForm=function(tr){
   document.getElementById('trader-form').onsubmit=async(e)=>{
     e.preventDefault();const f=e.target,err=document.getElementById('tr-e');
@@ -27,8 +62,12 @@ AdminPages._bindTraderForm=function(tr){
   };
   const _av=document.querySelector('#trader-form input[name="avatar"]');if(_av)_av.onchange=()=>{const _f=_av.files[0];const _img=document.getElementById('tr-avatar-preview');if(_f){_img.src=URL.createObjectURL(_f);_img.style.display='block';}else{_img.style.display='none';}};
 };
+// Toggles a trader's hidden state via adminApi.toggleTraderHidden.
 AdminPages._toggleTrader=async function(id){try{await adminApi.toggleTraderHidden(id);utils.toast('Done','success');AdminPages.traders();}catch(e){utils.toast(e.message,'error');}};
+// Confirms, then deletes a trader via adminApi.deleteTrader.
 AdminPages._deleteTrader=function(id){utils.confirm('Delete this trader? This cannot be undone.',async()=>{try{await adminApi.deleteTrader(id);utils.toast('Trader deleted','success');AdminPages.traders();}catch(e){utils.toast(e.message,'error');}},'Delete');};
+// Renders /admin/copies: active user copies with invested amount,
+  // profit, daily PnL and cycle day. Data: adminApi.getActiveCopies.
 AdminPages.copies=async function(){
   try{
     const copies=await adminApi.getActiveCopies();
@@ -39,6 +78,8 @@ AdminPages.copies=async function(){
     </tbody></table></div>`,'Active Copies');
   }catch(e){document.getElementById('admin-app').innerHTML=`<p class="p-8 text-red-500">${e.message}</p>`;}
 };
+// Confirms, then stops a copy via adminApi.adminStopCopy. Stopping
+  // settles the copy back to the user's Main Balance.
 AdminPages._adminStop=function(id){
   utils.confirm(`Stop copy #${id}? Today PnL=$0.`,async()=>{
     try{await adminApi.adminStopCopy(id);utils.toast('Copy stopped','success');AdminPages.copies();}

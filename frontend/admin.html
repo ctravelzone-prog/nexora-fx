@@ -1,6 +1,9 @@
 <!DOCTYPE html>
+<!-- Nexora FX - admin panel entry point. Separate app from the user site:
+     it has its own login (nx_admin_token) and its own scripts in js/admin/. -->
 <html lang="en">
 <head>
+  <!-- Head: meta, title, favicon, fonts, Tailwind config, stylesheets. -->
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Nexora Fx Admin</title>
@@ -8,10 +11,15 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   <script src="https://cdn.tailwindcss.com"></script>
   <script>tailwind.config={theme:{extend:{colors:{orange:{DEFAULT:'#FF6A00',500:'#FF6A00',600:'#FF7A00'}},fontFamily:{sans:['Inter','ui-sans-serif']}}}}</script>
+  <!-- Shared stylesheets (same theme as the user site). -->
   <link rel="stylesheet" href="/css/app.css">
   <link rel="stylesheet" href="/css/responsive.css">
   <link rel="stylesheet" href="/css/nexora-theme.css">
   <link rel="stylesheet" href="/css/nexora-theme2.css">
+  <!-- Inline admin layout styles: fixed 260px sidebar, main content offset,
+       nav link/group states, mobile overlay. On phones the sidebar slides in. -->
+  <!-- Inline admin layout styles: fixed 260px sidebar, main content offset,
+       nav link/group states, mobile overlay. On phones the sidebar slides in. -->
   <style>
     .admin-sidebar{width:260px;background:#fff;border-right:1px solid #F1F5F9;height:100vh;position:fixed;top:0;left:0;overflow-y:auto;z-index:40;display:flex;flex-direction:column;transition:transform .25s;}
     .admin-main{margin-left:260px;min-height:100vh;background:#F8F9FA;}
@@ -30,9 +38,19 @@
   </style>
 </head>
 <body class="font-sans bg-gray-50">
+  <!-- Admin mount points: #admin-app is rendered by js/admin/admin-app.js,
+       #modal-root holds dialogs, #toast-root holds popup messages. -->
   <div id="admin-app"></div>
   <div id="modal-root"></div>
   <div id="toast-root" class="fixed bottom-4 right-4 z-50 flex flex-col gap-2 max-w-sm"></div>
+  <!-- Scripts, in load order: shared API clients and helpers first, then
+       the admin app, components and page modules in js/admin/. The ?v=v58
+       cache version must be bumped on every release or browsers keep
+       serving stale code. -->
+  <!-- Scripts, in load order: shared API clients and helpers first, then
+       the admin app, components and page modules in js/admin/. The ?v=v58
+       cache version must be bumped on every release or browsers keep
+       serving stale code. -->
   <script src="/js/api.js?v=v58"></script>
   <script src="/js/admin-api.js?v=v58"></script>
   <script src="/js/utils.js?v=v58"></script>

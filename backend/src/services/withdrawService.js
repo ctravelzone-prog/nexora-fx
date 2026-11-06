@@ -1,7 +1,18 @@
-// withdrawService.js — main/profit withdraw + admin process + adminAddBalance
+// services/withdrawService.js — withdraw requests: create, approve, reject.
+// requestMainWithdraw / requestProfitWithdraw: create a pending withdrawal
+// row, deduct the amount (plus the Main fee) from the balance immediately,
+// write the History row and notify the admin. processWithdrawal: the admin
+// approves or rejects a pending withdrawal. adminAddBalance: the admin
+// credits a user's Main or Profit Balance (with an audit log entry).
+// Rules: withdraw from Main only; profit withdrawals need a $10 minimum
+// and carry no fee. The wallet address must start with 0x.
 const { getDb } = require('../models/database');
 const H = require('./moneyHelpers');
 
+// Creates a Main withdrawal request: computes the fee (early 15% inside
+// the 3-month lock, otherwise the regular fee), refuses when Main cannot
+// cover amount + fee, then deducts amount + fee from Main, writes the
+// withdrawal + pending History rows, and notifies the admin.
 function requestMainWithdraw(userId, amountCents, walletAddress) {
   const db = getDb(), s = H.getMoneySettings();
   return db.transaction(() => {
@@ -22,6 +33,9 @@ function requestMainWithdraw(userId, amountCents, walletAddress) {
   })();
 }
 
+// Creates a Profit withdrawal request: same flow as Main, but no fee
+// and a $10 minimum. Refused when the amount is below the minimum or
+// above the Profit Balance.
 function requestProfitWithdraw(userId, amountCents, walletAddress) {
   const db = getDb(), s = H.getMoneySettings();
   return db.transaction(() => {
@@ -41,6 +55,11 @@ function requestProfitWithdraw(userId, amountCents, walletAddress) {
   })();
 }
 
+// Approves or rejects a pending withdrawal (action 'approve' / 'reject').
+// Approve: marks the withdrawal approved and its History row completed
+// (the money was already deducted at request time; the admin pays the
+// user out of band). Reject: returns amount + fee to the balance and
+// marks both rows rejected. Already-processed withdrawals are refused.
 function processWithdrawal(withdrawalId, action, adminId, adminNote) {
   const db = getDb();
   return db.transaction(() => {
@@ -63,6 +82,8 @@ function processWithdrawal(withdrawalId, action, adminId, adminNote) {
   })();
 }
 
+// Admin credits a user's Main or Profit Balance: updates the balance,
+// writes a completed 'admin_credit' transaction and an audit_log entry.
 function adminAddBalance(userId, amountCents, balanceType, adminId, reason) {
   const db = getDb();
   return db.transaction(() => {

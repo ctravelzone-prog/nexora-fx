@@ -1,4 +1,29 @@
-// twofa-and-terms.js Part 1 — 2FA page + code box helpers
+/*
+ * twofa-and-terms.js — 2FA Security page + Risk Disclosure & Terms page.
+ * 2FA is real TOTP (RFC 6238, Google Authenticator / Authy / any TOTP
+ * app) with 6-digit codes; there are no demo codes. 2FA is OFF by
+ * default for admin and user, and the admin must enable it before a
+ * user can turn it on.
+ * Key functions:
+ * - Pages._initCodeRow() / Pages._getCode() / Pages._codeBoxes() are
+ *   the 6-box code input helpers (type, backspace, paste).
+ * - Pages.twoFA() renders the 2FA page (api.get2FAStatus(),
+ *   api.disable2FA()).
+ * - Pages._setup2FA() shows the QR code and verifies setup
+ *   (api.setup2FA(), api.verify2FA()).
+ * - Pages.riskTerms() renders the static Risk Disclosure & Terms page.
+ * Rules / gotchas:
+ * - Profit is a target (up to the configured percent over 22 profit
+ *   days), never guaranteed; Sat/Sun have no profit and do not count
+ *   toward the 22 profit days; early Main withdrawal costs 15%.
+ * - Money is integer cents everywhere; display with utils.fmtMoney.
+ * - Balances come from GET /api/user/me; showcase accounts
+ *   (is_showcase=1) show DISPLAY balances set by the admin.
+ * - The ?v= cache version in script tags must be bumped on every
+ *   release or browsers may serve stale code.
+ */
+// Wires up one row of 6 single-digit code boxes: typing a digit moves
+// forward, Backspace on an empty box moves back, pasting fills the row.
 Pages._initCodeRow=function(rowId){
   const row=document.getElementById(rowId);if(!row)return;
   const inputs=[...row.querySelectorAll('.code-box')];
@@ -17,12 +42,17 @@ Pages._initCodeRow=function(rowId){
     });
   });
 };
+// Reads the 6 code boxes in a row and joins them into one 6-digit string.
 Pages._getCode=function(rowId){
   const row=document.getElementById(rowId);if(!row)return'';
   return [...row.querySelectorAll('.code-box')].map(i=>i.value).join('');
 };
+// Returns the HTML for a row of 6 single-digit code boxes (numeric keypad).
 Pages._codeBoxes=function(id){return'<div class="code-row" id="'+id+'">'+Array(6).fill('<input class="code-box" inputmode="numeric" maxlength="1">').join('')+'</div>';};
 
+// Renders the 2FA page. API: api.get2FAStatus(). Three states: disabled
+// by admin (button greyed out), enabled by the user (disable form),
+// or available to enable (setup button). Disabling calls api.disable2FA().
 Pages.twoFA=async function(){
   try{
     const status=await api.get2FAStatus();
@@ -49,6 +79,9 @@ Pages.twoFA=async function(){
   }catch(e){document.getElementById('app').innerHTML='<p class="p-8" style="color:var(--red)">'+e.message+'</p>';}
 };
 
+// Starts 2FA setup: shows the QR code and manual key, then verifies the
+// 6-digit code from the authenticator app. APIs: api.setup2FA(),
+// api.verify2FA(). On success the 2FA page re-renders as enabled.
 Pages._setup2FA=async function(){
   try{
     const data=await api.setup2FA();
@@ -75,7 +108,11 @@ Pages._setup2FA=async function(){
   }catch(e){utils.toast(e.message,'error');}
 };
 
+// Renders the static Risk Disclosure & Terms page (no API call).
+// The profit target percent below comes from App.state.settings.
 Pages.riskTerms=function(){
+// profit_target_bp is in basis points (100 = 1%); divide by 100 for
+// the percent shown. Default is 10% when the setting is missing.
   const _s=(App.state&&App.state.settings)||{}; const _tp=_s.profit_target_bp?parseInt(_s.profit_target_bp)/100:10;
   Components.layout('<div style="max-width:760px" class="card">'
     +'<h1 style="font-size:22px;font-weight:800;margin-bottom:16px">Risk Disclosure &amp; Terms</h1>'

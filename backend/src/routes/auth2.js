@@ -1,13 +1,25 @@
-// auth2.js — verify-email, forgot-password, reset-password
+// routes/auth2.js — email verification and password recovery.
+// GET /verify-email confirms a registration link (24h token). POST
+// /forget-request lets a user message the admin for a password reset (the
+// admin replies with a one-time 8-digit OTP). POST /reset-via-authenticator
+// issues a 10-minute reset token after a valid TOTP code. POST
+// /forgot-password and /reset-password are the email-link flow: they only
+// send mail when SMTP is configured, otherwise the reset link is logged
+// to the server console (dev only) and the endpoint answers 503.
+// Rate limits: forget requests 20/hour per IP, authenticator resets 10/15 min.
 const router = require('express').Router();
 const bcrypt = require('bcrypt');
 const { v4: uuidv4 } = require('uuid');
 const { getDb } = require('../models/database');
 const emailSvc = require('../services/emailService');
+// Abuse guards: forget-request is capped at 20/hour per IP, and
+// authenticator-based reset at 10 attempts per 15 minutes per IP.
 
 const rateLimit = require('express-rate-limit');
 const forgetLimiter = rateLimit({windowMs:60*60*1000,max:20,handler:(req,res)=>res.status(429).json({error:'Too many forget requests from this connection. Please try again later.'}),standardHeaders:false,legacyHeaders:false});
 const authResetLimiter = rateLimit({windowMs:15*60*1000,max:10,handler:(req,res)=>res.status(429).json({error:'Too many attempts. Please try again later.'}),standardHeaders:false,legacyHeaders:false});
+// GET /verify-email?token=… — marks the user's email verified when the
+// token matches and has not expired (24 hours).
 router.get('/verify-email',(req,res)=>{
   const {token}=req.query;
   const db=getDb();
@@ -18,6 +30,18 @@ router.get('/verify-email',(req,res)=>{
   res.json({success:true,message:'Email verified successfully'});
 });
 
+// POST /forget-request — user asks the admin for help (email + contact
+// required, message optional). Creates a forget_requests row and an admin
+// notification. Guards: one pending request per user, and a 1-hour
+// cooldown after a rejection. Showcase accounts cannot use it.
+// Honeypot field: bots fill 'website', real users never see it — a
+// filled value is silently accepted without creating a request.
+// POST /reset-via-authenticator — verifies the user's TOTP code, then
+// issues a reset token valid for 10 minutes. Requires 2FA to be enabled
+// on the account; otherwise the user must use Message Admin.
+// POST /forgot-password — email-link reset. Always answers success when
+// SMTP is configured (never reveals whether the email exists). Without
+// SMTP it answers 503 and logs the link to the console (dev only).
 router.post('/forget-request', forgetLimiter, async (req,res)=>{
   try{
     const {username,email,contact,message,website}=req.body;
@@ -75,6 +99,8 @@ router.post('/forgot-password', async (req,res)=>{
   }catch(e){res.status(500).json({error:e.message});}
 });
 
+// POST /reset-password — sets a new password with a valid, unexpired
+// reset token (1 hour). Clears the token after use.
 router.post('/reset-password', async (req,res)=>{
   try{
     const {token,password}=req.body;

@@ -1,4 +1,14 @@
-// admin/users.js — user management
+// routes/admin/users.js — admin user management, including showcase accounts.
+// Users: GET / (list), GET /:id (detail), DELETE /:id (Super Admin only,
+// full cascade), PUT /:id/toggle-active, POST /:id/add-balance,
+// POST /:id/set-temp-password and /revoke-temp-password, POST /:id/login-as
+// (impersonation), POST /:id/profit-target (per-user profit target).
+// Showcase accounts (demo accounts): GET /showcase/list, POST
+// /showcase/create, PUT /showcase/:id, DELETE /showcase/:id.
+// Rules: showcase money lives in showcase_*_cents display fields on the
+// users row, never in real balances, and never appears in admin totals.
+// The demo user nexora_fx and showcase users cannot be deleted here
+// (showcase accounts have their own delete route).
 const router = require('express').Router();
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
@@ -7,6 +17,7 @@ const { getDb } = require('../../models/database');
 const { authAdmin, superAdminOnly } = require('../../middleware/auth');
 const { adminAddBalance } = require('../../services/withdrawService');
 
+// GET / — all real users (showcase accounts excluded), newest first.
 router.get('/', authAdmin, (req,res)=>{
   const db=getDb(); const {search,kyc_status,limit=50,offset=0}=req.query;
   let q='SELECT u.*,b.main_cents,b.copy_cents,b.profit_cents,b.total_deposited_cents FROM users u LEFT JOIN balances b ON u.id=b.user_id WHERE u.is_showcase=0';
@@ -17,6 +28,7 @@ router.get('/', authAdmin, (req,res)=>{
   res.json(db.prepare(q).all(...p));
 });
 
+// GET /:id — one user's detail (profile, balances, copies, tickets).
 router.get('/:id', authAdmin, (req,res)=>{
   const db=getDb();
   const user=db.prepare('SELECT u.*,b.main_cents,b.copy_cents,b.profit_cents,b.total_deposited_cents,b.total_withdrawn_cents FROM users u LEFT JOIN balances b ON u.id=b.user_id WHERE u.id=?').get(req.params.id);
@@ -30,6 +42,10 @@ router.get('/:id', authAdmin, (req,res)=>{
 // withdrawals, transactions, tickets (+ messages), referrals, KYC, forget/money
 // requests, notifications, sessions and audit rows. Demo/showcase accounts are
 // protected (they are intentional demo data, not fake users).
+// DELETE /:id — Super Admin only. Permanently deletes a real user and
+// ALL their data (balances, copies, deposits, withdrawals, transactions,
+// tickets, referrals, KYC, notifications) in one transaction. Refused
+// for showcase users (400) and for the demo user nexora_fx (400).
 router.delete('/:id', authAdmin, superAdminOnly, (req,res)=>{
   const db=getDb();
   const u=db.prepare('SELECT * FROM users WHERE id=?').get(req.params.id);
@@ -60,6 +76,8 @@ router.delete('/:id', authAdmin, superAdminOnly, (req,res)=>{
   catch(e){ res.status(500).json({error:'Delete failed: '+e.message}); }
 });
 
+// PUT /:id/toggle-active — disables or re-enables a user account.
+// Disabled users cannot log in.
 router.put('/:id/toggle-active', authAdmin, (req,res)=>{
   const db=getDb(); const u=db.prepare('SELECT * FROM users WHERE id=?').get(req.params.id);
   if(!u) return res.status(404).json({error:'Not found'});
@@ -68,6 +86,8 @@ router.put('/:id/toggle-active', authAdmin, (req,res)=>{
   res.json({success:true});
 });
 
+// POST /:id/add-balance — adds money to a user's Main or Profit
+// Balance (via withdrawService.adminAddBalance, audit-logged).
 router.post('/:id/add-balance', authAdmin, (req,res)=>{
   try{
     const {amount,type,reason}=req.body;
@@ -77,6 +97,9 @@ router.post('/:id/add-balance', authAdmin, (req,res)=>{
   }catch(e){res.status(500).json({error:e.message});}
 });
 
+// POST /:id/set-temp-password — Super Admin only. Sets a one-time
+// temporary password for the user (24h, one use; works as the current
+// password on change-password).
 router.post('/:id/set-temp-password', authAdmin, superAdminOnly, async (req,res)=>{
   try{
     const {temp_password}=req.body;
@@ -93,6 +116,8 @@ router.post('/:id/set-temp-password', authAdmin, superAdminOnly, async (req,res)
   }catch(e){res.status(500).json({error:e.message});}
 });
 
+// POST /:id/revoke-temp-password — Super Admin only. Revokes the
+// user's temporary password (if any).
 router.post('/:id/revoke-temp-password', authAdmin, superAdminOnly, (req,res)=>{
   const db=getDb();
   db.prepare(`UPDATE users SET temp_password_hash=NULL,temp_password_status='revoked',temp_password_used=0,temp_password_expires=NULL WHERE id=?`).run(req.params.id);
@@ -100,6 +125,10 @@ router.post('/:id/revoke-temp-password', authAdmin, superAdminOnly, (req,res)=>{
   res.json({success:true});
 });
 
+// POST /:id/login-as — Super Admin only. Creates a 30-minute
+// impersonation JWT for the user's account (recorded in
+// impersonation_sessions) so the admin can view the site as that user.
+// Write routes refuse impersonation tokens.
 router.post('/:id/login-as', authAdmin, superAdminOnly, (req,res)=>{
   const db=getDb(); const user=db.prepare('SELECT * FROM users WHERE id=? AND is_active=1 AND is_showcase=0').get(req.params.id);
   if(!user) return res.status(404).json({error:'User not found'});
@@ -110,6 +139,9 @@ router.post('/:id/login-as', authAdmin, superAdminOnly, (req,res)=>{
   res.json({token:jwtToken,user:{id:user.id,full_name:user.full_name,username:user.username}});
 });
 
+// POST /:id/profit-target — Super Admin only. Sets a per-user profit
+// target (bp): that user's daily rates scale by target/global. An empty
+// value clears it back to the global target.
 router.post('/:id/profit-target', authAdmin, superAdminOnly, (req,res)=>{
   const db=getDb(); const user=db.prepare('SELECT * FROM users WHERE id=?').get(req.params.id);
   if(!user) return res.status(404).json({error:'User not found'});
@@ -125,8 +157,13 @@ router.post('/:id/profit-target', authAdmin, superAdminOnly, (req,res)=>{
   res.json({success:true,profit_target_bp:val});
 });
 
+// GET /showcase/list — all showcase (demo) accounts, newest first.
 router.get('/showcase/list', authAdmin, (req,res)=>res.json(getDb().prepare('SELECT * FROM users WHERE is_showcase=1 ORDER BY created_at DESC').all()));
 
+// POST /showcase/create — Super Admin only. Creates a showcase account
+// with display balances (main/copy/profit/withdraw cents) and a password.
+// Showcase accounts log in like normal users but their money is display
+// only and never appears in admin totals.
 router.post('/showcase/create', authAdmin, superAdminOnly, async (req,res)=>{
   try{
     const {full_name,username,email,password,main_cents,copy_cents,profit_cents,withdraw_cents}=req.body;
@@ -139,6 +176,9 @@ router.post('/showcase/create', authAdmin, superAdminOnly, async (req,res)=>{
 });
 
 // Edit a showcase account (name, username, email, display balances, optional new password).
+// PUT /showcase/:id — Super Admin only. Edits a showcase account
+// (name, username, email, display balances, optional new password).
+// A real user id returns 404 — this route cannot touch real users.
 router.put('/showcase/:id', authAdmin, superAdminOnly, async (req,res)=>{
   try{
     const db=getDb();
@@ -168,6 +208,9 @@ router.put('/showcase/:id', authAdmin, superAdminOnly, async (req,res)=>{
 // Delete a showcase account (+ its display-profit log; showcase accounts hold no
 // real balances/copies, so there is nothing real to cascade — the delete route
 // for real users stays blocked for showcase).
+// DELETE /showcase/:id — Super Admin only. Deletes a showcase account
+// (and its showcase profit log + notifications). Real users are never
+// touched by this route.
 router.delete('/showcase/:id', authAdmin, superAdminOnly, (req,res)=>{
   const db=getDb();
   const u=db.prepare('SELECT * FROM users WHERE id=? AND is_showcase=1').get(req.params.id);

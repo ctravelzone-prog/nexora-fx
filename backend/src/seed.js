@@ -1,9 +1,19 @@
-// seed.js — seeds admin + sample data
+// seed.js — seeds the database with the demo content a fresh install needs.
+// Runs on every server start (see app.js) and on `npm run seed`. Creates
+// the Super Admin (admin@nexorafxuk, default password admin1234 unless
+// ADMIN_PASSWORD_HASH is set), the demo user nexora_fx / demo1234 ($300
+// Main Balance, $500 deposited, referral code NEXORA-FX), 3 traders,
+// 7 countries, default KYC form fields, static pages, payment gateways,
+// default site settings, and the current month's profit schedule.
+// Seeding is idempotent: every insert checks first (or uses INSERT OR
+// IGNORE), so re-running it on an existing database changes nothing.
 require('dotenv').config();
 const bcrypt = require('bcrypt');
 const { getDb } = require('./models/database');
 const { generateSchedule } = require('./services/profitService');
 
+// Seeds the database (see the header for what is created). The function
+// also creates the database handle and closes it when it runs standalone.
 async function seed() {
   const db = getDb();
   // Super Admin

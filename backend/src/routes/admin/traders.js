@@ -1,4 +1,11 @@
-// admin/traders.js — manage traders + admin stop-copy
+// routes/admin/traders.js — admin management of copy traders.
+// GET / lists all traders (including hidden ones). POST / creates one
+// (avatar upload, win rate, flag, ROI, risk level). PUT /:id edits one.
+// PUT /:id/toggle-hidden hides or shows a trader. DELETE /:id removes a
+// trader (refused while users still copy them). GET /copies/active lists
+// all active copies; POST /copies/:id/stop force-stops one copy.
+// Rule: traders are ranked by win rate on the user side; the Top 5 tier
+// frames are assigned automatically by rank, never by the admin.
 const router = require('express').Router();
 const { getDb } = require('../../models/database');
 const { authAdmin } = require('../../middleware/auth');
@@ -7,8 +14,11 @@ const multer = require('multer');
 const path = require('path');
 const upload = multer({storage:multer.diskStorage({destination:(req,file,cb)=>cb(null,path.join(__dirname,'../../../uploads')),filename:(req,file,cb)=>cb(null,`trader_${Date.now()}_${file.originalname}`)}),limits:{fileSize:5*1024*1024}});
 
+// GET / — all traders (including hidden), newest first.
 router.get('/', authAdmin, (req,res)=>res.json(getDb().prepare('SELECT * FROM traders ORDER BY created_at DESC').all()));
 
+// POST / — creates a trader (name, username, avatar upload, flag,
+// ROI, win rate, risk level, minimum copy amount).
 router.post('/', authAdmin, upload.single('avatar'), (req,res)=>{
   const {name,username,flag_emoji,verified,roi_percent,win_rate,drawdown,risk_level,min_copy,followers,strategy}=req.body;
   if(!name||!username) return res.status(400).json({error:'Name and username required'});
@@ -20,6 +30,8 @@ router.post('/', authAdmin, upload.single('avatar'), (req,res)=>{
   res.json({success:true,id});
 });
 
+// PUT /:id — edits a trader (all fields optional; avatar upload
+// replaces the picture).
 router.put('/:id', authAdmin, upload.single('avatar'), (req,res)=>{
   const {name,username,flag_emoji,verified,roi_percent,win_rate,drawdown,risk_level,min_copy,followers,strategy}=req.body;
   const db=getDb(); const t=db.prepare('SELECT * FROM traders WHERE id=?').get(req.params.id);
@@ -32,6 +44,8 @@ router.put('/:id', authAdmin, upload.single('avatar'), (req,res)=>{
   res.json({success:true});
 });
 
+// PUT /:id/toggle-hidden — hides a trader from users (or shows them
+// again). Hidden traders keep their existing copies.
 router.put('/:id/toggle-hidden', authAdmin, (req,res)=>{
   const db=getDb(); const t=db.prepare('SELECT * FROM traders WHERE id=?').get(req.params.id);
   if(!t) return res.status(404).json({error:'Trader not found'});
@@ -39,6 +53,8 @@ router.put('/:id/toggle-hidden', authAdmin, (req,res)=>{
   res.json({success:true});
 });
 
+// DELETE /:id — removes a trader. Refused (400) while any user still
+// has an active copy of them.
 router.delete('/:id', authAdmin, (req,res)=>{
   const db=getDb();
   const trader=db.prepare('SELECT * FROM traders WHERE id=?').get(req.params.id);
@@ -49,10 +65,13 @@ router.delete('/:id', authAdmin, (req,res)=>{
   res.json({success:true});
 });
 
+// GET /copies/active — every active copy with user and trader names.
 router.get('/copies/active', authAdmin, (req,res)=>{
   res.json(getDb().prepare(`SELECT c.*,u.full_name,u.username,t.name as trader_name FROM copies c JOIN users u ON c.user_id=u.id JOIN traders t ON c.trader_id=t.id WHERE c.status='active' AND u.is_showcase=0 ORDER BY c.created_at DESC`).all());
 });
 
+// POST /copies/:id/stop — force-stops one copy (principal + profit
+// return to the user's Main Balance).
 router.post('/copies/:id/stop', authAdmin, (req,res)=>{
   try{
     const db=getDb();

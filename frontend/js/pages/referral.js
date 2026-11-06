@@ -1,4 +1,24 @@
-// pages/referral.js — Referred Users, Commissions, Friends
+/*
+ * pages/referral.js — Referred Users, Referral Commissions, Friends.
+ * Three related referral pages: who the user referred, the commissions
+ * earned from them, and a simple friends list.
+ * Key functions:
+ * - Pages.referredUsers() — referred users table + referral link
+ *   (api.getReferredUsers(), api.getReferralLink()).
+ * - Pages.referralCommissions() — commission history and total
+ *   (api.getReferralCommissions()).
+ * - Pages.friends() — referred friends list (api.getFriends()).
+ * Rules / gotchas:
+ * - Referral commission is a one-time 4% of each referred user's
+ *   first deposit only, never on profit and never recurring.
+ * - Money is integer cents everywhere; display with utils.fmtMoney.
+ * - Balances come from GET /api/user/me; showcase accounts
+ *   (is_showcase=1) show DISPLAY balances set by the admin.
+ * - The ?v= cache version in script tags must be bumped on every
+ *   release or browsers may serve stale code.
+ */
+// Renders the Referred Users page: referral link card plus a table of
+// referred users (name, username, joined date, deposit, commission, status).
 Pages.referredUsers=async function(){
   try{
     const [users,link]=await Promise.all([api.getReferredUsers(),api.getReferralLink()]);
@@ -15,6 +35,8 @@ Pages.referredUsers=async function(){
     `,'Referred Users','Friends you referred');
   }catch(e){document.getElementById('app').innerHTML=`<p class="p-8 text-red-500">${e.message}</p>`;}
 };
+// Renders the Referral Commissions page: total earned plus one row per
+// commission (referred user, deposit, 4% commission, status, date).
 Pages.referralCommissions=async function(){
   try{
     const data=await api.getReferralCommissions();
@@ -27,6 +49,7 @@ Pages.referralCommissions=async function(){
     `,'Referral Commissions','One-time 4% of each referred deposit');
   }catch(e){document.getElementById('app').innerHTML=`<p class="p-8 text-red-500">${e.message}</p>`;}
 };
+// Renders the Friends page: a simple list of people the user referred.
 Pages.friends=async function(){
   try{
     const friends=await api.getFriends();

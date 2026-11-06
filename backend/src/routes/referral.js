@@ -1,4 +1,10 @@
-// referral.js — referral routes
+// routes/referral.js — read-only referral info for the logged-in user.
+// GET /referred-users (people who signed up with my code), /commissions
+// (each referral row plus the total earned), /link (my referral code and
+// full register link), /friends (same list, minimal fields).
+// Rule: the commission is a one-time 4% of the referred user's FIRST
+// deposit only — never on profit, never recurring. It is paid by
+// moneyService.payRef when the admin approves that first deposit.
 const router = require('express').Router();
 const { getDb } = require('../models/database');
 const { authImpersonation } = require('../middleware/auth');

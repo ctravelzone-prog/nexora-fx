@@ -1,4 +1,11 @@
-// kyc.js — KYC routes (clean template literals)
+// routes/kyc.js — user KYC submission (documents upload + status).
+// GET /status returns the user's latest submission, the active form
+// fields the admin configured, and whether KYC is currently required.
+// POST /submit uploads the documents (max 10 MB each) and creates a
+// pending kyc_submissions row; the admin reviews it in the admin panel.
+// Rules: one open submission per user (a pending or approved submission
+// blocks a second one). KYC is required before withdrawals can be used.
+// Uploaded files are stored under backend/uploads/.
 const router = require('express').Router();
 const { getDb } = require('../models/database');
 const { authImpersonation } = require('../middleware/auth');
@@ -10,6 +17,9 @@ const storage = multer.diskStorage({
 });
 const upload = multer({storage,limits:{fileSize:10*1024*1024}});
 
+// GET /status — latest KYC submission + active form fields + whether
+// KYC is enabled for this user (global switch OR an admin request to
+// this user). Already-verified users are never asked again.
 router.get('/status', authImpersonation, (req,res)=>{
   const db=getDb();
   const kyc=db.prepare(`SELECT * FROM kyc_submissions WHERE user_id=? ORDER BY submitted_at DESC LIMIT 1`).get(req.userId);
@@ -20,6 +30,9 @@ router.get('/status', authImpersonation, (req,res)=>{
   res.json({kyc:kyc||null,fields,kyc_enabled:isVerified?false:((kycEnabled?kycEnabled.value==='1':false)||!!(reqUser&&reqUser.kyc_requested))});
 });
 
+// POST /submit — uploads doc_front / doc_back / selfie and creates a
+// pending submission; also sets users.kyc_status='pending' and notifies
+// the admin. Blocked when a submission is already pending or approved.
 router.post('/submit', authImpersonation, upload.fields([{name:'doc_front'},{name:'doc_back'},{name:'selfie'}]), (req,res)=>{
   if(req.isImpersonation) return res.status(403).json({error:'Not allowed during Login as User session'});
   try{

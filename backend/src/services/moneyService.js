@@ -1,7 +1,19 @@
-// moneyService.js — deposit + referral commission
+// services/moneyService.js — deposit approval and referral payout.
+// applyDeposit: an admin-approved deposit credits the user's Main Balance
+// (and marks the pending History row completed), sets the user's
+// first_deposit_at on their first deposit, and pays the referrer.
+// payRef: pays the referrer a one-time 4% of the referred user's FIRST
+// deposit only (never on later deposits, never on profit) and records it
+// in referrals.
+// Rule: all money is integer cents. The deposit itself is submitted by
+// the user in routes/deposit.js; this file only settles it.
 const { getDb } = require('../models/database');
 const H = require('./moneyHelpers');
 
+// Pays the referrer once, on the user's FIRST deposit only: 4% of the
+// deposit, added to the referrer's Main Balance, with the referrals row
+// marked 'paid'. Does nothing when there is no referrer or the referral
+// was already paid.
 function payRef(userId, depCents, db, s) {
   const ref = db.prepare(`SELECT * FROM referrals WHERE referred_user_id=? AND status='pending'`).get(userId);
   if (!ref) return;
@@ -13,6 +25,11 @@ function payRef(userId, depCents, db, s) {
     .run(ref.referrer_user_id, 'referral_commission', c, c, 'in', 'completed', 'Referral commission — 4% of deposit', `Profit += 4% x $${H.fmtC(depCents)} = $${H.fmtC(c)}`);
 }
 
+// Approves a pending deposit: sets first_deposit_at on the user's first
+// deposit, adds the amount to Main Balance, marks the deposits row
+// 'approved', marks the pending History row completed (or inserts one
+// for deposits submitted before pending rows existed), then pays the
+// referrer via payRef.
 function applyDeposit(userId, depositId, amountCents, approverId) {
   const db = getDb(), s = H.getMoneySettings();
   return db.transaction(() => {

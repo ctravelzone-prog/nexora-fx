@@ -1,4 +1,13 @@
-// withdraw.js — withdraw routes
+// routes/withdraw.js — user withdrawals (USDT BEP20, manual admin approval).
+// GET /info returns the lock/fee status: whether Main is still inside the
+// 3-month lock, the early (15%) or regular fee percent, the profit minimum
+// ($10) and the unlock date. POST /main withdraws from Main Balance,
+// POST /profit withdraws from Profit Balance. GET /history lists the
+// user's withdrawal requests.
+// Rules: withdraw from Main only; the wallet address must start with 0x.
+// The amount is deducted immediately at request time and refunded if the
+// admin rejects. Profit withdrawals have no fee but need a $10 minimum.
+// The admin approves/pays from the admin panel (see withdrawService).
 const router = require('express').Router();
 const { getDb } = require('../models/database');
 const { authImpersonation } = require('../middleware/auth');
@@ -6,6 +15,8 @@ const { requestMainWithdraw, requestProfitWithdraw } = require('../services/with
 const { getBalance, getMoneySettings, calcMainWithdrawFee } = require('../services/moneyHelpers');
 
 // GET /api/withdraw/info — get withdraw info for the user
+// GET /info — lock and fee status for the withdraw form. A month is
+// approximated as 30.44 days when comparing first_deposit_at to now.
 router.get('/info', authImpersonation, (req,res)=>{
   const bal=getBalance(req.userId);
   const s=getMoneySettings();
@@ -27,6 +38,9 @@ router.get('/info', authImpersonation, (req,res)=>{
 });
 
 // POST /api/withdraw/main
+// POST /main — requests a Main Balance withdrawal. Body: amount
+// (dollars), wallet_address (must start with 0x). Deducts the amount
+// now; the admin approves or rejects it later (reject refunds it).
 router.post('/main', authImpersonation, (req,res)=>{
   if(req.isImpersonation) return res.status(403).json({error:'Not allowed during Login as User session'});
   try{
@@ -41,6 +55,8 @@ router.post('/main', authImpersonation, (req,res)=>{
 });
 
 // POST /api/withdraw/profit
+// POST /profit — requests a Profit Balance withdrawal. Same rules as
+// /main, but no fee and a $10 minimum (see withdrawService).
 router.post('/profit', authImpersonation, (req,res)=>{
   if(req.isImpersonation) return res.status(403).json({error:'Not allowed during Login as User session'});
   try{
@@ -55,6 +71,7 @@ router.post('/profit', authImpersonation, (req,res)=>{
 });
 
 // GET /api/withdraw/history
+// GET /history — the user's withdrawal requests, newest first.
 router.get('/history', authImpersonation, (req,res)=>{
   const db=getDb();
   res.json(db.prepare('SELECT * FROM withdrawals WHERE user_id=? ORDER BY created_at DESC').all(req.userId));

@@ -1,4 +1,14 @@
-// user.js — user profile, balance, transactions, notifications, 2FA
+// routes/user.js — user profile, balances, transactions, notifications.
+// GET /me returns the profile + balances (the dashboard reads this).
+// PUT /profile edits name/phone, /profile-photo uploads or removes the
+// avatar, /change-password changes the password (an admin OTP also works
+// as the current password). GET /transactions is the History list,
+// /notifications lists and marks the user's notifications, /settings
+// returns the public site settings.
+// Rules: showcase accounts (is_showcase=1) see their DISPLAY balances
+// here (showcase_*_cents from the users row), never the real balances
+// table. All write routes refuse impersonation sessions (admin 'Login
+// as User'); reads allow both normal and impersonation tokens.
 const router = require('express').Router();
 const bcrypt = require('bcrypt');
 const { getDb } = require('../models/database');
@@ -12,8 +22,13 @@ const storage = multer.diskStorage({
 });
 const upload = multer({storage,limits:{fileSize:5*1024*1024}});
 
+// Reads allow both a normal user token and an admin impersonation
+// token; every write route below still refuses impersonation itself.
 const auth = authImpersonation; // allow both normal and impersonation tokens
 
+// GET /me — profile + balances + withdrawable fee. Showcase accounts
+// see their DISPLAY balances here (showcase_main/copy/profit cents and
+// showcase_withdraw_cents as total withdrawn), never the real table.
 // GET /api/user/me
 router.get('/me', auth, (req,res)=>{
   const db=getDb();
@@ -47,6 +62,8 @@ router.get('/me', auth, (req,res)=>{
 });
 
 // PUT /api/user/profile
+// PUT /profile — updates full_name / phone / country_code (only the
+// fields sent are changed).
 router.put('/profile', auth, (req,res)=>{
   if(req.isImpersonation) return res.status(403).json({error:'Not allowed during Login as User session'});
   const {full_name,phone,country_code}=req.body;
@@ -56,6 +73,8 @@ router.put('/profile', auth, (req,res)=>{
   res.json({success:true});
 });
 
+// POST /profile-photo — uploads a new avatar (max 5 MB) and saves its
+// /uploads URL on the user row.
 // POST /api/user/profile-photo
 router.post('/profile-photo', auth, upload.single('photo'), (req,res)=>{
   if(req.isImpersonation) return res.status(403).json({error:'Not allowed during Login as User session'});
@@ -65,6 +84,7 @@ router.post('/profile-photo', auth, upload.single('photo'), (req,res)=>{
   res.json({success:true,url});
 });
 
+// DELETE /profile-photo — removes the avatar (sets profile_photo NULL).
 // DELETE /api/user/profile-photo
 router.delete('/profile-photo', auth, (req,res)=>{
   if(req.isImpersonation) return res.status(403).json({error:'Not allowed during Login as User session'});
@@ -72,6 +92,9 @@ router.delete('/profile-photo', auth, (req,res)=>{
   res.json({success:true});
 });
 
+// POST /change-password — checks the current password (a still-valid
+// admin OTP also counts), then sets the new one and clears any used
+// OTP. Minimum 8 characters.
 // POST /api/user/change-password
 router.post('/change-password', auth, async (req,res)=>{
   if(req.isImpersonation) return res.status(403).json({error:'Not allowed during Login as User session'});
@@ -91,6 +114,8 @@ router.post('/change-password', auth, async (req,res)=>{
   }catch(e){res.status(500).json({error:e.message});}
 });
 
+// GET /transactions — the user's transaction history, newest first.
+// Optional ?type= filter, ?limit= / ?offset= paging (default 50).
 // GET /api/user/transactions
 router.get('/transactions', auth, (req,res)=>{
   const db=getDb();
@@ -103,6 +128,8 @@ router.get('/transactions', auth, (req,res)=>{
   res.json(db.prepare(q).all(...p));
 });
 
+// GET /notifications — the user's notifications (plus broadcast ones
+// with user_id NULL) and the unread count.
 // GET /api/user/notifications
 router.get('/notifications', auth, (req,res)=>{
   const db=getDb();
@@ -111,18 +138,23 @@ router.get('/notifications', auth, (req,res)=>{
   res.json({notifications:notifs,unread_count:unread});
 });
 
+// PUT /notifications/read-all — marks all of the user's notifications
+// (and broadcasts) as read.
 // PUT /api/user/notifications/read-all
 router.put('/notifications/read-all', auth, (req,res)=>{
   getDb().prepare('UPDATE notifications SET is_read=1 WHERE user_id=? OR user_id IS NULL').run(req.userId);
   res.json({success:true});
 });
 
+// PUT /notifications/:id/read — marks one notification as read.
 // PUT /api/user/notifications/:id/read
 router.put('/notifications/:id/read', auth, (req,res)=>{
   getDb().prepare('UPDATE notifications SET is_read=1 WHERE id=? AND (user_id=? OR user_id IS NULL)').run(req.params.id,req.userId);
   res.json({success:true});
 });
 
+// GET /settings — public site settings as one JSON object (same data
+// as GET /api/settings in app.js).
 // GET /api/user/settings (public site settings)
 router.get('/settings', (req,res)=>{
   const db=getDb();

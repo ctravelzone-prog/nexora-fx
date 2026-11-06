@@ -1,4 +1,25 @@
-// admin-finance2.js — Transactions + Referrals
+/*
+ * admin-finance2.js — Transactions Ledger and Referrals pages.
+ *
+ * Renders the /admin/transactions ledger (in/out totals plus every ledger
+ * row) and the /admin/referrals list (referrer, referred user, deposit and
+ * the commission earned on it).
+ * Key functions: AdminPages.transactions, AdminPages.referrals.
+ *
+ * Gotchas:
+ * - Referral is a one-time 4% of the referred user's first deposit only;
+ *   it is never paid on profit and never recurs.
+ * - Ledger amounts are integer cents; display with utils.fmtMoney.
+ * - Money is integer cents everywhere; display with utils.fmtMoney.
+ * - Admin API calls go through adminApi in js/admin-api.js.
+ * - Showcase accounts (is_showcase=1) are demo accounts with DISPLAY
+ *   balances set by the admin; they are excluded from all admin totals,
+ *   ledgers and reports.
+ * - Bump the ?v= cache version in script tags on every release, or
+ *   browsers keep serving stale code.
+ */
+// Renders /admin/transactions: in/out/fee/net totals plus the ledger rows.
+  // Fetches up to 100 rows via adminApi.getTransactions.
 AdminPages.transactions=async function(){
   try{
     const _gen=AdminApp._gen;
@@ -12,6 +33,8 @@ AdminPages.transactions=async function(){
   }catch(e){document.getElementById('admin-app').innerHTML=`<p class="p-8 text-red-500">${e.message}</p>`;}
 };
 
+// Renders /admin/referrals: one-time 4% commissions on referred users'
+  // first deposits. Data comes from adminApi.getReferrals().
 AdminPages.referrals=async function(){
   try{
     const refs=await adminApi.getReferrals();

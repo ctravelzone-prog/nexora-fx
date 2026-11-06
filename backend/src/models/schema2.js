@@ -1,4 +1,14 @@
-// schema2.js — support/settings/admin tables
+// models/schema2.js — support, settings and admin tables (created once on startup).
+// Tables: kyc_submissions, kyc_form_fields, forget_requests, money_requests,
+// support_tickets, ticket_messages, notifications, admin_notifications,
+// site_settings, audit_log, admin_sessions, impersonation_sessions,
+// showcase_profit_log, blog_posts, pages, currencies, payment_gateways,
+// holidays, countries.
+// Note: showcase_profit_log is what makes showcase daily profit idempotent
+// (one row per showcase user per schedule day — the same day is never
+// applied twice). CREATE TABLE IF NOT EXISTS, so re-running is a no-op.
+// Creates the support/settings/admin tables. Runs once when the database
+// handle is opened.
 module.exports = function(db) {
   db.exec(`
     CREATE TABLE IF NOT EXISTS kyc_submissions (id INTEGER PRIMARY KEY AUTOINCREMENT,user_id INTEGER NOT NULL REFERENCES users(id),doc_type TEXT,doc_front TEXT,doc_back TEXT,selfie TEXT,status TEXT NOT NULL DEFAULT 'pending',admin_note TEXT,reviewed_by INTEGER,reviewed_at INTEGER,submitted_at INTEGER NOT NULL DEFAULT (unixepoch()),updated_at INTEGER NOT NULL DEFAULT (unixepoch()));
@@ -15,6 +25,8 @@ module.exports = function(db) {
     CREATE TABLE IF NOT EXISTS impersonation_sessions (id INTEGER PRIMARY KEY AUTOINCREMENT,admin_id INTEGER NOT NULL,user_id INTEGER NOT NULL,token TEXT NOT NULL UNIQUE,expires_at INTEGER NOT NULL,created_at INTEGER NOT NULL DEFAULT (unixepoch()));
     CREATE TABLE IF NOT EXISTS showcase_profit_log (id INTEGER PRIMARY KEY AUTOINCREMENT,user_id INTEGER NOT NULL REFERENCES users(id),cycle_year INTEGER NOT NULL,cycle_month INTEGER NOT NULL,day_number INTEGER NOT NULL,rate_bp INTEGER NOT NULL,amount_cents INTEGER NOT NULL,applied_at INTEGER NOT NULL DEFAULT (unixepoch()),UNIQUE(user_id,cycle_year,cycle_month,day_number));
   `);
+// Content tables: blog posts, static pages, currencies, payment
+// gateways, holidays and countries.
   db.exec(`
     CREATE TABLE IF NOT EXISTS blog_posts (id INTEGER PRIMARY KEY AUTOINCREMENT,title TEXT NOT NULL,slug TEXT NOT NULL UNIQUE,content TEXT,excerpt TEXT,cover_image TEXT,status TEXT NOT NULL DEFAULT 'draft',author_id INTEGER,created_at INTEGER NOT NULL DEFAULT (unixepoch()),updated_at INTEGER NOT NULL DEFAULT (unixepoch()));
     CREATE TABLE IF NOT EXISTS pages (id INTEGER PRIMARY KEY AUTOINCREMENT,title TEXT NOT NULL,slug TEXT NOT NULL UNIQUE,content TEXT,meta_description TEXT,is_active INTEGER NOT NULL DEFAULT 1,created_at INTEGER NOT NULL DEFAULT (unixepoch()),updated_at INTEGER NOT NULL DEFAULT (unixepoch()));

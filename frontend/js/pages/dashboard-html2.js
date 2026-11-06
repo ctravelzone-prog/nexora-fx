@@ -1,4 +1,26 @@
-// dashboard-html2.js — stats, copies, chart, referral
+/*
+ * dashboard-html2.js — Dashboard HTML, part 2 (Nexora FX).
+ *
+ * Builds the lower half of the dashboard markup, called by Pages._db
+ * in dashboard-html.js: the compact overview grid, the My Copies card,
+ * the live TradingView chart card, and the referral link card.
+ *
+ * Key function:
+ * - Pages._db2(b, u, copies, f) — returns the HTML string for the
+ *   overview grid, active copies, chart controls and referral URL.
+ *
+ * Rules: money is integer cents; display via utils.fmtMoney. The
+ * overview grid shows Main Balance, Referral Bonus, Total PnL, Total
+ * Deposit, Total Withdraw, plus Withdrawable (Main only) when the Main
+ * Balance is above zero, otherwise Copy Invested. The chart itself is
+ * loaded by Pages._loadTvChart in dashboard-chart.js; the fallback
+ * notice is shown, never a fake chart. Referral is a one-time 4% of
+ * the referred user's deposit. Website UI text is always English.
+ * Gotcha: the ?v= cache version in script tags must be bumped on every
+ * release, or browsers may serve stale code.
+ */
+// Dashboard HTML, part 2: overview grid, My Copies, live chart card
+// and referral link. Called by Pages._db in dashboard-html.js.
 Pages._db2=function(b,u,copies,f){
   var html='';
   html+='<h3 style="font-size:14.5px;font-weight:800;color:var(--ink);margin-bottom:8px">Quick actions &amp; balances</h3><div class="compact-grid">';
@@ -9,6 +31,7 @@ Pages._db2=function(b,u,copies,f){
   html+='<div class="c-card"><small>TOTAL WITHDRAW</small><div class="cv">'+f(b.total_withdrawn_cents)+'</div></div>';
   html+=b.main_cents>0?'<div class="c-card withdrawable"><small>WITHDRAWABLE</small><div class="cv"><span onclick="App.navigate(\'/withdraw\')" style="cursor:pointer;color:var(--orange)">Withdraw '+f(b.main_cents)+' →</span></div></div>':'<div class="c-card"><small>COPY INVESTED</small><div class="cv">'+f(b.copy_cents)+'</div></div>';
   html+='</div>';
+  // Only active copies are shown in the My Copies card.
   var act=(copies||[]).filter(function(c){return c.status==='active';});
   if(act.length>0){
     html+='<div class="card" style="padding:20px;margin-top:16px"><div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px"><h3 style="font-size:16px;font-weight:800">My Copies</h3><span style="background:#ECFDF5;color:#059669;font-size:11px;font-weight:800;padding:4px 10px;border-radius:999px">'+act.length+' ACTIVE</span><button onclick="App.navigate(\'/my-copies\')" style="margin-left:auto;background:linear-gradient(135deg,var(--orange),var(--orange2));color:#fff;border:none;border-radius:10px;padding:9px 16px;font-weight:700;font-size:13px;cursor:pointer;font-family:inherit">Manage →</button></div>';

@@ -1,4 +1,27 @@
-// admin-forget.js — Password Forget Requests (message to admin) + one-time OTP
+/*
+ * admin-forget.js — Password Forget Requests page.
+ *
+ * Renders /admin/forget-requests: users who asked for password help by
+ * message. The admin verifies the user, then generates a one-time OTP the
+ * user logs in with to set a new password, or rejects the request.
+ * Key functions: AdminPages.forgetRequests, AdminPages._genForgetOtp,
+ * AdminPages._rejectForget.
+ *
+ * Gotchas:
+ * - The OTP is 8 digits, valid 24 hours, single use, and shown only once;
+ *   generating a new OTP invalidates any older one.
+ * - No SMTP is involved: the OTP is copied from the modal and sent to the
+ *   user by message.
+ * - Money is integer cents everywhere; display with utils.fmtMoney.
+ * - Admin API calls go through adminApi in js/admin-api.js.
+ * - Showcase accounts (is_showcase=1) are demo accounts with DISPLAY
+ *   balances set by the admin; they are excluded from all admin totals,
+ *   ledgers and reports.
+ * - Bump the ?v= cache version in script tags on every release, or
+ *   browsers keep serving stale code.
+ */
+// Renders /admin/forget-requests: users who asked for password help.
+  // Data comes from adminApi.getForgetRequests().
 AdminPages.forgetRequests=async function(){
   try{
     const _gen=AdminApp._gen;
@@ -11,6 +34,8 @@ AdminPages.forgetRequests=async function(){
     </tbody></table></div>`,'Forget Requests');
   }catch(e){document.getElementById('admin-app').innerHTML=`<p class="p-8 text-red-500">${e.message}</p>`;}
 };
+// Confirms, then generates a 24-hour one-time OTP via
+  // adminApi.generateForgetOtp and shows it once in a modal to copy.
 AdminPages._genForgetOtp=function(id){
   utils.confirm('Generate a 24-hour one-time OTP for this user? Any old OTP will stop working.',async()=>{
     try{
@@ -19,6 +44,7 @@ AdminPages._genForgetOtp=function(id){
     }catch(e){utils.toast(e.message,'error');}
   },'Generate OTP');
 };
+// Confirms, then rejects a forget request via adminApi.rejectForgetRequest.
 AdminPages._rejectForget=function(id){
   utils.confirm('Reject this forget request?',async()=>{
     try{await adminApi.rejectForgetRequest(id);utils.toast('Request rejected','success');AdminPages.forgetRequests();}

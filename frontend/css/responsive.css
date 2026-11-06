@@ -1,4 +1,10 @@
-/* responsive.css — Nexora Fx layout + media queries */
+/* responsive.css - Nexora FX responsive layout and media queries.
+ * Sections below: sidebar layout, mobile bottom nav, then breakpoints:
+ * desktop (>=1024px, fixed sidebar, no bottom nav), mobile (<1024px,
+ * sidebar slides in, bottom nav shown), tablet (640-1023px), phone
+ * (<640px, stacked layouts, 2-column grids, horizontal table scroll),
+ * very small phones (<380px), and safe-area padding for notched phones.
+ * Gotcha: this file uses CRLF line endings - keep them when editing. */
 
 /* ── Sidebar layout ───────────────────────────── */
 .sidebar{width:260px;background:#fff;border-right:1px solid #F1F5F9;height:100vh;position:fixed;top:0;left:0;overflow-y:auto;z-index:40;display:flex;flex-direction:column;transition:transform .25s;}

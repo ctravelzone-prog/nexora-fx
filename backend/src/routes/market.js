@@ -4,11 +4,17 @@
 // 4s server-side cache (frontend polls every 5s), so each poll gets fresh data.
 // A failed source falls back to the cached value; if everything fails the
 // endpoint answers 502 and the page keeps showing its sample values.
+// Routes: GET /config (public API keys for the frontend), GET /quotes
+// (live BTC + XAU prices for the hero), GET /holidays (Nager.Date
+// holidays, 14 countries, 24h server cache).
+// Internals: fetchJson (timed fetch), getQuotes (cached 4s), getHolidays.
 const router = require('express').Router();
 
 let cache = null; // {at, data}
 const CACHE_MS = 4000;
 
+// Fetches a JSON URL with a hard timeout (AbortController); a timeout
+// or a non-2xx response returns null instead of throwing.
 async function fetchJson(url, opts, timeoutMs) {
   const c = new AbortController();
   const t = setTimeout(() => c.abort(), timeoutMs || 8000);
@@ -21,6 +27,11 @@ async function fetchJson(url, opts, timeoutMs) {
 
 const YAHOO_UA = { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36' };
 
+// Returns cached BTC + XAU prices (4s cache) or fetches them fresh.
+// BTC: Bitstamp price + CoinGecko 24h change. XAU: gold-api spot price
+// + Yahoo GC=F 24h change — Yahoo must NEVER supply the price itself
+// (futures run ~$5 above spot). Last cached spot is served if gold-api
+// blinks; answers 502 only when all sources fail at once.
 async function getQuotes() {
   // BTC price: Bitstamp (cents, ticks every few seconds). BTC 24h change:
   // CoinGecko (matches what trading apps show; Bitstamp's `open` is only the
@@ -63,10 +74,13 @@ async function getQuotes() {
 // Serves the Finnhub key (from backend .env, never from source) so the browser
 // can open Finnhub's websocket directly. Empty string = no key configured,
 // and the page simply keeps polling /quotes.
+// GET /config — public keys the frontend needs (currently only the
+// Finnhub key; empty when not configured).
 router.get('/config', (req, res) => {
   res.json({ finnhubKey: process.env.FINNHUB_KEY || '' });
 });
 
+// GET /quotes — live BTC + XAU price and 24h change (see getQuotes).
 router.get('/quotes', async (req, res) => {
   const now = Date.now();
   if (cache && now - cache.at < CACHE_MS) return res.json({ ...cache.data, cached: true });
@@ -99,6 +113,9 @@ const HOLIDAY_COUNTRIES = [
 let holCache = null; // {at, data}
 const HOL_CACHE_MS = 24 * 60 * 60 * 1000;
 
+// Returns public holidays for 14 countries from the free Nager.Date
+// API (24h server cache). In December it also fetches next year so the
+// Schedule page never goes empty at year end.
 async function getHolidays() {
   const now = new Date();
   const years = [now.getFullYear()];
@@ -116,6 +133,7 @@ async function getHolidays() {
   return { years, holidays: all };
 }
 
+// GET /holidays — holidays for the Schedule page (see getHolidays).
 router.get('/holidays', async (req, res) => {
   const now = Date.now();
   if (holCache && now - holCache.at < HOL_CACHE_MS) return res.json({ ...holCache.data, cached: true });

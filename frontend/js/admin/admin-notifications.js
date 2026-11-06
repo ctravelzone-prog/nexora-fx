@@ -1,4 +1,26 @@
-// admin-notifications.js — Send Notifications
+/*
+ * admin-notifications.js — Send Notification page.
+ *
+ * Renders /admin/send-notification: a form to notify All Users or one
+ * searched user, with type, title, message and an optional action link.
+ * Key functions: AdminPages.sendNotification, AdminPages._searchNotifUser.
+ *
+ * Gotchas:
+ * - For a single user, the admin must search and click a result first; the
+ *   chosen user id is stored in a hidden field and the form refuses to send
+ *   without it.
+ * - Sends through adminApi.sendNotif; the user list search is capped at 5.
+ * - Money is integer cents everywhere; display with utils.fmtMoney.
+ * - Admin API calls go through adminApi in js/admin-api.js.
+ * - Showcase accounts (is_showcase=1) are demo accounts with DISPLAY
+ *   balances set by the admin; they are excluded from all admin totals,
+ *   ledgers and reports.
+ * - Bump the ?v= cache version in script tags on every release, or
+ *   browsers keep serving stale code.
+ */
+// Renders /admin/send-notification: target (All Users or one searched
+  // user), type, title, message and optional action link. Sends via
+  // adminApi.sendNotif.
 AdminPages.sendNotification=async function(){
   AdminComponents.layout(`<h2 class="font-bold text-lg mb-4">Send Notification</h2>
   <div class="card max-w-lg">
@@ -48,6 +70,8 @@ AdminPages.sendNotification=async function(){
     utils.loading(btn,false);
   };
 };
+// Searches users by username or email (up to 5 via adminApi.getUsers)
+  // and shows clickable results; clicking one stores its id for the send.
 AdminPages._searchNotifUser=async function(){
   const q=document.getElementById('nu-search').value.trim();if(!q)return;
   try{const users=await adminApi.getUsers({search:q,limit:5});

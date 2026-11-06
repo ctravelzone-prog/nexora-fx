@@ -1,4 +1,23 @@
-// pages/history2.js — Copy History + Trade History
+/*
+ * history2.js — Copy History and Trade History pages for Nexora FX.
+ *
+ * Two read-only history tables: past copies and the daily profit log.
+ *
+ * Key functions:
+ * - Pages.copyHistory — past copies (api.getCopyHistory): trader,
+ *   amount, profit, status, started and stopped dates.
+ * - Pages.tradeHistory — daily profit log (api.getDailyPnlLog):
+ *   trader, day number out of 22, rate and PnL for that day.
+ *
+ * Rules: money is integer cents; display via utils.fmtMoney. The
+ * daily rate is stored in basis points (rate_bp), so dividing by 100
+ * gives the percent. Website UI text is always English.
+ * Gotcha: the ?v= cache version in script tags must be bumped on every
+ * release, or browsers may serve stale code.
+ * Note: this file uses CRLF line endings — preserve them on every edit.
+ */
+// Copy History + Trade History pages. See the header above.
+// Copy History page. Loads past copies and renders the table.
 Pages.copyHistory=async function(){
   try{
     const copies=await api.getCopyHistory();
@@ -13,6 +32,8 @@ Pages.copyHistory=async function(){
   }catch(e){document.getElementById('app').innerHTML='<p class="p-8" style="color:var(--red)">'+e.message+'</p>';}
 };
 
+// Trade History page. Loads the daily profit log and renders the
+// table; the rate is shown as a percent (rate_bp / 100).
 Pages.tradeHistory=async function(){
   try{
     const logs=await api.getDailyPnlLog();

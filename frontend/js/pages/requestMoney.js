@@ -1,7 +1,26 @@
-// pages/requestMoney.js — user requests a balance correction from admin
+/*
+ * pages/requestMoney.js — Request Money: user asks the admin for a
+ * balance correction (for example a deposit that was not credited).
+ * Key functions:
+ * - Pages.requestMoney() renders the page (api.getMyMoneyRequests())
+ *   and submits new requests (api.requestMoney()).
+ * Rules / gotchas:
+ * - Only one pending request at a time: while one is pending the form
+ *   is disabled and a warning is shown.
+ * - An approved request is added to Main Balance by the admin.
+ * - Money is integer cents everywhere; display with utils.fmtMoney.
+ * - Balances come from GET /api/user/me; showcase accounts
+ *   (is_showcase=1) show DISPLAY balances set by the admin.
+ * - The ?v= cache version in script tags must be bumped on every
+ *   release or browsers may serve stale code.
+ */
+// Renders the Request Money page: new-request form plus the history
+// of past requests with their status and any admin note.
+// API: api.getMyMoneyRequests().
 Pages.requestMoney=async function(){
   try{
     const reqs=await api.getMyMoneyRequests();
+// Find the open request, if any. A pending request blocks a new one.
     const pending=reqs.find(r=>r.status==='pending');
     Components.layout(`<div class="max-w-2xl">
       <h1 class="text-xl font-bold mb-1">Request Money</h1>
@@ -27,6 +46,8 @@ Pages.requestMoney=async function(){
         </div>`).join(''):'<p class="text-sm text-gray-400">No requests yet.</p>'}
       </div>
     </div>`,'Request Money','');
+// New-request form submit. API: api.requestMoney(). Reloads the page
+// on success so the new request appears in the history below.
     document.getElementById('mr-form').onsubmit=async(e)=>{e.preventDefault();const f=e.target,err=document.getElementById('mr-err'),btn=document.getElementById('mr-btn');err.classList.add('hidden');utils.loading(btn,true);try{await api.requestMoney({amount:parseFloat(f.amount.value),reason:f.reason.value});utils.toast('Request sent to admin!','success');Pages.requestMoney();}catch(ex){err.textContent=ex.message;err.classList.remove('hidden');}utils.loading(btn,false);};
   }catch(e){document.getElementById('app').innerHTML=`<p class="p-8 text-red-500">${e.message}</p>`;}
 };

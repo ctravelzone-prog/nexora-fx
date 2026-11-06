@@ -1,12 +1,23 @@
-// profitService.js — 22-day profit schedule
-// Target: profit_target_bp setting (default 1000 bp = 10%) over 22 weekday-only days
-// 2 or 3 loss days, varying daily rates, Day 22 balances to exactly the target
+// services/profitService.js — 22-day profit cycle: schedule + daily apply.
+// The profit target (default 10%) is spread over 22 weekdays of a month
+// (Sat/Sun skipped). generateSchedule makes varied daily rates with 2-3
+// loss days (never Day 1 or Day 22); Day 22 is the balancing day, set to
+// whatever remains so the month lands exactly on the target — target
+// wording, never a guarantee. applyDailyPnl applies one day to every
+// active copy (and to showcase display balances, via applyShowcasePnl).
+// A per-user profit target scales that user's rates. All money is
+// integer cents; the profit goes to Copy Invested only, on the first
+// copied amount, no compounding.
 const { getDb } = require('../models/database');
 const H = require('./moneyHelpers');
 
 // Global cycle target in basis points (100 = 1%). Admin sets it in Money Settings.
 function getTargetBp() { const v = parseInt(H.getSetting('profit_target_bp','1000')); return Number.isFinite(v) && v >= 0 ? v : 1000; }
 
+// Builds the month's 22 daily rates from the global target: 2 or 3 loss
+// days (-20 to -40 bp, never Day 1 or Day 22), varied positive rates,
+// and Day 22 set to the exact remainder so the month lands on the
+// target. Replaces any existing schedule for the month.
 function generateSchedule(year, month) {
   const db = getDb();
   const TARGET_BP = getTargetBp();
@@ -32,6 +43,8 @@ function generateSchedule(year, month) {
   return days;
 }
 
+// Splits a total into varied daily rates: random weights scaled to the
+// total, the last rate adjusted so the sum is exact, then shuffled.
 function variedRates(count, total) {
   if(count<=0) return [];
   const raw = Array.from({length:count},()=>10+Math.random()*60);
@@ -42,6 +55,8 @@ function variedRates(count, total) {
   return sc;
 }
 
+// Picks n loss-day positions at random from days 2 to total-1 (never
+// Day 1 or the last day).
 function pickLossPos(total, n) {
   const avail=[]; for(let i=2;i<=total-1;i++) avail.push(i);
   const pos=[];
@@ -49,6 +64,8 @@ function pickLossPos(total, n) {
   return pos;
 }
 
+// Returns the month's schedule rows ordered by day number (empty when
+// the month has no schedule yet).
 function getSchedule(year, month) {
   return getDb().prepare('SELECT * FROM profit_schedule WHERE cycle_year=? AND cycle_month=? ORDER BY day_number').all(year,month);
 }
@@ -89,6 +106,13 @@ function applyShowcasePnl(db, rateBp, yr, mo, day) {
   return { count: cnt, totalApplied: tot };
 }
 
+// Applies one schedule day to every active copy: each copy earns rate%
+// of its amount (scaled by the user's own target when set), the copy
+// and the balance profit are updated, a daily_pnl_log row and a completed
+// 'daily_pnl' transaction are written, and the schedule day is marked
+// applied. Days already logged are skipped. Showcase accounts are handled
+// separately (applyShowcasePnl) and only on a full apply — a single-user
+// manual apply never touches showcase.
 function applyDailyPnl(rateBp, yr, mo, day, targetUserId) {
   const db = getDb();
   return db.transaction(()=>{
@@ -122,6 +146,10 @@ function applyDailyPnl(rateBp, yr, mo, day, targetUserId) {
   })();
 }
 
+// After an admin edits one day's rate: writes the edited rate, then
+// re-spreads the remaining unapplied days (except Day 22) proportionally
+// so the month still lands on the target; Day 22 (if unapplied) is set
+// to the exact remainder. Applied days are never changed.
 function rebalanceSchedule(year,month,editedDay,editedRate){
   const db=getDb();
   const TARGET_BP=getTargetBp();
