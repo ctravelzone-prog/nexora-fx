@@ -237,6 +237,6 @@ Components.bottomNav=function(){
 // Full logged-in page layout: sidebar + header + content + bottom nav.
 // Also refreshes the unread notification count for the bell badge.
 Components.layout=function(html,title,sub){
-  document.getElementById('app').innerHTML=Components.sidebar()+'<div class="with-sidebar">'+Components.appHeader(title,sub)+'<main class="p-4 lg:p-6">'+html+'</main></div>'+Components.bottomNav();
+  document.getElementById('app').innerHTML=Components.sidebar()+'<div class="with-sidebar">'+Components.appHeader(title,sub)+'<main class="p-4 pb-24 lg:p-6">'+html+'</main></div>'+Components.bottomNav();
   api.getNotifications().then(function(d){App.state.unreadCount=d.unread_count||0;}).catch(function(){});
 };
