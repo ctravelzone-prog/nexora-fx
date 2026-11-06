@@ -31,8 +31,6 @@ Pages.deposit=async function(){
           <div class="flex flex-col-reverse sm:flex-col lg:grid lg:grid-cols-2 gap-4 lg:gap-6 deposit-layout">
             <div>
               ${[['1','Scan the QR in Binance app','Open Binance → Pay → Scan, and scan the code shown here.'],['2','Send your payment','Send USDT only, and double-check the Pay ID before you confirm.'],['3','Enter Transaction ID and amount','Submit the form so your deposit can be verified and credited.']].map(([n,t,d])=>`<div class="flex gap-3 mb-4"><div class="w-7 h-7 rounded-full bg-orange-500 text-white font-bold text-sm flex items-center justify-center flex-shrink-0">${n}</div><div><div class="font-semibold text-sm">${t}</div><div class="text-xs text-gray-400">${d}</div></div></div>`).join('')}
-              <div class="alert-warning text-sm mb-3">⚠️ <strong>USDT only, via Binance app.</strong> Check the Pay ID — wrong-account payments can't be recovered.</div>
-              <div class="alert-warning text-sm">⚠️ Risk warning: profit is a target, never guaranteed, and Main Balance has a 3-month lock (15% early fee). <a href="/risk-terms" class="text-orange-600 font-semibold">Read the Risk Disclosure →</a></div>
             </div>
             <div>
               <div class="border border-gray-100 rounded-xl p-4 text-center mb-4">
