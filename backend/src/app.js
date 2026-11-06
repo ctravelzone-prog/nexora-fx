@@ -5,7 +5,7 @@
 // /api/referral, /api/market) and every admin route (/api/admin/*).
 // Also serves the frontend SPA and the admin page, and starts the daily
 // auto-profit scheduler on boot.
-// Gotchas: the public API is capped at 200 requests / 15 min per IP, but
+// Gotchas: the public API is capped at 1000 requests / 15 min per IP, but
 // /api/admin/* is skipped from that cap and has its own 3000 req / 15 min
 // cap, because the admin dashboard polls every second (~900 req / 15 min)
 // and would otherwise hit 429 after ~3 minutes.
@@ -27,19 +27,35 @@ app.use(express.urlencoded({ extended: true }));
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 app.use('/assets', express.static(path.join(__dirname, '../../frontend/assets')));
 
-// Rate limiting — the public API is capped at 200 requests / 15 min per IP.
+// Rate limiting — the public API is capped at 1000 requests / 15 min per IP.
 // The admin panel is excluded from that cap: it polls the dashboard every second
-// (1s auto-refresh), which alone is ~900 requests / 15 min and tripped the 200 cap
-// with a 429 after ~3 minutes. Admin access already requires a valid admin JWT,
-// so the admin API gets its own higher cap instead.
-// The two public polling GETs are also skipped: the landing page polls
-// /api/market/quotes every 5s (180 calls / 15 min) and the app checks
-// /api/app/version on open — together with the 15s bell poll (60 calls)
-// they ate the whole 200 budget, so login/register answered HTTP 429.
-// Both are cheap cached public reads; skipping them keeps the 200 cap
-// for real actions (login, register, deposits) where it protects us.
-const limiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 200, skip: (req) => req.originalUrl.startsWith('/api/admin/') || req.originalUrl.startsWith('/api/market/quotes') || req.originalUrl.startsWith('/api/app/version') });
+// (1s auto-refresh), which alone is ~900 requests / 15 min and tripped the old
+// 200 cap with a 429 after ~3 minutes. Admin access already requires a valid
+// admin JWT, so the admin API gets its own higher cap instead.
+// Skipped from the general cap (cheap reads that poll on a timer):
+//  /api/market/quotes (landing polls every 5s = 180 calls / 15 min)
+//  /api/app/version (app checks it on open)
+//  GET /api/user/notifications (bell polls every 15s = 60 calls / 15 min)
+//  GET /api/support/tickets* (support thread polls every 3s = 300 calls /
+//  15 min — that alone ate the whole old 200 budget, so login answered 429).
+// The last two need a valid user JWT, so skipping them is safe; the cap
+// stays for real actions. The 1000 cap (was 200) also gives headroom when
+// several users share one mobile-network IP.
+// Login/register get their own strict cap (30 / 15 min per IP) so password
+// guessing stays blocked even with the higher general cap.
+const limiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 1000, skip: (req) => {
+  const u = req.originalUrl;
+  if (u.startsWith('/api/admin/')) return true;
+  if (u.startsWith('/api/market/quotes')) return true;
+  if (u.startsWith('/api/app/version')) return true;
+  if (req.method === 'GET' && u.startsWith('/api/user/notifications')) return true;
+  if (req.method === 'GET' && u.startsWith('/api/support/tickets')) return true;
+  return false;
+} });
 app.use('/api/', limiter);
+const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 30, handler: (req, res) => res.status(429).json({ error: 'Too many login attempts. Please try again in a few minutes.' }), standardHeaders: false, legacyHeaders: false });
+app.use('/api/auth/login', authLimiter);
+app.use('/api/auth/register', authLimiter);
 const adminLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 3000 });
 app.use('/api/admin/', adminLimiter);
 
