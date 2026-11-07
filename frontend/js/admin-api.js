@@ -40,7 +40,7 @@ const adminApi = {
   // Finance: deposits, withdrawals, transactions and referrals.
   // Deposits are approved/rejected here; approval credits Main Balance.
   getDeposits:(p)=>api.request('GET',`/api/admin/finance/deposits?${new URLSearchParams(p||{})}`,null,true),
-  approveDeposit:(id)=>api.request('POST',`/api/admin/finance/deposits/${id}/approve`,{},true),
+  approveDeposit:(id,isShowcase)=>api.request('POST',`/api/admin/finance/deposits/${id}/approve`,{is_showcase:!!isShowcase},true),
   rejectDeposit:(id,d)=>api.request('POST',`/api/admin/finance/deposits/${id}/reject`,d,true),
   getWithdrawals:(p)=>api.request('GET',`/api/admin/finance/withdrawals?${new URLSearchParams(p||{})}`,null,true),
   processWithdrawal:(id,d)=>api.request('POST',`/api/admin/finance/withdrawals/${id}/process`,d,true),

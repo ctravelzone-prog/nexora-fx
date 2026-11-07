@@ -5,7 +5,9 @@
 // as the current password). GET /transactions is the History list,
 // /notifications lists and marks the user's notifications, /settings
 // returns the public site settings.
-// Rules: showcase accounts (is_showcase=1) cannot log in — display only.
+// Rules: showcase accounts (is_showcase=1) live in the separate showcase
+// database and CAN log in and do everything a real user can; their money
+// never appears in admin totals, ledgers or reports.
 // Their balances live on the users row and show on the admin Showcase
 // page. All write routes refuse impersonation sessions (admin 'Login
 // as User'); reads allow both normal and impersonation tokens.
@@ -31,14 +33,15 @@ const auth = authImpersonation; // allow both normal and impersonation tokens
 
 // GET /me — profile + balances + withdrawable fee. (The showcase
 // display-balance fallback below is unreachable now — showcase accounts
-// cannot log in — kept only as a safety net; showcase balances never
+// the showcase database — kept as a safety net; showcase balances never
 // come from the real balances table.)
 // GET /api/user/me
 router.get('/me', auth, (req,res)=>{
   const db=getDb();
   const user=req.user;
   const bal=getBalance(user.id);
-  // Showcase fallback (unreachable — showcase accounts cannot log in):
+  // Showcase users (separate showcase DB): display balances come from
+  // the showcase_*_cents fields on their users row:
   // the admin-set DISPLAY balances live on the users row
   // (showcase_*_cents), not in the real balances table.
   if(user.is_showcase===1){

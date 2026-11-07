@@ -5,11 +5,15 @@
 // (the user's balances row), getWithdrawFeeBp / calcMainWithdrawFee
 // (fee logic), createAdminNotif (admin-side notifications), fmtC.
 // Rule: all money is integer cents; fmtC only formats cents for display.
-const { getDb } = require('../models/database');
+const { getDb, getMainDb } = require('../models/database');
 
 // Reads one site_settings value, or the default when the key is missing.
+// Global settings live in the MAIN database only (the showcase DB has no
+// site_settings rows). Always read them from the main DB, even for a
+// showcase request — otherwise a showcase user would silently get the
+// defaults instead of the admin's current settings.
 function getSetting(key, def) {
-  const db = getDb();
+  const db = getMainDb();
   const row = db.prepare('SELECT value FROM site_settings WHERE key=?').get(key);
   return row ? row.value : def;
 }

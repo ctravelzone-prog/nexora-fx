@@ -37,20 +37,25 @@
 //   same push; the app dedups by notification id (last_seen_id).
 const { WebSocketServer } = require('ws');
 const jwt = require('jsonwebtoken');
-const { getDb } = require('../models/database');
+const { getDb, getMainDb, getShowcaseDb } = require('../models/database');
 
-// userId -> Set of live sockets.
+// (db, userId) -> Set of live sockets. The key is 'main:<id>' for real
+// users and 'sc:<id>' for showcase users — the two databases autoincrement
+// independently, so a bare userId would collide across them.
 const clients = new Map();
+function clientKey(userId, isShowcase) { return (isShowcase ? 'sc:' : 'main:') + userId; }
 // adminId -> Set of live sockets.
 const adminClients = new Map();
 // Max notification id already pushed (or seen at boot).
 let watermark = 0;
+// Same, for the showcase database (its ids are independent of the main DB).
+let showcaseWatermark = 0;
 // Max admin-notification id already pushed (or seen at boot).
 let adminWatermark = 0;
 let pollTimer = null;
 
-function sendToUser(userId, obj) {
-  const set = clients.get(userId);
+function sendToUser(userId, obj, isShowcase) {
+  const set = clients.get(clientKey(userId, !!isShowcase));
   if (!set || set.size === 0) return 0;
   const data = JSON.stringify(obj);
   let n = 0;
@@ -79,9 +84,10 @@ function sendToAdmins(obj) {
 // admin sockets. Exported for tests.
 function pollOnce() {
   if (clients.size > 0) {
+    // Real users (main DB).
     let rows;
     try {
-      rows = getDb().prepare(
+      rows = getMainDb().prepare(
         'SELECT id,user_id,title,message,action_url FROM notifications WHERE id>? AND is_read=0 ORDER BY id ASC LIMIT 50'
       ).all(watermark);
     } catch (e) { rows = []; }
@@ -93,7 +99,24 @@ function pollOnce() {
         title: r.title,
         message: r.message,
         action_url: r.action_url || null,
-      });
+      }, false);
+    }
+    // Showcase users (showcase DB) — same shape, separate watermark.
+    let scRows;
+    try {
+      scRows = getShowcaseDb().prepare(
+        'SELECT id,user_id,title,message,action_url FROM notifications WHERE id>? AND is_read=0 ORDER BY id ASC LIMIT 50'
+      ).all(showcaseWatermark);
+    } catch (e) { scRows = []; }
+    for (const r of scRows) {
+      if (r.id > showcaseWatermark) showcaseWatermark = r.id;
+      sendToUser(r.user_id, {
+        type: 'notification',
+        id: r.id,
+        title: r.title,
+        message: r.message,
+        action_url: r.action_url || null,
+      }, true);
     }
   }
   if (adminClients.size > 0) {
@@ -119,9 +142,13 @@ function pollOnce() {
 function attachLivePush(server) {
   // Start at the current max ids so old rows are never replayed.
   try {
-    const r = getDb().prepare('SELECT MAX(id) AS m FROM notifications').get();
+    const r = getMainDb().prepare('SELECT MAX(id) AS m FROM notifications').get();
     watermark = (r && r.m) || 0;
   } catch (e) { watermark = 0; }
+  try {
+    const r = getShowcaseDb().prepare('SELECT MAX(id) AS m FROM notifications').get();
+    showcaseWatermark = (r && r.m) || 0;
+  } catch (e) { showcaseWatermark = 0; }
   try {
     const r = getDb().prepare('SELECT MAX(id) AS m FROM admin_notifications').get();
     adminWatermark = (r && r.m) || 0;
@@ -133,6 +160,7 @@ function attachLivePush(server) {
     ws.isAlive = true;
     ws.on('pong', () => { ws.isAlive = true; });
     let userId = null;
+    let isShowcase = false;
     let adminId = null;
     let authed = false;
     const authTimer = setTimeout(() => {
@@ -141,8 +169,9 @@ function attachLivePush(server) {
     const drop = () => {
       clearTimeout(authTimer);
       if (userId != null) {
-        const set = clients.get(userId);
-        if (set) { set.delete(ws); if (set.size === 0) clients.delete(userId); }
+        const key = clientKey(userId, isShowcase);
+        const set = clients.get(key);
+        if (set) { set.delete(ws); if (set.size === 0) clients.delete(key); }
       }
       if (adminId != null) {
         const set = adminClients.get(adminId);
@@ -157,15 +186,19 @@ function attachLivePush(server) {
         try {
           const payload = jwt.verify(msg.token, process.env.JWT_SECRET);
           if (payload.type === 'user') {
-            const user = getDb().prepare(
-              'SELECT id FROM users WHERE id=? AND is_active=1 AND is_showcase=0'
+            // Showcase users live in the showcase DB (JWT isShowcase flag).
+            isShowcase = payload.isShowcase === true;
+            const udb = isShowcase ? getShowcaseDb() : getMainDb();
+            const user = udb.prepare(
+              'SELECT id FROM users WHERE id=? AND is_active=1'
             ).get(payload.userId);
             if (!user) throw new Error('user not found');
             userId = user.id;
             authed = true;
             clearTimeout(authTimer);
-            if (!clients.has(userId)) clients.set(userId, new Set());
-            clients.get(userId).add(ws);
+            const key = clientKey(userId, isShowcase);
+            if (!clients.has(key)) clients.set(key, new Set());
+            clients.get(key).add(ws);
             try { ws.send(JSON.stringify({ type: 'ready', user_id: userId })); } catch (e) {}
           } else if (payload.type === 'admin') {
             const admin = getDb().prepare(

@@ -7,7 +7,7 @@
 // in referrals.
 // Rule: all money is integer cents. The deposit itself is submitted by
 // the user in routes/deposit.js; this file only settles it.
-const { getDb } = require('../models/database');
+const { getDb, getMainDb } = require('../models/database');
 const H = require('./moneyHelpers');
 
 // Pays the referrer once, on the user's FIRST deposit only: 4% of the
@@ -33,8 +33,29 @@ function payRef(userId, depCents, db, s) {
 // 'approved', marks the pending History row completed (or inserts one
 // for deposits submitted before pending rows existed), then pays the
 // referrer via payRef.
+// Showcase deposit: the money is DISPLAY money — it goes to the user's
+// showcase_main_cents (never a balances row, never the admin totals).
+// No referral is paid (showcase users have no referrer in the main DB).
+// The admin notification goes to the MAIN DB (the admin bell reads it)
+// with reference_type 'showcase_deposit' so its id cannot collide with
+// a real deposit's id. The user notification stays in the showcase DB.
 function applyDeposit(userId, depositId, amountCents, approverId) {
   const db = getDb(), s = H.getMoneySettings();
+  const u = db.prepare('SELECT is_showcase FROM users WHERE id=?').get(userId);
+  if (u && u.is_showcase === 1) {
+    return db.transaction(() => {
+      db.prepare('UPDATE users SET showcase_main_cents=showcase_main_cents+? WHERE id=?').run(amountCents, userId);
+      db.prepare(`UPDATE deposits SET status='approved',approved_by=?,approved_at=unixepoch(),updated_at=unixepoch() WHERE id=?`).run(approverId, depositId);
+      const upd = db.prepare(`UPDATE transactions SET status='completed' WHERE reference=?`).run(`DEP-${depositId}`);
+      if (!upd.changes) {
+        db.prepare('INSERT INTO transactions (user_id,type,amount_cents,fee_cents,net_cents,direction,status,reference,reason,formula) VALUES (?,?,?,0,?,?,?,?,?,?)')
+          .run(userId, 'deposit', amountCents, amountCents, 'in', 'completed', `DEP-${depositId}`, 'Deposit approved', `Showcase Main += $${H.fmtC(amountCents)}`);
+      }
+      H.createAdminNotif(getMainDb(), 'deposit', `Deposit approved $${H.fmtC(amountCents)}`, depositId, 'showcase_deposit', 'deposits');
+      db.prepare('INSERT INTO notifications (user_id,title,message,type) VALUES (?,?,?,?)')
+        .run(userId, 'Deposit approved', `Your deposit of $${H.fmtC(amountCents)} has been approved and added to your Main Balance.`, 'success');
+    })();
+  }
   return db.transaction(() => {
     H.getOrCreateBalance(userId);
     db.prepare('UPDATE balances SET main_cents=main_cents+?,total_deposited_cents=total_deposited_cents+?,first_deposit_at=COALESCE(first_deposit_at,unixepoch()),updated_at=unixepoch() WHERE user_id=?')

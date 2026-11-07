@@ -5,6 +5,9 @@
 // (impersonation), POST /:id/profit-target (per-user profit target).
 // Showcase accounts (demo accounts): GET /showcase/list, POST
 // /showcase/create, PUT /showcase/:id, DELETE /showcase/:id.
+// Showcase accounts live in the SEPARATE showcase database (same table
+// names) — never in the main DB, never in the admin dashboard / ledger.
+// They are fully functional (login, copy, deposit, withdraw, profit).
 // Rules: showcase money lives in showcase_*_cents display fields on the
 // users row, never in real balances, and never appears in admin totals.
 // The demo user nexora_fx and showcase users cannot be deleted here
@@ -13,7 +16,7 @@ const router = require('express').Router();
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const { v4: uuidv4 } = require('uuid');
-const { getDb } = require('../../models/database');
+const { getDb, getShowcaseDb } = require('../../models/database');
 const { USERNAME_RE } = require('../../services/usernameService');
 const { authAdmin, superAdminOnly } = require('../../middleware/auth');
 const { adminAddBalance } = require('../../services/withdrawService');
@@ -162,19 +165,21 @@ router.post('/:id/profit-target', authAdmin, superAdminOnly, (req,res)=>{
 });
 
 // GET /showcase/list — all showcase (demo) accounts, newest first.
-router.get('/showcase/list', authAdmin, (req,res)=>res.json(getDb().prepare('SELECT * FROM users WHERE is_showcase=1 ORDER BY created_at DESC').all()));
+// Reads the SHOWCASE database (the main DB holds no showcase users).
+router.get('/showcase/list', authAdmin, (req,res)=>res.json(getShowcaseDb().prepare('SELECT * FROM users WHERE is_showcase=1 ORDER BY created_at DESC').all()));
 
 // POST /showcase/create — Super Admin only. Creates a showcase account
 // with display balances (main/copy/profit/withdraw cents) and a password.
-// Showcase accounts cannot log in — display only. Their balances appear
-// on the admin Showcase page and never in admin totals.
+// Showcase accounts CAN log in and do everything a real user can (copy,
+// deposit, withdraw, profit) — their data lives in the separate showcase
+// database and never appears in the admin dashboard or ledger.
 router.post('/showcase/create', authAdmin, superAdminOnly, async (req,res)=>{
   try{
     const {full_name,username,email,password,main_cents,copy_cents,profit_cents,withdraw_cents}=req.body;
     if(!full_name||!username||!email||!password) return res.status(400).json({error:'Required'});
     if(!USERNAME_RE.test(username)) return res.status(400).json({error:'Username can only use lowercase letters, numbers, - and _'});
     const hash=await bcrypt.hash(password,12); const rc=Math.random().toString(36).substring(2,10).toUpperCase();
-    const uid=getDb().prepare('INSERT INTO users (full_name,username,email,password_hash,referral_code,is_showcase,showcase_main_cents,showcase_copy_cents,showcase_profit_cents,showcase_withdraw_cents,email_verified) VALUES (?,?,?,?,?,1,?,?,?,?,1)')
+    const uid=getShowcaseDb().prepare('INSERT INTO users (full_name,username,email,password_hash,referral_code,is_showcase,showcase_main_cents,showcase_copy_cents,showcase_profit_cents,showcase_withdraw_cents,email_verified) VALUES (?,?,?,?,?,1,?,?,?,?,1)')
       .run(full_name,username,email,hash,rc,main_cents||0,copy_cents||0,profit_cents||0,withdraw_cents||0).lastInsertRowid;
     res.json({success:true,id:uid});
   }catch(e){res.status(500).json({error:e.message});}
@@ -186,7 +191,7 @@ router.post('/showcase/create', authAdmin, superAdminOnly, async (req,res)=>{
 // A real user id returns 404 — this route cannot touch real users.
 router.put('/showcase/:id', authAdmin, superAdminOnly, async (req,res)=>{
   try{
-    const db=getDb();
+    const db=getShowcaseDb();
     const u=db.prepare('SELECT * FROM users WHERE id=? AND is_showcase=1').get(req.params.id);
     if(!u) return res.status(404).json({error:'Showcase account not found'});
     const {full_name,username,email,password,main_cents,copy_cents,profit_cents,withdraw_cents}=req.body;
@@ -219,12 +224,29 @@ router.put('/showcase/:id', authAdmin, superAdminOnly, async (req,res)=>{
 // (and its showcase profit log + notifications). Real users are never
 // touched by this route.
 router.delete('/showcase/:id', authAdmin, superAdminOnly, (req,res)=>{
-  const db=getDb();
+  const db=getShowcaseDb();
   const u=db.prepare('SELECT * FROM users WHERE id=? AND is_showcase=1').get(req.params.id);
   if(!u) return res.status(404).json({error:'Showcase account not found'});
+  // Child-first (FK order): showcase users can hold copies, deposits,
+  // withdrawals and transactions in the showcase DB now.
   const del=db.transaction(()=>{
-    db.prepare('DELETE FROM showcase_profit_log WHERE user_id=?').run(u.id);
+    db.prepare('DELETE FROM ticket_messages WHERE ticket_id IN (SELECT id FROM support_tickets WHERE user_id=?)').run(u.id);
+    db.prepare('DELETE FROM forget_request_messages WHERE request_id IN (SELECT id FROM forget_requests WHERE user_id=?)').run(u.id);
+    db.prepare('DELETE FROM daily_pnl_log WHERE user_id=?').run(u.id);
+    db.prepare('DELETE FROM copies WHERE user_id=?').run(u.id);
+    db.prepare('DELETE FROM deposits WHERE user_id=?').run(u.id);
+    db.prepare('DELETE FROM withdrawals WHERE user_id=?').run(u.id);
+    db.prepare('DELETE FROM transactions WHERE user_id=?').run(u.id);
     db.prepare('DELETE FROM notifications WHERE user_id=?').run(u.id);
+    db.prepare('DELETE FROM kyc_submissions WHERE user_id=?').run(u.id);
+    db.prepare('DELETE FROM money_requests WHERE user_id=?').run(u.id);
+    db.prepare('DELETE FROM profile_change_requests WHERE user_id=?').run(u.id);
+    db.prepare('DELETE FROM support_tickets WHERE user_id=?').run(u.id);
+    db.prepare('DELETE FROM forget_requests WHERE user_id=?').run(u.id);
+    db.prepare('DELETE FROM referrals WHERE referrer_user_id=? OR referred_user_id=?').run(u.id,u.id);
+    db.prepare('DELETE FROM user_blocks WHERE user_id=?').run(u.id);
+    db.prepare('DELETE FROM showcase_profit_log WHERE user_id=?').run(u.id);
+    db.prepare('DELETE FROM balances WHERE user_id=?').run(u.id);
     db.prepare('DELETE FROM users WHERE id=?').run(u.id);
   });
   try{ del(); res.json({success:true,deleted_user_id:u.id}); }

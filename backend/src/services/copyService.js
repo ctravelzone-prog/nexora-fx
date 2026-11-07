@@ -14,7 +14,8 @@ const H = require('./moneyHelpers');
 // Showcase (demo) accounts keep their money in DISPLAY fields on the users
 // row (showcase_main_cents / showcase_copy_cents / showcase_profit_cents),
 // never in the real balances table. (Unreachable now — showcase accounts
-// cannot log in — kept as legacy; showcase $ must never appear in admin
+// live in the separate showcase DB and CAN copy — showcase $ must never
+// appear in admin
 // totals or ledgers.)
 // True when the user is a showcase (demo) account.
 function isShowcase(db, userId) {

@@ -379,4 +379,4 @@ function retargetSchedule(year,month,newTargetBp){
   })();
 }
 
-module.exports = { generateSchedule, getSchedule, applyDailyPnl, rebalanceSchedule, retargetSchedule, getTargetBp, profitTimeForDay, formatProfitTime, formatMinutes, dayRunTime, formatDayRunTime, formatTrickleWindow, partTimes, dhakaNowMin, TRICKLE_START_MIN, TRICKLE_END_MIN, timeSlots, variedSplit };
+module.exports = { generateSchedule, getSchedule, applyDailyPnl, applyShowcasePnl, rebalanceSchedule, retargetSchedule, getTargetBp, profitTimeForDay, formatProfitTime, formatMinutes, dayRunTime, formatDayRunTime, formatTrickleWindow, partTimes, dhakaNowMin, TRICKLE_START_MIN, TRICKLE_END_MIN, timeSlots, variedSplit };

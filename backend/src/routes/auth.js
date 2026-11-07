@@ -11,7 +11,7 @@ const router = require('express').Router();
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const { v4: uuidv4 } = require('uuid');
-const { getDb } = require('../models/database');
+const { getDb, getMainDb, getShowcaseDb } = require('../models/database');
 const { getOrCreateBalance } = require('../services/moneyHelpers');
 const { USERNAME_RE, suggestUsernames } = require('../services/usernameService');
 const emailSvc = require('../services/emailService');
@@ -93,13 +93,19 @@ router.post('/login', async (req,res)=>{
   try{
     const {username,password,totp_code}=req.body;
     if(!username||!password) return res.status(400).json({error:'Username and password required'});
-    const db=getDb();
-    const user=db.prepare('SELECT * FROM users WHERE username=? OR LOWER(email)=LOWER(?)').get(username,username);
+    // Showcase users live in the separate showcase DB: look in the main DB
+    // first, then the showcase DB. The JWT carries isShowcase so the auth
+    // middleware routes the rest of the request to the right database.
+    const mainDb=getMainDb();
+    let db=mainDb, isShowcase=false;
+    let user=mainDb.prepare('SELECT * FROM users WHERE username=? OR LOWER(email)=LOWER(?)').get(username,username);
+    if(!user){
+      const scDb=getShowcaseDb();
+      user=scDb.prepare('SELECT * FROM users WHERE username=? OR LOWER(email)=LOWER(?)').get(username,username);
+      if(user){ db=scDb; isShowcase=true; }
+    }
     if(!user) return res.status(401).json({error:"Credentials doesn't match"});
     if(!user.is_active) return res.status(401).json({error:'Account is disabled'});
-// Showcase accounts cannot log in — they are display-only (their balances
-// live on the users row and show on the admin Showcase page only).
-    if(user.is_showcase===1) return res.status(401).json({error:'Showcase accounts cannot log in'});
 // An admin OTP (set from a forget request) works as the current
 // password while it is active and unexpired; it stays usable for 24
 // hours and can log in many times — it stops working only when the user
@@ -119,13 +125,13 @@ router.post('/login', async (req,res)=>{
     if(!ok){ if(!await bcrypt.compare(password,user.password_hash)) return res.status(401).json({error:"Credentials doesn't match"}); ok=true; }
 // 2FA is only enforced when the admin turned it on AND the user enabled
 // it. Without a TOTP code the login answers {require_2fa:true}.
-    const g2=db.prepare(`SELECT value FROM site_settings WHERE key='user_2fa_enabled'`).get();
+    const g2=getMainDb().prepare(`SELECT value FROM site_settings WHERE key='user_2fa_enabled'`).get();
     if(g2&&g2.value==='1'&&user.two_fa_enabled&&!forcePC){
       if(!totp_code) return res.json({require_2fa:true});
       const {authenticator}=require('otplib');
       if(!authenticator.verify({token:totp_code,secret:user.two_fa_secret})) return res.status(401).json({error:'Invalid 2FA code'});
     }
-    res.json({token:mkT({type:'user',userId:user.id}),force_password_change:forcePC,
+    res.json({token:mkT({type:'user',userId:user.id,isShowcase}),force_password_change:forcePC,
       user:{id:user.id,full_name:user.full_name,username:user.username,email:user.email,
         profile_photo:user.profile_photo,kyc_status:user.kyc_status,two_fa_enabled:user.two_fa_enabled}});
   }catch(e){res.status(500).json({error:e.message});}

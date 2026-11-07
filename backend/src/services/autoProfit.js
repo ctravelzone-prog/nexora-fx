@@ -14,8 +14,8 @@
 // - After all 22 days are applied, auto (ON only) shuffles the NEXT month's
 //   schedule once, so the next cycle is ready. If auto is OFF, no shuffle
 //   happens — admin clicks Generate Dynamic Shuffle after 22 days.
-const { getDb } = require('../models/database');
-const { generateSchedule, getSchedule, applyDailyPnl, formatDayRunTime, formatTrickleWindow, formatMinutes, TRICKLE_START_MIN } = require('./profitService');
+const { getDb, getShowcaseDb } = require('../models/database');
+const { generateSchedule, getSchedule, applyDailyPnl, applyShowcasePnl, formatDayRunTime, formatTrickleWindow, formatMinutes, TRICKLE_START_MIN } = require('./profitService');
 
 // Profit times live in profitService as a TRICKLE: each day's PnL is
 // paid in one part per copied trader, each part at its own time in the
@@ -141,6 +141,12 @@ function runAutoProfit(now = new Date(), opts = {}) {
     };
   }
   setAutoLastDate(p.dateStr);
+  // Showcase accounts earn the same daily rate on their DISPLAY copy
+  // balance (showcase DB, separate file). Only on a full apply, and
+  // idempotent via showcase_profit_log — a failure here must never break
+  // the real apply above.
+  let sc = { count: 0, totalApplied: 0 };
+  try { sc = applyShowcasePnl(getShowcaseDb(), next.rate_bp, p.year, p.month, next.day_number); } catch (_) {}
   try {
     getDb().prepare('INSERT INTO audit_log (admin_id,action,entity,after_value) VALUES (NULL,?,?,?)')
       .run('auto_apply_daily_pnl', `day${next.day_number}/${p.month}/${p.year}`, `rate_bp=${next.rate_bp}`);
@@ -149,6 +155,7 @@ function runAutoProfit(now = new Date(), opts = {}) {
     applied: true, dhakaDate: p.dateStr, weekday: p.weekday,
     day: next.day_number, rate_bp: next.rate_bp, runTime: formatTrickleWindow(),
     count: result.count, totalApplied: result.totalApplied, dayTotalApplied: result.dayTotalApplied,
+    showcaseCount: sc.count, showcaseTotalApplied: sc.totalApplied,
   };
 }
 
