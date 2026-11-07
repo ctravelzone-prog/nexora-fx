@@ -231,7 +231,9 @@ function applyShowcasePnl(db, rateBp, yr, mo, day) {
 // Applies one day's PnL as a TRICKLE: one part per copied trader, each
 // part landing at its own time in the 10:00 AM-7:00 PM window (see
 // partTimes). A call applies only the parts whose time has come; the
-// rest stay pending for a later tick. opts.nowMin is minutes since
+// rest stay pending for a later tick. Each part sends its own
+// notification the moment it lands (trader name + that part's amount
+// and rate), so the user sees every part as it arrives. opts.nowMin is minutes since
 // midnight Dhaka (defaults to now); opts.force pays every part at once
 // (the admin auto-run escape hatch — a manual /apply does NOT force,
 // so even a manual apply trickles across the day).
@@ -244,7 +246,7 @@ function applyDailyPnl(rateBp, yr, mo, day, targetUserId, opts) {
   const nowMin = (opts && opts.nowMin !== undefined) ? opts.nowMin : dhakaNowMin();
   const force = !!(opts && opts.force);
   return db.transaction(()=>{
-    let q="SELECT c.*, u.profit_target_bp FROM copies c JOIN users u ON c.user_id=u.id WHERE c.status='active' AND u.is_showcase=0 ORDER BY c.id";
+    let q="SELECT c.*, u.profit_target_bp, t.name AS trader_name FROM copies c JOIN users u ON c.user_id=u.id JOIN traders t ON c.trader_id=t.id WHERE c.status='active' AND u.is_showcase=0 ORDER BY c.id";
     const p=[]; if(targetUserId){q+=' AND c.user_id=?';p.push(targetUserId);}
     const copies=db.prepare(q).all(...p);
     let cnt=0,tot=0,pending=0,nextPartMin=null;
@@ -260,7 +262,11 @@ function applyDailyPnl(rateBp, yr, mo, day, targetUserId, opts) {
       if(!byUser.has(copy.user_id)) byUser.set(copy.user_id,[]);
       byUser.get(copy.user_id).push(copy);
     }
-    const appliedThisCall=new Set();
+    // Per-part notification: each part alerts on its own the moment it
+    // lands, naming the trader and that part's amount + rate — so the
+    // user sees exactly which trader paid what, instead of one total
+    // at the end of the day.
+    const insN=db.prepare("INSERT INTO notifications (user_id,title,message,type,action_url) VALUES (?,?,?,?,?)");
     for(const [uid,userCopies] of byUser){
       const first=userCopies[0];
       const userTarget=(first.profit_target_bp!==null&&first.profit_target_bp!==undefined)?first.profit_target_bp:globalTarget;
@@ -284,23 +290,13 @@ function applyDailyPnl(rateBp, yr, mo, day, targetUserId, opts) {
           .run(copy.user_id,'daily_pnl',Math.abs(ac),Math.abs(ac),ac>=0?'in':'out','completed',
             `Daily PnL — Day ${day} of 22`,
             `Profit ${ac>=0?'+=':'-='} ${Math.abs(rateBpCopy)/100}% x $${H.fmtC(copy.amount_cents)} = $${H.fmtC(Math.abs(ac))}${ac<0?' (loss)':''}`);
+        if(ac!==0){
+          if(ac>=0) insN.run(copy.user_id,`Daily profit — Day ${day} of 22`,`${copy.trader_name}: +$${H.fmtC(ac)} (${(rateBpCopy/100).toFixed(2)}%) added to your Profit Balance.`,'success','/dashboard');
+          else insN.run(copy.user_id,`Daily loss — Day ${day} of 22`,`${copy.trader_name}: -$${H.fmtC(Math.abs(ac))} (${(Math.abs(rateBpCopy)/100).toFixed(2)}%) applied to your Profit Balance.`,'warning','/dashboard');
+        }
         cnt++;tot+=ac;
-        appliedThisCall.add(uid);
       });
     }
-    // One notification row per user for this day's profit/loss, sent
-    // once — on the tick that pays their LAST part for the day (so the
-    // phone app alerts once with the full day total, not once per part).
-    const insN=db.prepare("INSERT INTO notifications (user_id,title,message,type,action_url) VALUES (?,?,?,?,?)");
-    for(const [uid,userCopies] of byUser){
-      if(!appliedThisCall.has(uid)) continue;
-      if(userCopies.some(c=>!hasLog.get(c.id,yr,mo,day))) continue; // parts still pending
-      const dayTotal=db.prepare('SELECT COALESCE(SUM(amount_cents),0) AS t FROM daily_pnl_log WHERE user_id=? AND cycle_year=? AND cycle_month=? AND day_number=?').get(uid,yr,mo,day).t;
-      if(!dayTotal) continue;
-      if(dayTotal>=0) insN.run(uid,`Daily profit — Day ${day} of 22`,`Your daily profit of $${H.fmtC(dayTotal)} was added to your Profit Balance.`,'success','/dashboard');
-      else insN.run(uid,`Daily loss — Day ${day} of 22`,`A daily loss of $${H.fmtC(Math.abs(dayTotal))} was applied to your Profit Balance.`,'warning','/dashboard');
-    }
-
     // The day is done only when no active real copy (in scope) is left
     // unpaid. Until then the schedule row stays unapplied so later ticks
     // keep paying the remaining parts.
