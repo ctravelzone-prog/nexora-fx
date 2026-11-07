@@ -12,7 +12,7 @@ const {getDb} = require('../models/database');
 const DEFAULTS = {
   version_code: 9,
   version_name: '1.6',
-  download_url: 'https://github.com/ctravelzone-prog/nexora-fx/releases/download/v1.6-android/NexoraFX-1.6.apk',
+  download_url: 'https://github.com/ctravelzone-prog/nexora-fx/releases/download/v1.6-android/Nexora.apk',
   changelog: 'Instant notifications — alerts arrive on your phone the moment they are sent (live connection). The Download App button now works inside the app too.',
 };
 
