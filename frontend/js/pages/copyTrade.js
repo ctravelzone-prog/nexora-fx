@@ -117,7 +117,7 @@ Pages._tCard=function(t,copies,rank){
     </div>
     <div class="grid grid-cols-4 gap-2 py-3 border-t border-b border-gray-100 text-center mb-3">
       <div><div class="text-[11px] text-gray-400">WIN</div><div class="font-bold text-sm">${(t.win_rate||0).toFixed(1)}%</div></div>
-      <div><div class="text-[11px] text-gray-400">DRAWDOWN</div><div class="font-bold text-sm text-red-500">${(t.drawdown||0).toFixed(1)}%</div></div>
+      <div><div class="text-[11px] text-gray-400">Max DRAWDOWN</div><div class="font-bold text-sm text-red-500">${(t.drawdown||0).toFixed(1)}%</div></div>
       <div><div class="text-[11px] text-gray-400">RISK</div><div class="font-bold text-sm">${t.risk_level||'—'}</div></div>
       <div><div class="text-[11px] text-gray-400">FOLLOWERS</div><div class="font-bold text-sm">${(t.followers||0).toLocaleString('en-US')}</div></div>
     </div>
