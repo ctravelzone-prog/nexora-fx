@@ -7,7 +7,7 @@
  * Gotcha: this file uses CRLF line endings - keep them when editing. */
 
 /* ── Sidebar layout ───────────────────────────── */
-.sidebar{width:260px;background:#fff;border-right:1px solid #F1F5F9;height:100vh;position:fixed;top:0;left:0;overflow-y:hidden;overscroll-behavior:contain;z-index:40;display:flex;flex-direction:column;transition:transform .25s;}
+.sidebar{width:260px;background:#fff;border-right:1px solid #F1F5F9;height:100vh;height:100dvh;position:fixed;top:0;left:0;overflow-y:hidden;overscroll-behavior:contain;z-index:40;display:flex;flex-direction:column;transition:transform .25s;}
 .sidebar nav{min-height:0;overscroll-behavior:contain;}
 .sidebar-link{display:flex;align-items:center;gap:10px;padding:9px 16px;border-radius:10px;color:#334155;font-size:14px;font-weight:500;text-decoration:none;cursor:pointer;margin:1px 8px;transition:background .15s;}
 .sidebar-link:hover,.sidebar-link.active{background:#FFF7ED;color:#FF6A00;}
