@@ -211,10 +211,17 @@ router.post('/profile-photo', auth, (req,res,next)=>{
   next();
 }, uploadPhoto, (req,res)=>{
   if(!req.file) return res.status(400).json({error:'No file uploaded'});
-  const db = getDb();
+  // req.db is set by auth and travels with the request — getDb() relies on
+  // AsyncLocalStorage, which multer's async upload can lose, silently
+  // routing the UPDATE to the main DB (0 rows) while still answering success.
+  const db = req.db || getDb();
   const old = db.prepare('SELECT profile_photo FROM users WHERE id=?').get(req.userId);
   const url=`/uploads/${profilePhotoDir(req)}/${req.file.filename}`;
-  db.prepare('UPDATE users SET profile_photo=? WHERE id=?').run(url,req.userId);
+  const updated = db.prepare('UPDATE users SET profile_photo=? WHERE id=?').run(url,req.userId);
+  if(!updated || updated.changes === 0){
+    deleteUploadFile(url);
+    return res.status(500).json({error:'Could not save photo. Please try again.'});
+  }
   if(old && old.profile_photo && old.profile_photo !== url) deleteUploadFile(old.profile_photo);
   res.json({success:true,url});
 });
@@ -224,7 +231,7 @@ router.post('/profile-photo', auth, (req,res,next)=>{
 // DELETE /api/user/profile-photo
 router.delete('/profile-photo', auth, (req,res)=>{
   if(req.isImpersonation) return res.status(403).json({error:'Not allowed during Login as User session'});
-  const db = getDb();
+  const db = req.db || getDb();
   const old = db.prepare('SELECT profile_photo FROM users WHERE id=?').get(req.userId);
   db.prepare('UPDATE users SET profile_photo=NULL WHERE id=?').run(req.userId);
   if(old && old.profile_photo) deleteUploadFile(old.profile_photo);

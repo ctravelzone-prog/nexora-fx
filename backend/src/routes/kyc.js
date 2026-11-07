@@ -39,7 +39,9 @@ router.post('/submit', authImpersonation, upload.fields([{name:'doc_front'},{nam
   if(req.isImpersonation) return res.status(403).json({error:'Not allowed during Login as User session'});
   try{
     const {doc_type}=req.body;
-    const db=getDb();
+    // req.db, not getDb(): multer can lose the AsyncLocalStorage context,
+    // which would silently send a showcase user's KYC to the main DB.
+    const db=req.db || getDb();
     const existing=db.prepare(`SELECT * FROM kyc_submissions WHERE user_id=? AND status IN ('pending','approved')`).get(req.userId);
     if(existing) return res.status(400).json({error:'KYC already submitted or approved'});
     const front=req.files&&req.files.doc_front?`/uploads/${req.files.doc_front[0].filename}`:null;
