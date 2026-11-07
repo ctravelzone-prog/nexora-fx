@@ -88,7 +88,7 @@ const AdminComponents = {
           <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
           ${n>0?`<span class="absolute top-0.5 right-0.5 w-4 h-4 bg-red-500 text-white text-xs rounded-full flex items-center justify-center font-bold">${n>9?'9+':n}</span>`:''}
         </button>
-        <div class="w-8 h-8 rounded-full bg-gray-900 text-white flex items-center justify-center text-xs font-bold">${(a.email||'A')[0].toUpperCase()}</div>
+        <button onclick="AdminApp.navigate('/admin/profile')" title="My Profile" class="w-8 h-8 rounded-full overflow-hidden bg-gray-900 text-white flex items-center justify-center text-xs font-bold cursor-pointer shrink-0">${a.profile_pic?`<img src="${a.profile_pic}" class="w-8 h-8 object-cover" alt="Profile">`:(a.name||a.email||'A')[0].toUpperCase()}</button>
       </div>
     </div>`;
   },
@@ -260,5 +260,41 @@ const AdminComponents = {
   // the count, so the sidebar and top bar badges stay in sync.
   async loadBadges() {
     try{const d=await adminApi.notifications();AdminApp.state.notifCount=d.unread||0;AdminApp.state.sideBadges=d.badges||{};}catch(e){}
+  },
+
+// Live push: a persistent WebSocket to /ws/live, so a user request
+  // (deposit, withdrawal, ticket, KYC, forget, money request, ...) shows
+  // on the admin bell + as a toast the moment it arrives — on EVERY admin
+  // page, including pages that do not auto-refresh (e.g. Users), where the
+  // bell otherwise only updates on navigation. The 1s auto-refresh on
+  // list pages still updates the list itself within a second.
+  // Reconnects with backoff; a 1008 close means a dead token — stop.
+  _livePush:null,
+  _livePushDelay:2000,
+  startLivePush() {
+    if(AdminComponents._livePush||typeof WebSocket==='undefined')return;
+    var token=null;
+    try{token=api.getAdminToken();}catch(e){}
+    if(!token)return;
+    var url=(location.protocol==='https:'?'wss:':'ws:')+'//'+location.host+'/ws/live';
+    var ws;
+    try{ws=new WebSocket(url);}catch(e){return;}
+    AdminComponents._livePush=ws;
+    var dead=false;
+    ws.onopen=function(){AdminComponents._livePushDelay=2000;try{ws.send(JSON.stringify({type:'auth',token:token}));}catch(e){}};
+    ws.onmessage=function(ev){
+      var m=null;try{m=JSON.parse(ev.data);}catch(e){return;}
+      if(!m||m.type!=='notification')return;
+      AdminComponents.loadBadges();
+      try{utils.toast(m.title||'New notification','success');}catch(e){}
+    };
+    ws.onclose=function(ev){
+      AdminComponents._livePush=null;
+      if(dead||(ev&&ev.code===1008))return; // dead token — do not reconnect
+      var d=AdminComponents._livePushDelay;
+      AdminComponents._livePushDelay=Math.min(d*2,60000);
+      setTimeout(function(){AdminComponents.startLivePush();},d);
+    };
+    ws.onerror=function(){try{ws.close();}catch(e){}};
   }
 };

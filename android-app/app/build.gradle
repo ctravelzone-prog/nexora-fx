@@ -1,6 +1,6 @@
 // Nexora FX Android app — app module build file.
 // Produces one APK (app-release.apk) that opens the live Nexora FX site
-// in a WebView. Version 1.5, versionCode 8 — bump BOTH on every release
+// in a WebView. Version 1.6, versionCode 9 — bump BOTH on every release
 // (versionCode must always go up, or Android refuses the update).
 plugins {
     id 'com.android.application'
@@ -14,8 +14,8 @@ android {
         applicationId "com.nexorafx.app"
         minSdk 24          // Android 7.0 and newer
         targetSdk 34
-        versionCode 8
-        versionName "1.5"
+        versionCode 9
+        versionName "1.6"
     }
 
     signingConfigs {

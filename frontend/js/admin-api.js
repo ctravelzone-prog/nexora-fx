@@ -13,6 +13,9 @@ const adminApi = {
   login:(d)=>api.request('POST','/api/admin/auth/login',d,true),
   me:()=>api.request('GET','/api/admin/auth/me',null,true),
   changePassword:(d)=>api.request('POST','/api/admin/auth/change-password',d,true),
+  updateProfile:(d)=>api.request('PUT','/api/admin/auth/profile',d,true),
+  uploadProfilePhoto:(form)=>api.upload('/api/admin/auth/profile-photo',form,true),
+  deleteProfilePhoto:()=>api.request('DELETE','/api/admin/auth/profile-photo',null,true),
   // Dashboard summary and admin notifications.
   dashboard:()=>api.request('GET','/api/admin/dashboard',null,true),
   notifications:()=>api.request('GET','/api/admin/notifications',null,true),

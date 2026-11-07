@@ -8,6 +8,7 @@
 const router = require('express').Router();
 const { getDb } = require('../../models/database');
 const { authAdmin } = require('../../middleware/auth');
+const { markAdminNotifRead } = require('../../services/moneyHelpers');
 
 // GET / — all KYC submissions with user name/username, newest first.
 router.get('/', authAdmin, (req,res)=>{
@@ -43,6 +44,7 @@ router.post('/:id/review', authAdmin, (req,res)=>{
   if(action==='approve')db.prepare('UPDATE users SET kyc_requested=0 WHERE id=?').run(kyc.user_id);
   db.prepare('INSERT INTO notifications (user_id,title,message,type) VALUES (?,?,?,?)')
     .run(kyc.user_id,`KYC ${newStatus}`,`Your KYC verification has been ${newStatus}.`+(note?` Note: ${note}`:''),action==='approve'?'success':'warning');
+  markAdminNotifRead(db,'kyc',kyc.id);
   res.json({success:true});
 });
 

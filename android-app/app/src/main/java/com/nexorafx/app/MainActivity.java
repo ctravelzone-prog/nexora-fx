@@ -14,6 +14,7 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.view.View;
 import android.webkit.ValueCallback;
+import android.webkit.DownloadListener;
 import android.webkit.WebChromeClient;
 import android.webkit.WebResourceError;
 import android.webkit.WebResourceRequest;
@@ -206,7 +207,19 @@ public class MainActivity extends Activity {
         // Lets the site know the request comes from the app (optional,
         // the site does not depend on it today).
         settings.setUserAgentString(
-                settings.getUserAgentString() + " NexoraFXApp/1.0");
+                settings.getUserAgentString() + " NexoraFXApp/1.6");
+
+        // v1.6: file downloads (the APK buttons on the landing page and
+        // the user dashboard link to /api/app/download) cannot be handled
+        // by the WebView itself — hand them to the browser, which downloads
+        // and installs the APK, same as the in-app update check.
+        webView.setDownloadListener(new DownloadListener() {
+            @Override
+            public void onDownloadStart(String url, String userAgent,
+                    String contentDisposition, String mimetype, long contentLength) {
+                startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url)));
+            }
+        });
 
         webView.setWebViewClient(new WebViewClient() {
             @Override

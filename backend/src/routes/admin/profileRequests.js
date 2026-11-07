@@ -7,6 +7,7 @@
 const router = require('express').Router();
 const { getDb } = require('../../models/database');
 const { authAdmin } = require('../../middleware/auth');
+const { markAdminNotifRead } = require('../../services/moneyHelpers');
 
 // Normalize a phone number to digits-only with country code.
 // Mirrors routes/auth.js normalizePhone — keep the two in sync.
@@ -53,6 +54,7 @@ router.post('/:id/approve', authAdmin, (req,res)=>{
   db.prepare('INSERT INTO notifications (user_id,title,message,type) VALUES (?,?,?,?)')
     .run(pr.user_id,`Your ${pr.field} has been updated`,`Your ${pr.field} was changed to ${pr.new_value} as requested.`,'success');
   db.prepare('INSERT INTO audit_log (admin_id,user_id,action) VALUES (?,?,?)').run(req.adminId,pr.user_id,'profile_request_approved');
+  markAdminNotifRead(db,'profile_request',pr.id);
   res.json({success:true});
 });
 
@@ -67,6 +69,7 @@ router.post('/:id/reject', authAdmin, (req,res)=>{
   db.prepare('INSERT INTO notifications (user_id,title,message,type) VALUES (?,?,?,?)')
     .run(pr.user_id,`Your ${pr.field} change request was rejected`,`Your request to change ${pr.field} to ${pr.new_value} was rejected.`+(note?` Reason: ${note}`:''),'warning');
   db.prepare('INSERT INTO audit_log (admin_id,user_id,action) VALUES (?,?,?)').run(req.adminId,pr.user_id,'profile_request_rejected');
+  markAdminNotifRead(db,'profile_request',pr.id);
   res.json({success:true});
 });
 

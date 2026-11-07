@@ -273,6 +273,40 @@ Components.startBellPoll=function(){
   tick();
   Components._bellPoll=setInterval(tick,15000);
 };
+// Live push: a persistent WebSocket to /ws/live, so an admin action
+// (deposit approved, profit, KYC, reply...) shows on the user's bell +
+// toast the moment it is sent — not after the 15-second bell poll. On a
+// push it runs the same bell tick as the poller (badge + newest toast),
+// so the two paths can never disagree. Reconnects with backoff; a 1008
+// close means a dead token — stop (the bell poll stops too when logged out).
+Components._livePush=null;
+Components._livePushDelay=2000;
+Components.startLivePush=function(){
+  if(Components._livePush||typeof WebSocket==='undefined')return;
+  if(typeof utils==='undefined'||!utils.isLoggedIn())return;
+  var token=null;
+  try{token=api.getToken();}catch(e){}
+  if(!token)return;
+  var url=(location.protocol==='https:'?'wss:':'ws:')+'//'+location.host+'/ws/live';
+  var ws;
+  try{ws=new WebSocket(url);}catch(e){return;}
+  Components._livePush=ws;
+  ws.onopen=function(){Components._livePushDelay=2000;try{ws.send(JSON.stringify({type:'auth',token:token}));}catch(e){}};
+  ws.onmessage=function(ev){
+    var m=null;try{m=JSON.parse(ev.data);}catch(e){return;}
+    if(!m||m.type!=='notification')return;
+    if(typeof Components._bellPollTick==='function'){try{Components._bellPollTick();}catch(e){}}
+    else{try{utils.toast(m.title||'New notification','success');}catch(e){}}
+  };
+  ws.onclose=function(ev){
+    Components._livePush=null;
+    if(ev&&ev.code===1008)return; // dead token — do not reconnect
+    var d=Components._livePushDelay;
+    Components._livePushDelay=Math.min(d*2,60000);
+    setTimeout(function(){Components.startLivePush();},d);
+  };
+  ws.onerror=function(){try{ws.close();}catch(e){}};
+};
 // Mark all notifications read via PUT /api/user/notifications/read-all,
 // clear the badge and close the dropdown.
 Components.markAllRead=function(){

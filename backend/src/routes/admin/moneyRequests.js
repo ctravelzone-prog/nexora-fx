@@ -8,6 +8,7 @@ const router = require('express').Router();
 const { getDb } = require('../../models/database');
 const { authAdmin } = require('../../middleware/auth');
 const { adminAddBalance } = require('../../services/withdrawService');
+const { markAdminNotifRead } = require('../../services/moneyHelpers');
 
 // GET / — all money requests with user name/username, pending first.
 router.get('/', authAdmin, (req, res) => {
@@ -32,6 +33,7 @@ router.post('/:id/approve', authAdmin, (req, res) => {
   if (rmFlag && rmFlag.request_money_one_time === 1) db.prepare('UPDATE users SET request_money_enabled=0, request_money_one_time=0 WHERE id=?').run(r.user_id);
   db.prepare('INSERT INTO notifications (user_id,title,message,type) VALUES (?,?,?,?)').run(r.user_id, 'Money request approved', `Your $${(r.amount_cents / 100).toFixed(2)} request was approved and added to your Main Balance.`, 'success');
   db.prepare('INSERT INTO audit_log (admin_id,user_id,action) VALUES (?,?,?)').run(req.adminId, r.user_id, 'money_request_approved');
+  markAdminNotifRead(db, 'money_request', r.id);
   res.json({ success: true });
 });
 
@@ -45,6 +47,7 @@ router.post('/:id/reject', authAdmin, (req, res) => {
   db.prepare("UPDATE money_requests SET status='rejected',admin_note=?,updated_at=unixepoch() WHERE id=?").run(note, r.id);
   db.prepare('INSERT INTO notifications (user_id,title,message,type) VALUES (?,?,?,?)').run(r.user_id, 'Money request rejected', `Your $${(r.amount_cents / 100).toFixed(2)} request was rejected.` + (note ? (' Reason: ' + note) : ''), 'warning');
   db.prepare('INSERT INTO audit_log (admin_id,user_id,action) VALUES (?,?,?)').run(req.adminId, r.user_id, 'money_request_rejected');
+  markAdminNotifRead(db, 'money_request', r.id);
   res.json({ success: true });
 });
 

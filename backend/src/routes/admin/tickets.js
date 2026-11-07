@@ -8,6 +8,7 @@
 const router = require('express').Router();
 const { getDb } = require('../../models/database');
 const { authAdmin } = require('../../middleware/auth');
+const { markAdminNotifRead } = require('../../services/moneyHelpers');
 
 // GET / — all support tickets with user name/username, newest first.
 router.get('/', authAdmin, (req,res)=>{
@@ -40,6 +41,7 @@ router.post('/:id/reply', authAdmin, (req,res)=>{
   db.prepare(`UPDATE support_tickets SET status='answered',updated_at=unixepoch() WHERE id=?`).run(ticket.id);
   db.prepare('INSERT INTO notifications (user_id,title,message,type,action_url) VALUES (?,?,?,?,?)')
     .run(ticket.user_id,`Support reply: ${ticket.subject}`,message.substring(0,100),'info',`/support/${ticket.id}`);
+  markAdminNotifRead(db,['ticket','ticket_reply'],ticket.id);
   res.json({success:true});
 });
 
@@ -49,6 +51,7 @@ router.put('/:id/status', authAdmin, (req,res)=>{
   const {status}=req.body;
   if(!['open','answered','closed'].includes(status)) return res.status(400).json({error:'Invalid status'});
   getDb().prepare('UPDATE support_tickets SET status=?,updated_at=unixepoch() WHERE id=?').run(status,req.params.id);
+  if(status==='closed') markAdminNotifRead(getDb(),['ticket','ticket_reply'],parseInt(req.params.id));
   res.json({success:true});
 });
 

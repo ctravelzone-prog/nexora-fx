@@ -44,6 +44,21 @@ function createAdminNotif(db,type,title,refId,refType,pane) {
   db.prepare('INSERT INTO admin_notifications (type,title,message,reference_id,reference_type,destination_pane) VALUES (?,?,?,?,?,?)')
     .run(type,title,title,refId,refType,pane);
 }
+// Marks the admin notification(s) for one item read — so the bell badge
+// clears the moment the admin finishes the work (approve / reject /
+// reply / OTP), without needing "Mark All Read". referenceType is a
+// string or an array (a ticket has both 'ticket' and 'ticket_reply' rows).
+// Call it AFTER the action itself: some actions (e.g. applyDeposit)
+// create a fresh admin notification for the same item, and that one
+// must be cleared too.
+function markAdminNotifRead(db, referenceType, referenceId) {
+  try {
+    const types = Array.isArray(referenceType) ? referenceType : [referenceType];
+    for (const t of types) {
+      db.prepare('UPDATE admin_notifications SET is_read=1 WHERE reference_type=? AND reference_id=?').run(t, referenceId);
+    }
+  } catch (e) {}
+}
 // Returns the withdraw fee for a user: the early fee (15%) while the
 // Main Balance is still inside the 3-month lock (measured from the
 // user's first deposit), otherwise the regular fee. A month is
@@ -60,4 +75,4 @@ function getWithdrawFeeBp(userId,settings) {
 function calcMainWithdrawFee(userId,amountCents,settings) {
   return Math.floor(amountCents*getWithdrawFeeBp(userId,settings)/10000);
 }
-module.exports = { getSetting, getMoneySettings, getOrCreateBalance, getBalance, fmtC, createAdminNotif, calcMainWithdrawFee, getWithdrawFeeBp };
+module.exports = { getSetting, getMoneySettings, getOrCreateBalance, getBalance, fmtC, createAdminNotif, markAdminNotifRead, calcMainWithdrawFee, getWithdrawFeeBp };

@@ -11,6 +11,7 @@ const { getDb } = require('../../models/database');
 const { authAdmin } = require('../../middleware/auth');
 const { applyDeposit } = require('../../services/moneyService');
 const { processWithdrawal } = require('../../services/withdrawService');
+const { markAdminNotifRead } = require('../../services/moneyHelpers');
 
 // GET /deposits — all deposit requests with user name/username, newest
 // first. Showcase deposits are excluded (is_showcase=0).
@@ -31,6 +32,10 @@ router.post('/deposits/:id/approve', authAdmin, (req,res)=>{
     const dep=getDb().prepare('SELECT * FROM deposits WHERE id=?').get(req.params.id);
     if(!dep||dep.status!=='pending') return res.status(400).json({error:'Deposit not found or already processed'});
     applyDeposit(dep.user_id,dep.id,dep.amount_cents,req.adminId);
+    // Work done — clear this deposit's admin notification (the request
+    // row AND the "Deposit approved" row applyDeposit just made) so the
+    // bell badge goes away without "Mark All Read".
+    markAdminNotifRead(getDb(),'deposit',dep.id);
     res.json({success:true,message:'Deposit approved'});
   }catch(e){res.status(500).json({error:e.message});}
 });
@@ -46,6 +51,7 @@ router.post('/deposits/:id/reject', authAdmin, (req,res)=>{
     db.prepare(`UPDATE transactions SET status='rejected' WHERE reference=?`).run(`DEP-${dep.id}`);
     db.prepare('INSERT INTO notifications (user_id,title,message,type) VALUES (?,?,?,?)')
       .run(dep.user_id,'Deposit rejected',`Your deposit of $${(dep.amount_cents/100).toFixed(2)} was rejected.`+(note?` Reason: ${note}`:''),'warning');
+    markAdminNotifRead(db,'deposit',dep.id);
     res.json({success:true});
   }catch(e){res.status(500).json({error:e.message});}
 });
@@ -70,6 +76,7 @@ router.post('/withdrawals/:id/process', authAdmin, (req,res)=>{
     const {action,note}=req.body;
     if(!['approve','reject'].includes(action)) return res.status(400).json({error:'Action must be approve or reject'});
     processWithdrawal(parseInt(req.params.id),action,req.adminId,note);
+    markAdminNotifRead(getDb(),'withdrawal',parseInt(req.params.id));
     res.json({success:true,message:`Withdrawal ${action==='approve'?'approved':'rejected'}`});
   }catch(e){res.status(400).json({error:e.message});}
 });

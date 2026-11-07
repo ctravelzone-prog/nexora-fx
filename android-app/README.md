@@ -4,7 +4,18 @@ A native Android wrapper for the Nexora FX website. The app opens the live
 site in a WebView — login, trading, admin, everything works exactly as on
 the web. There is no separate app code for trading features.
 
-- **Package:** `com.nexorafx.app` — **App name:** Nexora FX — **Version:** 1.5 (versionCode 8)
+- **Package:** `com.nexorafx.app` — **App name:** Nexora FX — **Version:** 1.6 (versionCode 9)
+
+**v1.6 (7 Nov) — APK downloads work inside the app.** A `DownloadListener`
+on the WebView hands file downloads (the Download Android App buttons on
+the landing page and the user dashboard, both linking to
+`/api/app/download`) to the external browser, which downloads and
+installs the APK — the WebView itself cannot handle an APK file, so
+tapping the button used to land on a blank page. Same behaviour as the
+in-app update check since v1.4.1. Live-push (v1.5) is unchanged; the
+server side now also pushes to the admin panel and the user web bell,
+but the app needs no new code for that. v1.6 is signed with the same
+keystore, so it installs as an update over v1.5.
 
 **v1.5 (7 Nov) — instant notifications (live connection, no Firebase).**
 A foreground service (`LivePushService`) holds a persistent secure

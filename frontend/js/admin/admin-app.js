@@ -70,6 +70,10 @@ const AdminApp = {
       AdminApp.state.admin = a;
       try { const s = await adminApi.getSettings(); utils.applySiteFont(s.site_font || 'Plus Jakarta Sans'); utils.applyLoaderSetting(s.site_loader || '1'); utils.applyFavicon(s.favicon_url); } catch(e) {}
       AdminApp.route(window.location.pathname);
+      // Live admin notifications: user requests reach the bell + toast
+      // instantly on every page (AdminComponents.startLivePush is
+      // idempotent — it returns early if already running).
+      try{AdminComponents.startLivePush();}catch(e){}
     } catch(e) {
       api.clearAdminToken();
       AdminApp.showLogin();
@@ -103,6 +107,7 @@ const AdminApp = {
       '/tickets': AdminPages.tickets,
       '/forget-requests': AdminPages.forgetRequests,
       '/profile-requests': AdminPages.profileRequests,
+      '/profile': AdminPages.profile,
       '/settings': AdminPages.settings,
       '/money-settings': AdminPages.moneySettings,
       '/deposit-wallet': AdminPages.depositWallet,

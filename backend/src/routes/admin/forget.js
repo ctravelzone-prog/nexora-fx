@@ -13,6 +13,7 @@ const bcrypt = require('bcrypt');
 const crypto = require('crypto');
 const { getDb } = require('../../models/database');
 const { authAdmin, superAdminOnly } = require('../../middleware/auth');
+const { markAdminNotifRead } = require('../../services/moneyHelpers');
 
 // GET / — all forget requests with user name/username, pending first.
 router.get('/', authAdmin, (req,res)=>{
@@ -40,6 +41,7 @@ router.post('/:id/generate-otp', authAdmin, superAdminOnly, async (req,res)=>{
     db.prepare(`UPDATE forget_requests SET status='otp_sent',updated_at=unixepoch() WHERE id=?`).run(fr.id);
     db.prepare('INSERT INTO forget_request_messages (request_id,sender_type,sender_id,message) VALUES (?,?,?,?)').run(fr.id,'admin',req.adminId,`🔐 Your one-time code: ${otp} — valid 24 hours. You can log in with it as many times as you like until you change your password.`);
     db.prepare('INSERT INTO audit_log (admin_id,user_id,action) VALUES (?,?,?)').run(req.adminId,user.id,'forget_otp_generated');
+    markAdminNotifRead(db,'forget_request',fr.id);
     res.json({success:true,otp});
   }catch(e){res.status(500).json({error:e.message});}
 });
@@ -54,6 +56,7 @@ router.post('/:id/reject', authAdmin, (req,res)=>{
   if(fr.status==='otp_sent') db.prepare(`UPDATE users SET temp_password_hash=NULL,temp_password_status='revoked',temp_password_used=0,temp_password_expires=NULL WHERE id=?`).run(fr.user_id);
   db.prepare(`UPDATE forget_requests SET status='rejected',updated_at=unixepoch() WHERE id=?`).run(fr.id);
   db.prepare('INSERT INTO audit_log (admin_id,user_id,action) VALUES (?,?,?)').run(req.adminId,fr.user_id,'forget_request_rejected');
+  markAdminNotifRead(db,'forget_request',fr.id);
   res.json({success:true});
 });
 
