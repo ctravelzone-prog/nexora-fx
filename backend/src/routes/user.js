@@ -18,14 +18,47 @@ const { USERNAME_RE, suggestUsernames } = require('../services/usernameService')
 const { authUser, authImpersonation } = require('../middleware/auth');
 const { getBalance, getMoneySettings, calcMainWithdrawFee, fmtC } = require('../services/moneyHelpers');
 const multer = require('multer');
+const fs = require('fs');
 const path = require('path');
 const { getUploadsDir, ensureUploadsDir } = require('../services/uploads');
 ensureUploadsDir();
+const PROFILE_PHOTO_EXTS = new Set(['.jpg','.jpeg','.png','.webp','.gif','.heic','.heif']);
 const storage = multer.diskStorage({
   destination: (req,file,cb)=>cb(null,getUploadsDir()),
-  filename: (req,file,cb)=>cb(null,`profile_${req.userId||Date.now()}_${file.originalname}`)
+  filename: (req,file,cb)=>{
+    const ext = path.extname(file.originalname||'').toLowerCase();
+    const safeExt = PROFILE_PHOTO_EXTS.has(ext) ? ext : '.jpg';
+    cb(null,`profile_${req.userId||Date.now()}_${Date.now()}${safeExt}`);
+  }
 });
-const upload = multer({storage,limits:{fileSize:5*1024*1024}});
+const upload = multer({storage,limits:{fileSize:10*1024*1024},
+  fileFilter:(req,file,cb)=>{
+    if(file.mimetype && file.mimetype.startsWith('image/')) return cb(null,true);
+    cb(new Error('Only image files are allowed'));
+  }});
+
+// Deletes one uploaded file, but only if it lives inside the uploads
+// dir (a /uploads/<name> URL with no path tricks) — never an arbitrary path.
+function deleteUploadFile(url){
+  if(!url || typeof url !== 'string') return;
+  if(!url.startsWith('/uploads/')) return;
+  const name = url.slice('/uploads/'.length);
+  if(!name || name.includes('/') || name.includes('..')) return;
+  try{ fs.unlinkSync(path.join(getUploadsDir(), name)); }catch(_){}
+}
+
+// Runs multer.single('photo') and turns its errors into a JSON 400
+// (a bare upload.single() lets Express answer an HTML 500, which the
+// frontend can only show as a bare "HTTP 500").
+function uploadPhoto(req,res,next){
+  upload.single('photo')(req,res,(err)=>{
+    if(err){
+      if(err.code==='LIMIT_FILE_SIZE') return res.status(400).json({error:'Photo must be under 10 MB'});
+      return res.status(400).json({error:err.message||'Upload failed'});
+    }
+    next();
+  });
+}
 
 // Reads allow both a normal user token and an admin impersonation
 // token; every write route below still refuses impersonation itself.
@@ -156,22 +189,32 @@ router.get('/profile-change-requests', auth, (req,res)=>{
   res.json(rows);
 });
 
-// POST /profile-photo — uploads a new avatar (max 5 MB) and saves its
-// /uploads URL on the user row.
+// POST /profile-photo — uploads a new avatar (max 10 MB) and saves its
+// /uploads URL on the user row, per user. The previous photo file is
+// deleted, so only the latest photo is kept.
 // POST /api/user/profile-photo
-router.post('/profile-photo', auth, upload.single('photo'), (req,res)=>{
+router.post('/profile-photo', auth, (req,res,next)=>{
   if(req.isImpersonation) return res.status(403).json({error:'Not allowed during Login as User session'});
+  next();
+}, uploadPhoto, (req,res)=>{
   if(!req.file) return res.status(400).json({error:'No file uploaded'});
+  const db = getDb();
+  const old = db.prepare('SELECT profile_photo FROM users WHERE id=?').get(req.userId);
   const url=`/uploads/${req.file.filename}`;
-  getDb().prepare('UPDATE users SET profile_photo=? WHERE id=?').run(url,req.userId);
+  db.prepare('UPDATE users SET profile_photo=? WHERE id=?').run(url,req.userId);
+  if(old && old.profile_photo && old.profile_photo !== url) deleteUploadFile(old.profile_photo);
   res.json({success:true,url});
 });
 
-// DELETE /profile-photo — removes the avatar (sets profile_photo NULL).
+// DELETE /profile-photo — removes the avatar (sets profile_photo NULL)
+// and deletes the photo file, so no old file is left behind.
 // DELETE /api/user/profile-photo
 router.delete('/profile-photo', auth, (req,res)=>{
   if(req.isImpersonation) return res.status(403).json({error:'Not allowed during Login as User session'});
-  getDb().prepare('UPDATE users SET profile_photo=NULL WHERE id=?').run(req.userId);
+  const db = getDb();
+  const old = db.prepare('SELECT profile_photo FROM users WHERE id=?').get(req.userId);
+  db.prepare('UPDATE users SET profile_photo=NULL WHERE id=?').run(req.userId);
+  if(old && old.profile_photo) deleteUploadFile(old.profile_photo);
   res.json({success:true});
 });
 

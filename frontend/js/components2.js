@@ -84,11 +84,25 @@ const Components={
     return '<a href="'+href+'" onclick="Components.closeSidebar()" class="sidebar-link'+(active?' active':'')+'">'+icon+'<span>'+label+'</span></a>';
   },
   // Open the mobile sidebar and lock page scrolling behind it.
+  // iOS Safari ignores body overflow:hidden, so the lock also freezes the
+  // body (position:fixed at the current scroll offset) and restores it on
+  // close — otherwise a swipe inside the menu scrolls the page behind it.
+  // The sidebar itself keeps scrolling internally (overflow-y:auto).
+  _sbLocked:false,_sbY:0,
   openSidebar(){
     const s=document.getElementById('sidebar'),o=document.getElementById('sb-ov');
     if(s)s.classList.add('open');
     if(o)o.classList.add('show');
-    document.body.style.overflow='hidden';
+    if(!Components._sbLocked){
+      Components._sbLocked=true;
+      Components._sbY=window.scrollY||0;
+      document.body.style.position='fixed';
+      document.body.style.top=(-Components._sbY)+'px';
+      document.body.style.left='0';
+      document.body.style.right='0';
+      document.body.style.width='100%';
+      document.documentElement.style.overflow='hidden';
+    }
   },
   // Close the mobile sidebar and restore page scrolling. Called on
   // every navigation in App.route() so the page never stays locked.
@@ -96,7 +110,17 @@ const Components={
     const s=document.getElementById('sidebar'),o=document.getElementById('sb-ov');
     if(s)s.classList.remove('open');
     if(o)o.classList.remove('show');
-    document.body.style.overflow='';
+    if(Components._sbLocked){
+      Components._sbLocked=false;
+      const y=Components._sbY||0;
+      document.body.style.position='';
+      document.body.style.top='';
+      document.body.style.left='';
+      document.body.style.right='';
+      document.body.style.width='';
+      document.documentElement.style.overflow='';
+      window.scrollTo(0,y);
+    }
   },
   // Logged-in sidebar: logo + brand, grouped nav links (General, Stake,
   // Finance, Referral, Account) and a red Sign Out button at the bottom.
