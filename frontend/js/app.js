@@ -205,12 +205,16 @@ const App = {
 const Pages = {};
 
 // Intercept all internal link clicks so the SPA routes without a full
-// page reload. External links, mailto/tel, anchors and /admin are left alone.
+// page reload. External links, mailto/tel, anchors, /admin and /api are
+// left alone. /api must be excluded: API endpoints (e.g. the APK download
+// link /api/app/download) are not SPA pages — intercepting one used to
+// route it through App.navigate, which has no such page and rendered the
+// "Page Not Found" screen instead of letting the browser download the file.
 document.addEventListener('click', function(e) {
   const a = e.target.closest('a[href]');
   if (!a) return;
   const href = a.getAttribute('href');
-  if (!href || href.startsWith('http') || href.startsWith('//') || href.startsWith('mailto:') || href.startsWith('#') || href.startsWith('tel:') || href === '/admin' || href.startsWith('/admin/')) return; // /admin is a separate app — let the browser load it fully
+  if (!href || href.startsWith('http') || href.startsWith('//') || href.startsWith('mailto:') || href.startsWith('#') || href.startsWith('tel:') || href === '/admin' || href.startsWith('/admin/') || href.startsWith('/api/')) return; // /admin is a separate app — let the browser load it fully
   e.preventDefault();
   App.navigate(href);
 });
