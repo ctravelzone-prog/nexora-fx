@@ -22,6 +22,7 @@
        nav link/group states, mobile overlay. On phones the sidebar slides in. -->
   <style>
     .admin-sidebar{width:260px;background:#fff;border-right:1px solid #F1F5F9;height:100vh;position:fixed;top:0;left:0;overflow-y:auto;z-index:40;display:flex;flex-direction:column;transition:transform .25s;}
+    .admin-sidebar.no-anim,.admin-sidebar.no-anim *{transition:none !important;}
     .admin-sidebar nav{flex:1 1 auto;min-height:0;overflow-y:auto;}
     .admin-main{margin-left:260px;min-height:100vh;background:#F8F9FA;}
     .admin-nav-link{display:flex;align-items:center;gap:8px;padding:10px 14px;border-radius:8px;color:#334155;font-size:15px;font-weight:600;cursor:pointer;margin:1px 8px;transition:background 0.15s;}
@@ -45,36 +46,36 @@
   <div id="modal-root"></div>
   <div id="toast-root" class="fixed bottom-4 right-4 z-50 flex flex-col gap-2 max-w-sm"></div>
 <!-- Scripts, in load order: shared API clients and helpers first, then
-       the admin app, components and page modules in js/admin/. The ?v=v97
+       the admin app, components and page modules in js/admin/. The ?v=v98
        cache version must be bumped on every release or browsers keep
        serving stale code. -->
-  <script src="/js/api.js?v=v97"></script>
-  <script src="/js/admin-api.js?v=v97"></script>
-  <script src="/js/utils.js?v=v97"></script>
-  <script src="/js/admin/admin-app.js?v=v97"></script>
-  <script src="/js/admin/admin-components.js?v=v97"></script>
-  <script src="/js/admin/admin-dashboard.js?v=v97"></script>
-  <script src="/js/admin/admin-finance.js?v=v97"></script>
-  <script src="/js/admin/admin-finance2.js?v=v97"></script>
-  <script src="/js/admin/admin-users.js?v=v97"></script>
-  <script src="/js/admin/admin-users2.js?v=v97"></script>
-  <script src="/js/admin/admin-users3.js?v=v97"></script>
-  <script src="/js/admin/admin-traders.js?v=v97"></script>
-  <script src="/js/admin/admin-profit.js?v=v97"></script>
-  <script src="/js/admin/admin-settings.js?v=v97"></script>
-  <script src="/js/admin/admin-settings2.js?v=v97"></script>
-  <script src="/js/admin/admin-settings3.js?v=v97"></script>
-  <script src="/js/admin/admin-kyc.js?v=v97"></script>
-  <script src="/js/admin/admin-tickets.js?v=v97"></script>
-  <script src="/js/admin/admin-forget.js?v=v97"></script>
-  <script src="/js/admin/admin-profile-requests.js?v=v97"></script>
-  <script src="/js/admin/admin-notifications.js?v=v97"></script>
-  <script src="/js/admin/admin-missing.js?v=v97"></script>
-  <script src="/js/admin/admin-missing2.js?v=v97"></script>
-  <script src="/js/admin/admin-missing3.js?v=v97"></script>
-  <script src="/js/admin/admin-missing4.js?v=v97"></script>
-  <script src="/js/admin/admin-missing5.js?v=v97"></script>
-  <script src="/js/admin/admin-missing6.js?v=v97"></script>
-  <script src="/js/admin/admin-missing7.js?v=v97"></script>
+  <script src="/js/api.js?v=v98"></script>
+  <script src="/js/admin-api.js?v=v98"></script>
+  <script src="/js/utils.js?v=v98"></script>
+  <script src="/js/admin/admin-app.js?v=v98"></script>
+  <script src="/js/admin/admin-components.js?v=v98"></script>
+  <script src="/js/admin/admin-dashboard.js?v=v98"></script>
+  <script src="/js/admin/admin-finance.js?v=v98"></script>
+  <script src="/js/admin/admin-finance2.js?v=v98"></script>
+  <script src="/js/admin/admin-users.js?v=v98"></script>
+  <script src="/js/admin/admin-users2.js?v=v98"></script>
+  <script src="/js/admin/admin-users3.js?v=v98"></script>
+  <script src="/js/admin/admin-traders.js?v=v98"></script>
+  <script src="/js/admin/admin-profit.js?v=v98"></script>
+  <script src="/js/admin/admin-settings.js?v=v98"></script>
+  <script src="/js/admin/admin-settings2.js?v=v98"></script>
+  <script src="/js/admin/admin-settings3.js?v=v98"></script>
+  <script src="/js/admin/admin-kyc.js?v=v98"></script>
+  <script src="/js/admin/admin-tickets.js?v=v98"></script>
+  <script src="/js/admin/admin-forget.js?v=v98"></script>
+  <script src="/js/admin/admin-profile-requests.js?v=v98"></script>
+  <script src="/js/admin/admin-notifications.js?v=v98"></script>
+  <script src="/js/admin/admin-missing.js?v=v98"></script>
+  <script src="/js/admin/admin-missing2.js?v=v98"></script>
+  <script src="/js/admin/admin-missing3.js?v=v98"></script>
+  <script src="/js/admin/admin-missing4.js?v=v98"></script>
+  <script src="/js/admin/admin-missing5.js?v=v98"></script>
+  <script src="/js/admin/admin-missing6.js?v=v98"></script>
+  <script src="/js/admin/admin-missing7.js?v=v98"></script>
 </body>
 </html>

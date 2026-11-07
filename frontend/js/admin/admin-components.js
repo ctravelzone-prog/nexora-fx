@@ -42,9 +42,18 @@ const AdminComponents = {
       </div>
       <div class="admin-overlay" id="admin-ov" onclick="AdminComponents.closeSidebar()"></div>`;
     const _sb2=document.getElementById('admin-sidebar');
-    if(_sb2){const _nav2=_sb2.querySelector('nav');if(_nav2)_nav2.scrollTop=_st;_sb2.scrollTop=_st2;if(_open)_sb2.classList.add('open');}
+    if(_sb2){const _nav2=_sb2.querySelector('nav');if(_nav2)_nav2.scrollTop=_st;_sb2.scrollTop=_st2;
+      // Restore the phone drawer + open groups WITHOUT animation: the fresh
+      // sidebar starts hidden (translateX(-100%)) and re-adding .open would
+      // replay the .25s slide + the submenu expand on every 1s refresh —
+      // the drawer kept sliding in and out by itself on phone. The overlay
+      // is rebuilt too, so its .show state is restored as well.
+      _sb2.classList.add('no-anim');
+      if(_open){_sb2.classList.add('open');document.getElementById('admin-ov')?.classList.add('show');}
+      AdminComponents.syncGroups();
+      void _sb2.offsetWidth;
+      _sb2.classList.remove('no-anim');}
     AdminComponents.loadBadges();
-    AdminComponents.syncGroups();
   },
 // Opens the mobile sidebar drawer and locks page scrolling behind it.
   openSidebar(){
