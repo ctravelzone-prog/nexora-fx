@@ -4,8 +4,9 @@
 // (all copies), /daily-pnl-log, and POST /start, /increase, /decrease,
 // /stop (all run through copyService).
 // Rules: copy moves money from Main Balance to Copy Invested; profit is
-// earned only on Copy Invested. Showcase accounts (is_showcase=1) copy
-// against their DISPLAY balances instead of the real balances table.
+// earned only on Copy Invested. Showcase accounts (is_showcase=1) cannot
+// log in, so they never reach these routes — the display-balance copy
+// path in copyService is unreachable legacy code.
 // All write routes refuse impersonation sessions (admin 'Login as User').
 const router = require('express').Router();
 const { getDb } = require('../models/database');

@@ -97,6 +97,9 @@ router.post('/login', async (req,res)=>{
     const user=db.prepare('SELECT * FROM users WHERE username=? OR LOWER(email)=LOWER(?)').get(username,username);
     if(!user) return res.status(401).json({error:"Credentials doesn't match"});
     if(!user.is_active) return res.status(401).json({error:'Account is disabled'});
+// Showcase accounts cannot log in — they are display-only (their balances
+// live on the users row and show on the admin Showcase page only).
+    if(user.is_showcase===1) return res.status(401).json({error:'Showcase accounts cannot log in'});
 // An admin OTP (set from a forget request) works as the current
 // password while it is active and unexpired; it stays usable for 24
 // hours and can log in many times — it stops working only when the user

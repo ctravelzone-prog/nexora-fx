@@ -5,9 +5,9 @@
 // as the current password). GET /transactions is the History list,
 // /notifications lists and marks the user's notifications, /settings
 // returns the public site settings.
-// Rules: showcase accounts (is_showcase=1) see their DISPLAY balances
-// here (showcase_*_cents from the users row), never the real balances
-// table. All write routes refuse impersonation sessions (admin 'Login
+// Rules: showcase accounts (is_showcase=1) cannot log in — display only.
+// Their balances live on the users row and show on the admin Showcase
+// page. All write routes refuse impersonation sessions (admin 'Login
 // as User'); reads allow both normal and impersonation tokens.
 const router = require('express').Router();
 const bcrypt = require('bcrypt');
@@ -29,17 +29,18 @@ const upload = multer({storage,limits:{fileSize:5*1024*1024}});
 // token; every write route below still refuses impersonation itself.
 const auth = authImpersonation; // allow both normal and impersonation tokens
 
-// GET /me — profile + balances + withdrawable fee. Showcase accounts
-// see their DISPLAY balances here (showcase_main/copy/profit cents and
-// showcase_withdraw_cents as total withdrawn), never the real table.
+// GET /me — profile + balances + withdrawable fee. (The showcase
+// display-balance fallback below is unreachable now — showcase accounts
+// cannot log in — kept only as a safety net; showcase balances never
+// come from the real balances table.)
 // GET /api/user/me
 router.get('/me', auth, (req,res)=>{
   const db=getDb();
   const user=req.user;
   const bal=getBalance(user.id);
-  // Showcase (demo) accounts: the admin-set DISPLAY balances live on the
-  // users row (showcase_*_cents), not in the real balances table — the
-  // account must show those display values everywhere.
+  // Showcase fallback (unreachable — showcase accounts cannot log in):
+  // the admin-set DISPLAY balances live on the users row
+  // (showcase_*_cents), not in the real balances table.
   if(user.is_showcase===1){
     bal.main_cents=user.showcase_main_cents||0;
     bal.copy_cents=user.showcase_copy_cents||0;

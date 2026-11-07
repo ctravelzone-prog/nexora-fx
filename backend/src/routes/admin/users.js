@@ -166,8 +166,8 @@ router.get('/showcase/list', authAdmin, (req,res)=>res.json(getDb().prepare('SEL
 
 // POST /showcase/create — Super Admin only. Creates a showcase account
 // with display balances (main/copy/profit/withdraw cents) and a password.
-// Showcase accounts log in like normal users but their money is display
-// only and never appears in admin totals.
+// Showcase accounts cannot log in — display only. Their balances appear
+// on the admin Showcase page and never in admin totals.
 router.post('/showcase/create', authAdmin, superAdminOnly, async (req,res)=>{
   try{
     const {full_name,username,email,password,main_cents,copy_cents,profit_cents,withdraw_cents}=req.body;

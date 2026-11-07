@@ -15,8 +15,8 @@
  * - Money is integer cents everywhere; display with utils.fmtMoney.
  * - Admin API calls go through adminApi in js/admin-api.js.
  * - Showcase accounts (is_showcase=1) are demo accounts with DISPLAY
- *   balances set by the admin; they are excluded from all admin totals,
- *   ledgers and reports.
+ *   balances set by the admin; they cannot log in and are excluded from
+ *   all admin totals, ledgers and reports.
  * - Bump the ?v= cache version in script tags on every release, or
  *   browsers keep serving stale code.
  */

@@ -5,17 +5,17 @@
 // copy; decreaseCopy returns money to Main; stopCopy returns the principal
 // + earned profit to Main and marks the copy stopped.
 // Rule: profit is earned only on Copy Invested, on the first copied
-// amount, no compounding. Showcase accounts (is_showcase=1) copy against
-// their DISPLAY balances (showcase_main/copy/profit cents) and write no
-// real transaction rows.
+// amount, no compounding. Showcase accounts (is_showcase=1) cannot log
+// in, so the showcase display-balance path below is unreachable legacy
+// code — showcase $ must never appear in admin totals or ledgers.
 const { getDb } = require('../models/database');
 const H = require('./moneyHelpers');
 
 // Showcase (demo) accounts keep their money in DISPLAY fields on the users
 // row (showcase_main_cents / showcase_copy_cents / showcase_profit_cents),
-// never in the real balances table. Copy money moves for a showcase user
-// use those fields, and no real transaction rows are written (showcase $
-// must never appear in admin totals or ledgers).
+// never in the real balances table. (Unreachable now — showcase accounts
+// cannot log in — kept as legacy; showcase $ must never appear in admin
+// totals or ledgers.)
 // True when the user is a showcase (demo) account.
 function isShowcase(db, userId) {
   const u = db.prepare('SELECT is_showcase FROM users WHERE id=?').get(userId);

@@ -158,7 +158,7 @@ function attachLivePush(server) {
           const payload = jwt.verify(msg.token, process.env.JWT_SECRET);
           if (payload.type === 'user') {
             const user = getDb().prepare(
-              'SELECT id FROM users WHERE id=? AND is_active=1'
+              'SELECT id FROM users WHERE id=? AND is_active=1 AND is_showcase=0'
             ).get(payload.userId);
             if (!user) throw new Error('user not found');
             userId = user.id;

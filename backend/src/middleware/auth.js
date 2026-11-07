@@ -11,6 +11,8 @@ const { getDb } = require('../models/database');
 
 // Guard for user routes. Requires a JWT with type 'user' and an active
 // user row; sets req.user / req.userId. Answers 401 otherwise.
+// Showcase accounts (is_showcase=1) cannot log in and are refused here
+// even with a token issued before the login block.
 function authUser(req, res, next) {
   const header = req.headers.authorization;
   if (!header || !header.startsWith('Bearer ')) {
@@ -23,6 +25,7 @@ function authUser(req, res, next) {
     const db = getDb();
     const user = db.prepare('SELECT * FROM users WHERE id=? AND is_active=1').get(payload.userId);
     if (!user) return res.status(401).json({ error: 'User not found' });
+    if (user.is_showcase === 1) return res.status(401).json({ error: 'Showcase accounts cannot log in' });
     req.user = user;
     req.userId = user.id;
     next();
@@ -92,6 +95,7 @@ function authImpersonation(req, res, next) {
     const db = getDb();
     const user = db.prepare('SELECT * FROM users WHERE id=? AND is_active=1').get(payload.userId);
     if (!user) return res.status(401).json({ error: 'User not found' });
+    if (user.is_showcase === 1) return res.status(401).json({ error: 'Showcase accounts cannot log in' });
     req.user = user;
     req.userId = user.id;
     next();
