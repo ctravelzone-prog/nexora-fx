@@ -36,7 +36,13 @@ router.get('/version', (req, res) => {
 // GET /download — always the latest APK. The website's download buttons
 // link here (not to a versioned GitHub URL), so a new release can never
 // leave a stale button behind again.
+// The redirect must NEVER be cached (no-store): its target changes on
+// every release, and a cached redirect to a renamed/deleted asset sends
+// the browser to a GitHub 404 — that is what happened when the asset was
+// renamed to Nexora.apk (the old cached redirect still pointed at the
+// deleted NexoraFX-1.6.apk).
 router.get('/download', (req, res) => {
+  res.set('Cache-Control', 'no-store');
   res.redirect(getSetting('app_download_url') || DEFAULTS.download_url);
 });
 
