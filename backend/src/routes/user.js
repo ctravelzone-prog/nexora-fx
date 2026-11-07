@@ -23,8 +23,18 @@ const path = require('path');
 const { getUploadsDir, ensureUploadsDir } = require('../services/uploads');
 ensureUploadsDir();
 const PROFILE_PHOTO_EXTS = new Set(['.jpg','.jpeg','.png','.webp','.gif','.heic','.heif']);
+// Profile photos are kept separate by user type: real users under
+// profile/real, showcase users under profile/showcase — so a showcase
+// photo can never mix with a real user's photo (and vice versa).
+function profilePhotoDir(req){
+  return req.isShowcase ? 'profile/showcase' : 'profile/real';
+}
 const storage = multer.diskStorage({
-  destination: (req,file,cb)=>cb(null,getUploadsDir()),
+  destination: (req,file,cb)=>{
+    const dir = path.join(getUploadsDir(), profilePhotoDir(req));
+    try{ fs.mkdirSync(dir, {recursive:true}); }catch(_){}
+    cb(null, dir);
+  },
   filename: (req,file,cb)=>{
     const ext = path.extname(file.originalname||'').toLowerCase();
     const safeExt = PROFILE_PHOTO_EXTS.has(ext) ? ext : '.jpg';
@@ -37,14 +47,17 @@ const upload = multer({storage,limits:{fileSize:10*1024*1024},
     cb(new Error('Only image files are allowed'));
   }});
 
-// Deletes one uploaded file, but only if it lives inside the uploads
-// dir (a /uploads/<name> URL with no path tricks) — never an arbitrary path.
+// Deletes one uploaded profile photo file, but only if it lives inside
+// the uploads dir in an allowed spot — profile/real/…, profile/showcase/…,
+// or a plain profile_* file directly under /uploads (older uploads, before
+// the split) — never an arbitrary path.
+const PROFILE_FILE_RE = /^(profile\/(real|showcase)\/)?profile_[A-Za-z0-9._-]+$/;
 function deleteUploadFile(url){
   if(!url || typeof url !== 'string') return;
   if(!url.startsWith('/uploads/')) return;
-  const name = url.slice('/uploads/'.length);
-  if(!name || name.includes('/') || name.includes('..')) return;
-  try{ fs.unlinkSync(path.join(getUploadsDir(), name)); }catch(_){}
+  const rel = url.slice('/uploads/'.length);
+  if(!PROFILE_FILE_RE.test(rel)) return;
+  try{ fs.unlinkSync(path.join(getUploadsDir(), rel)); }catch(_){}
 }
 
 // Runs multer.single('photo') and turns its errors into a JSON 400
@@ -200,7 +213,7 @@ router.post('/profile-photo', auth, (req,res,next)=>{
   if(!req.file) return res.status(400).json({error:'No file uploaded'});
   const db = getDb();
   const old = db.prepare('SELECT profile_photo FROM users WHERE id=?').get(req.userId);
-  const url=`/uploads/${req.file.filename}`;
+  const url=`/uploads/${profilePhotoDir(req)}/${req.file.filename}`;
   db.prepare('UPDATE users SET profile_photo=? WHERE id=?').run(url,req.userId);
   if(old && old.profile_photo && old.profile_photo !== url) deleteUploadFile(old.profile_photo);
   res.json({success:true,url});
