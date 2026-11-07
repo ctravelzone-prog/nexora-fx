@@ -85,6 +85,10 @@ const App = {
     // openSidebar() sets body overflow hidden; a sidebar link tap re-renders
     // the page without calling closeSidebar(), which left the page unscrollable.
     try { if (typeof Components !== 'undefined' && Components.closeSidebar) Components.closeSidebar(); } catch(e) {}
+    // Every navigation starts at the top of the new page. Without this the
+    // page kept the previous page's scroll offset — e.g. after login the
+    // dashboard opened scrolled down, its top cut off above the viewport.
+    try { window.scrollTo(0, 0); } catch(e) {}
     // loggedIn = has valid token AND user loaded (or just token for public page routing)
     const hasToken = utils.isLoggedIn();
     const loggedIn = hasToken && App.state.user !== null;
