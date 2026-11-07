@@ -45,6 +45,7 @@ function getDb() {
     try{const cols=db.prepare("PRAGMA table_info(users)").all();if(!cols.some(c=>c.name==='request_money_enabled')){db.exec('ALTER TABLE users ADD COLUMN request_money_enabled INTEGER NOT NULL DEFAULT 1');}}catch(_){}
     try{const cols=db.prepare("PRAGMA table_info(users)").all();if(!cols.some(c=>c.name==='request_money_one_time')){db.exec('ALTER TABLE users ADD COLUMN request_money_one_time INTEGER NOT NULL DEFAULT 0');}}catch(_){}
     try{const cols=db.prepare("PRAGMA table_info(balances)").all();if(!cols.some(c=>c.name==='referral_transferred_cents')){db.exec('ALTER TABLE balances ADD COLUMN referral_transferred_cents INTEGER NOT NULL DEFAULT 0');}}catch(_){}
+    try{const cols=db.prepare("PRAGMA table_info(forget_requests)").all();if(!cols.some(c=>c.name==='access_token')){db.exec('ALTER TABLE forget_requests ADD COLUMN access_token TEXT');}}catch(_){}
     // One-time backfill for the referral transfer feature (v88): referral
     // money earned BEFORE v88 was already added straight to Profit, so
     // mark it transferred — otherwise it could be transferred a second

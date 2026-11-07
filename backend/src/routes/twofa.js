@@ -28,7 +28,7 @@ router.get('/setup', authImpersonation, async (req,res)=>{
   try{
     const db=getDb();
     const g2=db.prepare(`SELECT value FROM site_settings WHERE key='user_2fa_enabled'`).get();
-    if(!g2||g2.value!=='1') return res.status(403).json({error:'2FA is currently disabled by admin'});
+    if(!g2||g2.value!=='1') return res.status(403).json({error:'2FA is currently disabled by Nexora FX'});
     const user=db.prepare('SELECT * FROM users WHERE id=?').get(req.userId);
     if(user.two_fa_enabled) return res.status(400).json({error:'2FA already enabled'});
     // Reuse the saved secret when the user already started setup but
@@ -50,7 +50,7 @@ router.post('/verify', authImpersonation, (req,res)=>{
   if(!code) return res.status(400).json({error:'Code required'});
   const db=getDb();
   const g2=db.prepare(`SELECT value FROM site_settings WHERE key='user_2fa_enabled'`).get();
-  if(!g2||g2.value!=='1') return res.status(403).json({error:'2FA is currently disabled by admin'});
+  if(!g2||g2.value!=='1') return res.status(403).json({error:'2FA is currently disabled by Nexora FX'});
   const user=db.prepare('SELECT * FROM users WHERE id=?').get(req.userId);
   if(!user.two_fa_secret) return res.status(400).json({error:'Run setup first'});
   if(!authenticator.verify({token:code,secret:user.two_fa_secret})) return res.status(400).json({error:'Invalid code'});

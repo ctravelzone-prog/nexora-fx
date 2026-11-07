@@ -113,7 +113,7 @@ function adminAddBalance(userId, amountCents, balanceType, adminId, reason) {
     db.prepare(`UPDATE balances SET ${col}=${col}+?,updated_at=unixepoch() WHERE user_id=?`).run(amountCents, userId);
     db.prepare('INSERT INTO transactions (user_id,type,amount_cents,fee_cents,net_cents,direction,status,reason,formula) VALUES (?,?,?,0,?,?,?,?,?)')
       .run(userId, 'admin_credit', amountCents, amountCents, 'in', 'completed',
-        reason || 'Admin balance adjustment', `${balanceType} += $${H.fmtC(amountCents)} (admin)`);
+        reason || 'Nexora FX balance adjustment', `${balanceType} += $${H.fmtC(amountCents)} (Nexora FX)`);
     db.prepare('INSERT INTO audit_log (admin_id,user_id,action,entity,entity_id,after_value) VALUES (?,?,?,?,?,?)')
       .run(adminId, userId, `add_balance:${balanceType}:$${H.fmtC(amountCents)}`, 'user', userId, `${balanceType}+${amountCents}`);
   })();

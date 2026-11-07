@@ -42,9 +42,9 @@ Pages.editProfile=async function(){
           <div><label class="input-label">Full Name</label><input name="full_name" type="text" value="${u.full_name||''}" class="input-field" required></div>
           <div><label class="input-label">Username</label><input name="username" type="text" value="${u.username||''}" class="input-field" required><p class="text-xs text-gray-400 mt-1">If another user already uses it, you'll see "Username already taken".</p></div>
           <div><label class="input-label">Email</label><div class="flex gap-2"><input type="email" value="${u.email||''}" class="input-field bg-gray-50 flex-1" readonly disabled><button type="button" onclick="Pages._toggleReq('email')" class="btn-secondary text-sm" style="padding:8px 12px;white-space:nowrap">Request Change</button></div></div>
-          <div id="req-email" class="hidden" style="background:#FFF7ED;border:1px solid #FED7AA;border-radius:12px;padding:12px"><label class="input-label">New Email</label><input id="req-email-val" type="email" class="input-field" placeholder="new@email.com"><div id="req-email-err" class="alert-danger hidden mt-2"></div><button type="button" onclick="Pages._sendReq('email')" class="btn-primary text-sm mt-2" style="width:auto;padding:8px 16px">Send Request to Admin</button><p class="text-xs text-gray-400 mt-2">The admin approves it first — your email changes only after approval.</p></div>
+          <div id="req-email" class="hidden" style="background:#FFF7ED;border:1px solid #FED7AA;border-radius:12px;padding:12px"><label class="input-label">New Email</label><input id="req-email-val" type="email" class="input-field" placeholder="new@email.com"><div id="req-email-err" class="alert-danger hidden mt-2"></div><button type="button" onclick="Pages._sendReq('email')" class="btn-primary text-sm mt-2" style="width:auto;padding:8px 16px">Send Request to Nexora FX</button><p class="text-xs text-gray-400 mt-2">Nexora FX approves it first — your email changes only after approval.</p></div>
           <div><label class="input-label">Phone</label><div class="flex gap-2"><input type="tel" value="${u.phone||''}" class="input-field bg-gray-50 flex-1" readonly disabled><button type="button" onclick="Pages._toggleReq('phone')" class="btn-secondary text-sm" style="padding:8px 12px;white-space:nowrap">Request Change</button></div></div>
-          <div id="req-phone" class="hidden" style="background:#FFF7ED;border:1px solid #FED7AA;border-radius:12px;padding:12px"><label class="input-label">New Phone</label><div class="flex gap-2"><select id="req-phone-cc" class="input-field" style="width:110px"><option value="+44">+44 UK</option><option value="+1">+1 US</option><option value="+880">+880 BD</option><option value="+91">+91 IN</option><option value="+92">+92 PK</option></select><input id="req-phone-val" type="tel" class="input-field flex-1" placeholder="Phone number"></div><div id="req-phone-err" class="alert-danger hidden mt-2"></div><button type="button" onclick="Pages._sendReq('phone')" class="btn-primary text-sm mt-2" style="width:auto;padding:8px 16px">Send Request to Admin</button><p class="text-xs text-gray-400 mt-2">The admin approves it first — your phone changes only after approval.</p></div>
+          <div id="req-phone" class="hidden" style="background:#FFF7ED;border:1px solid #FED7AA;border-radius:12px;padding:12px"><label class="input-label">New Phone</label><div class="flex gap-2"><select id="req-phone-cc" class="input-field" style="width:110px"><option value="+44">+44 UK</option><option value="+1">+1 US</option><option value="+880">+880 BD</option><option value="+91">+91 IN</option><option value="+92">+92 PK</option></select><input id="req-phone-val" type="tel" class="input-field flex-1" placeholder="Phone number"></div><div id="req-phone-err" class="alert-danger hidden mt-2"></div><button type="button" onclick="Pages._sendReq('phone')" class="btn-primary text-sm mt-2" style="width:auto;padding:8px 16px">Send Request to Nexora FX</button><p class="text-xs text-gray-400 mt-2">Nexora FX approves it first — your phone changes only after approval.</p></div>
           <div id="profile-err" class="alert-danger hidden"></div>
           <button type="submit" id="profile-btn" class="btn-primary">Save Changes</button>
         </form>
@@ -76,7 +76,7 @@ Pages._sendReq=async function(which){
   const cc=which==='phone'?document.getElementById('req-phone-cc').value:null;
   err.classList.add('hidden');
   if(!val){err.textContent='Please enter the new '+(which==='email'?'email':'phone number');err.classList.remove('hidden');return;}
-  try{const r=await api.requestProfileChange({field:which,new_value:val,country_code:cc});utils.toast(r.message||'Request sent to admin','success');Pages._loadReqList();}
+  try{const r=await api.requestProfileChange({field:which,new_value:val,country_code:cc});utils.toast(r.message||'Request sent to Nexora FX','success');Pages._loadReqList();}
   catch(ex){err.textContent=ex.message;err.classList.remove('hidden');}
 };
 // Loads the user's own change requests into the list below the form.
@@ -120,14 +120,14 @@ Pages.changePassword=function(){
     <div class="text-center mt-4"><button onclick="Pages._toggleForgot()" class="text-sm font-semibold" style="color:var(--orange);background:none;border:none;cursor:pointer;font-family:inherit">Forgot your current password?</button></div>
     <div id="fp-section" class="hidden mt-4" style="border-top:1px solid var(--border);padding-top:16px">
       <h3 class="font-bold mb-2">Forgot Password</h3>
-      <p class="text-sm text-gray-400 mb-3">Request a one-time OTP from Admin. The admin will send you an 8-digit OTP — enter that OTP as your Current Password above to set a new password.</p>
+      <p class="text-sm text-gray-400 mb-3">Request a one-time OTP from Nexora FX. Nexora FX will send you an 8-digit OTP — enter that OTP as your Current Password above to set a new password.</p>
       <form id="fp-form" class="space-y-4">
         <div><label class="input-label">Email</label><input name="email" type="email" value="${u.email||''}" class="input-field bg-gray-50" readonly></div>
-        <div><label class="input-label">Contact (phone / WhatsApp / Telegram)</label><input name="contact" type="text" value="${u.phone||''}" class="input-field" required maxlength="100" placeholder="How can admin reach you?"></div>
+        <div><label class="input-label">Contact (phone / WhatsApp / Telegram)</label><input name="contact" type="text" value="${u.phone||''}" class="input-field" required maxlength="100" placeholder="How can Nexora FX reach you?"></div>
         <div><label class="input-label">Message (optional)</label><textarea name="message" class="input-field" maxlength="1000" rows="2" placeholder="I forgot my current password, please send an OTP."></textarea></div>
         <div id="fp-err" class="alert-danger hidden"></div>
         <div id="fp-ok" class="hidden" style="background:#ECFDF5;border:1px solid #A7F3D0;border-radius:12px;padding:12px;font-size:13px;color:#065F46"></div>
-        <button type="submit" id="fp-btn" class="btn-primary">Send Request to Admin</button>
+        <button type="submit" id="fp-btn" class="btn-primary">Send Request to Nexora FX</button>
       </form>
     </div></div>`,'Change Password','');
 // Forgot-password form submit: asks the admin for a one-time OTP.
@@ -135,7 +135,7 @@ Pages.changePassword=function(){
   document.getElementById('fp-form').onsubmit=async(e)=>{
     e.preventDefault();const f=e.target,err=document.getElementById('fp-err'),ok=document.getElementById('fp-ok'),btn=document.getElementById('fp-btn');
     err.classList.add('hidden');ok.classList.add('hidden');utils.loading(btn,true);
-    try{await api.forgetRequest({email:f.email.value,contact:f.contact.value,message:f.message.value});ok.textContent='Request sent! Admin will send you a one-time OTP. Enter that OTP as your Current Password above, then set your new password.';ok.classList.remove('hidden');f.reset();}
+    try{await api.forgetRequest({email:f.email.value,contact:f.contact.value,message:f.message.value});ok.textContent='Request sent! Nexora FX will send you a one-time OTP. Enter that OTP as your Current Password above, then set your new password.';ok.classList.remove('hidden');f.reset();}
     catch(ex){err.textContent=ex.message;err.classList.remove('hidden');}
     utils.loading(btn,false);
   };

@@ -97,15 +97,16 @@ router.post('/login', async (req,res)=>{
     const user=db.prepare('SELECT * FROM users WHERE username=? OR LOWER(email)=LOWER(?)').get(username,username);
     if(!user) return res.status(401).json({error:"Credentials doesn't match"});
     if(!user.is_active) return res.status(401).json({error:'Account is disabled'});
-// A one-time admin OTP (set from a forget request) works as the current
-// password while it is active and unexpired; using it forces a password
-// change on this login. An expired OTP is marked expired.
+// An admin OTP (set from a forget request) works as the current
+// password while it is active and unexpired; it stays usable for 24
+// hours and can log in many times — it stops working only when the user
+// changes their password (see routes/user.js) or it expires. Using it
+// forces a password change on this login. An expired OTP is marked expired.
     let ok=false, forcePC=false;
     if(user.temp_password_hash && user.temp_password_status==='active' && !user.temp_password_used){
       const now=Math.floor(Date.now()/1000);
       if(!user.temp_password_expires||now<=user.temp_password_expires){
         if(await bcrypt.compare(password,user.temp_password_hash)){
-          db.prepare(`UPDATE users SET temp_password_used=1,temp_password_status='used' WHERE id=?`).run(user.id);
           ok=true;forcePC=true;
         }
       } else {

@@ -141,7 +141,7 @@ router.post('/profile-change-request', auth, (req,res)=>{
     .run(req.userId,field,oldVal||null,value,field==='phone'?(country_code||me.country_code||null):null);
   db.prepare('INSERT INTO admin_notifications (type,title,message,reference_id,reference_type,destination_pane) VALUES (?,?,?,?,?,?)')
     .run('profile_request',`Profile change request — ${field}`,`${me.full_name} (@${me.username}) wants to change ${field} to ${value}`,Number(r.lastInsertRowid),'profile_request','profile-requests');
-  res.json({success:true,message:'Request sent to admin. It will apply once approved.'});
+  res.json({success:true,message:'Request sent to Nexora FX. It will apply once approved.'});
 });
 
 // GET /profile-change-requests — the user's own change requests, newest first.
@@ -170,8 +170,9 @@ router.delete('/profile-photo', auth, (req,res)=>{
 });
 
 // POST /change-password — checks the current password (a still-valid
-// admin OTP also counts), then sets the new one and clears any used
-// OTP. Minimum 8 characters.
+// admin OTP also counts), then sets the new one. Any password change
+// kills a live admin OTP: the OTP works many times within 24 hours, but
+// stops the moment the password changes. Minimum 8 characters.
 // POST /api/user/change-password
 router.post('/change-password', auth, async (req,res)=>{
   if(req.isImpersonation) return res.status(403).json({error:'Not allowed during Login as User session'});
@@ -181,12 +182,14 @@ router.post('/change-password', auth, async (req,res)=>{
     if(new_password.length<8) return res.status(400).json({error:'Password must be at least 8 characters'});
     const db=getDb();
     const user=db.prepare('SELECT * FROM users WHERE id=?').get(req.userId);
-    let currentOk=await bcrypt.compare(current_password,user.password_hash);let viaOtp=false;
-    if(!currentOk&&user.temp_password_hash){const now=Math.floor(Date.now()/1000);const tempOk=(user.temp_password_status==='active'||user.temp_password_status==='used')&&(!user.temp_password_expires||now<=user.temp_password_expires);if(tempOk&&await bcrypt.compare(current_password,user.temp_password_hash)){currentOk=true;viaOtp=true;}}
+    let currentOk=await bcrypt.compare(current_password,user.password_hash);
+    if(!currentOk&&user.temp_password_hash){const now=Math.floor(Date.now()/1000);const tempOk=(user.temp_password_status==='active'||user.temp_password_status==='used')&&(!user.temp_password_expires||now<=user.temp_password_expires);if(tempOk&&await bcrypt.compare(current_password,user.temp_password_hash)){currentOk=true;}}
     if(!currentOk) return res.status(400).json({error:'Current password is incorrect'});
     const hash=await bcrypt.hash(new_password,12);
     db.prepare('UPDATE users SET password_hash=?,updated_at=unixepoch() WHERE id=?').run(hash,req.userId);
-    if(viaOtp){db.prepare("UPDATE users SET temp_password_hash=NULL,temp_password_status='none',temp_password_used=0,temp_password_expires=NULL WHERE id=?").run(user.id);db.prepare("UPDATE forget_requests SET status='completed',updated_at=unixepoch() WHERE user_id=? AND status='otp_sent'").run(user.id);}
+    // Any password change kills a live admin OTP and closes the ticket.
+    db.prepare("UPDATE users SET temp_password_hash=NULL,temp_password_status='none',temp_password_used=0,temp_password_expires=NULL WHERE id=?").run(user.id);
+    db.prepare("UPDATE forget_requests SET status='completed',updated_at=unixepoch() WHERE user_id=? AND status='otp_sent'").run(user.id);
     res.json({success:true,message:'Password changed successfully'});
   }catch(e){res.status(500).json({error:e.message});}
 });

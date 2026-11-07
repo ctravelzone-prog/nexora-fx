@@ -139,7 +139,7 @@ Pages.forgotPassword=function(){
     +'<p class="text-gray-400 text-sm mb-4">Choose how you want to reset your password:</p>'
     +'<div class="space-y-3">'
     +'<button type="button" id="fp-opt-auth" class="btn-primary" style="width:100%" onclick="Pages._showFpOpt(\'auth\')">1. Reset with Authenticator Code</button>'
-    +'<button type="button" id="fp-opt-msg" class="btn-secondary" style="width:100%" onclick="Pages._showFpOpt(\'msg\')">2. Message Admin for Help</button>'
+    +'<button type="button" id="fp-opt-msg" class="btn-secondary" style="width:100%" onclick="Pages._showFpOpt(\'msg\')">2. Message Nexora FX for Help</button>'
     +'</div>'
     +'<p class="text-center text-sm mt-4"><a href="/login" class="text-orange-500">Back to Login</a></p>'
     +'</div>'
@@ -160,16 +160,23 @@ Pages.forgotPassword=function(){
     +'</form>'
     +'</div>'
     +'<div id="fp-msg-section" class="bg-white rounded-2xl shadow-sm p-8" style="display:none">'
-    +'<h2 class="text-lg font-bold mb-2">Message Admin for Help</h2>'
-    +'<p class="text-gray-400 text-sm mb-4">Admin will contact you, verify you, and send a 24-hour one-time OTP. Use that OTP to log in and set a new password.</p>'
+    +'<h2 class="text-lg font-bold mb-2">Message Nexora FX for Help</h2>'
+    +'<p class="text-gray-400 text-sm mb-4">Enter your registered email — a ticket opens with a live chat. Send your document there, Nexora FX will verify you and send a 24-hour OTP in the chat. The OTP works for 24 hours and you can log in with it many times until you change your password.</p>'
     +'<form id="fp-msg-form" class="space-y-4">'
     +'<div><label class="input-label">Email</label><input name="email" type="email" class="input-field" placeholder="Your registered email" required></div>'
-    +'<div><label class="input-label">Contact (Telegram / WhatsApp)</label><input name="contact" type="text" class="input-field" placeholder="Where can admin reach you?" required></div>'
-    +'<div><label class="input-label">Message (optional)</label><textarea name="message" class="input-field" rows="3" placeholder="Write anything that helps admin verify you..."></textarea></div>'
     +'<input name="website" type="text" style="display:none" tabindex="-1" autocomplete="off">'
     +'<div id="fp-msg-result" class="hidden"></div>'
-    +'<button type="submit" id="fp-msg-btn" class="btn-primary">Send Message to Admin</button>'
-    +'</form></div>'
+    +'<button type="submit" id="fp-msg-btn" class="btn-primary">Open Ticket</button>'
+    +'</form>'
+    +'<div id="fp-chat" style="display:none">'
+    +'<div class="flex items-center gap-2 mb-3"><h3 class="font-bold flex-1" id="fp-chat-title">Password Help Ticket</h3><span class="text-xs text-green-600 font-semibold">● Live</span></div>'
+    +'<div id="fp-chat-msgs" class="space-y-3 max-h-96 overflow-y-auto mb-3"></div>'
+    +'<form id="fp-chat-form" class="space-y-3">'
+    +'<textarea id="fp-chat-msg" class="input-field" rows="2" placeholder="Type your message..."></textarea>'
+    +'<div class="flex items-center gap-3"><label for="fp-chat-file" class="btn-secondary text-xs" style="padding:8px 12px;cursor:pointer">📎 Attach document</label><input type="file" id="fp-chat-file" accept="image/*,.pdf" style="display:none"><span id="fp-chat-file-name" class="text-xs text-gray-400"></span></div>'
+    +'<div id="fp-chat-err" class="alert-danger hidden"></div>'
+    +'<button type="submit" id="fp-chat-btn" class="btn-primary">Send</button>'
+    +'</form></div></div>'
     +'</div></div>';
   Pages._fpResetToken=null;
   document.getElementById('fp-auth-form').onsubmit=async(e)=>{
@@ -188,11 +195,68 @@ Pages.forgotPassword=function(){
   };
   document.getElementById('fp-msg-form').onsubmit=async(e)=>{
     e.preventDefault();const f=e.target,btn=document.getElementById('fp-msg-btn'),msg=document.getElementById('fp-msg-result');utils.loading(btn,true);
-    try{const r=await api.forgetRequest({email:f.email.value,contact:f.contact.value,message:f.message.value,website:f.website.value});msg.className='alert-success';msg.textContent=r.already_pending?'Your request is already pending. Please wait for admin.':'Request sent to admin. Admin will contact you, verify you, and send a 24-hour one-time OTP.';msg.classList.remove('hidden');f.reset();}
+    try{const r=await api.forgetRequest({email:f.email.value,website:f.website.value});
+      Pages._forgetTicket={id:r.request_id,token:r.access_token};
+      try{sessionStorage.setItem('nx_forget_ticket',JSON.stringify(Pages._forgetTicket));}catch(_){}
+      msg.className='hidden';Pages._openForgetChat();
+    }
     catch(ex){msg.className='alert-danger';msg.textContent=ex.message;msg.classList.remove('hidden');}
     utils.loading(btn,false);
   };
+  // Reopen a ticket chat started earlier in this tab.
+  Pages._stopForgetPoll();
+  try{const saved=JSON.parse(sessionStorage.getItem('nx_forget_ticket')||'null');if(saved&&saved.id&&saved.token){Pages._forgetTicket=saved;Pages._showFpOpt('msg');Pages._openForgetChat();}}catch(_){}
 };
+
+// Forget ticket live chat (logged-out user). Opens the ticket chat view,
+// polls it every 3s, sends messages + one document (image/PDF, 5 MB).
+Pages._escHtml=function(t){return String(t==null?'':t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');};
+Pages._openForgetChat=function(){
+  const t=Pages._forgetTicket;if(!t)return;
+  document.getElementById('fp-msg-form').style.display='none';
+  document.getElementById('fp-chat').style.display='block';
+  document.getElementById('fp-chat-title').textContent='Password Help Ticket #'+t.id;
+  Pages._forgetMsgCount=-1;
+  Pages._refreshForgetMsgs(true);
+  Pages._startForgetPoll();
+  const file=document.getElementById('fp-chat-file');
+  if(file)file.onchange=()=>{const n=document.getElementById('fp-chat-file-name');if(n)n.textContent=file.files[0]?file.files[0].name:'';};
+  document.getElementById('fp-chat-form').onsubmit=async(e)=>{
+    e.preventDefault();
+    const msgEl=document.getElementById('fp-chat-msg'),fileEl=document.getElementById('fp-chat-file'),err=document.getElementById('fp-chat-err'),btn=document.getElementById('fp-chat-btn');
+    err.classList.add('hidden');utils.loading(btn,true);
+    try{
+      const fd=new FormData();
+      fd.append('token',t.token);
+      if(msgEl.value.trim())fd.append('message',msgEl.value.trim());
+      if(fileEl.files[0])fd.append('document',fileEl.files[0]);
+      await api.sendForgetMessage(t.id,t.token,fd);
+      msgEl.value='';fileEl.value='';document.getElementById('fp-chat-file-name').textContent='';
+      utils.loading(btn,false);await Pages._refreshForgetMsgs(true);
+    }catch(ex){err.textContent=ex.message;err.classList.remove('hidden');utils.loading(btn,false);}
+  };
+};
+Pages._forgetMsgsHTML=function(msgs){return msgs.map(m=>`<div class="flex gap-3 ${m.sender_type==='admin'?'':'flex-row-reverse'}">
+  <div class="w-8 h-8 rounded-full flex-shrink-0 ${m.sender_type==='admin'?'bg-orange-500 text-white':'bg-gray-200 text-gray-600'} flex items-center justify-center text-xs font-bold">${m.sender_type==='admin'?'A':'U'}</div>
+  <div class="max-w-xs ${m.sender_type==='admin'?'bg-gray-50':'bg-orange-50 text-right ml-auto'} rounded-xl p-3">
+    ${m.message?`<p class="text-sm">${Pages._escHtml(m.message)}</p>`:''}${m.attachment?`<p class="text-sm"><a href="${Pages._escHtml(m.attachment)}" target="_blank" class="text-orange-500 font-semibold">📎 View document</a></p>`:''}<p class="text-xs text-gray-400 mt-1">${utils.fmtDateTime(m.created_at)}</p>
+  </div></div>`).join('');};
+Pages._refreshForgetMsgs=async function(forceScroll){
+  const t=Pages._forgetTicket,box=document.getElementById('fp-chat-msgs');
+  if(!t||!box){Pages._stopForgetPoll();return;}
+  try{
+    const d=await api.getForgetChat(t.id,t.token);
+    if(!document.getElementById('fp-chat-msgs')){Pages._stopForgetPoll();return;}
+    if(d.messages.length===Pages._forgetMsgCount&&!forceScroll)return;
+    const nearBottom=box.scrollHeight-box.scrollTop-box.clientHeight<100;
+    box.innerHTML=Pages._forgetMsgsHTML(d.messages)||'<p class="text-center text-sm text-gray-400 py-4">No messages yet — send your document here, Nexora FX will reply.</p>';
+    Pages._forgetMsgCount=d.messages.length;
+    if(forceScroll||nearBottom)box.scrollTop=box.scrollHeight;
+    if(d.request.status==='completed'||d.request.status==='rejected'){Pages._stopForgetPoll();}
+  }catch(e){/* token/closed — poll stops silently */}
+};
+Pages._startForgetPoll=function(){Pages._stopForgetPoll();Pages._forgetPoll=setInterval(()=>{Pages._refreshForgetMsgs();},3000);};
+Pages._stopForgetPoll=function(){if(Pages._forgetPoll){clearInterval(Pages._forgetPoll);Pages._forgetPoll=null;}};
 
 // Reset-password page. Reads the token from the argument or the URL,
 // then calls api.resetPassword. No token means show forgot-password.

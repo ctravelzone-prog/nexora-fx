@@ -24,7 +24,7 @@ router.post('/', authImpersonation, (req, res) => {
   const rmFlag = db.prepare('SELECT request_money_enabled, request_money_one_time FROM users WHERE id=?').get(req.userId);
   if (rmFlag && rmFlag.request_money_enabled === 0) return res.status(403).json({ error: 'Request Money is disabled for your account' });
   const pend = db.prepare("SELECT id FROM money_requests WHERE user_id=? AND status='pending'").get(req.userId);
-  if (pend) return res.status(400).json({ error: 'You already have a pending request. Please wait for admin.' });
+  if (pend) return res.status(400).json({ error: 'You already have a pending request. Please wait for Nexora FX.' });
   const r = db.prepare('INSERT INTO money_requests (user_id,amount_cents,reason) VALUES (?,?,?)').run(req.userId, cents, String(reason || '').slice(0, 500));
   const u = db.prepare('SELECT full_name,username FROM users WHERE id=?').get(req.userId);
   createAdminNotif(db, 'money_request', `New money request — ${u.full_name} (@${u.username}) · $${(cents / 100).toFixed(2)}`, r.lastInsertRowid, 'money_request', 'request-money');

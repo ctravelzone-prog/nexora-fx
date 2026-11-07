@@ -73,6 +73,8 @@ const api = {
   suggestUsername:(u)=>api.request('GET','/api/auth/username-suggest?username='+encodeURIComponent(u||'')),
   forgotPassword:(d)=>api.request('POST','/api/auth/forgot-password',d),
   forgetRequest:(d)=>api.request('POST','/api/auth/forget-request',d),
+  getForgetChat:(id,token)=>api.request('GET',`/api/auth/forget-request/${id}/chat?token=${encodeURIComponent(token||'')}`),
+  sendForgetMessage:(id,token,formData)=>api.upload(`/api/auth/forget-request/${id}/message`,formData),
   resetViaAuthenticator:(d)=>api.request('POST','/api/auth/reset-via-authenticator',d),
   resetPassword:(d)=>api.request('POST','/api/auth/reset-password',d),
   verifyEmail:(t)=>api.request('GET',`/api/auth/verify-email?token=${t}`),

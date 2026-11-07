@@ -38,7 +38,7 @@ Templates.login=()=>{
   </div>
   <div id="login-err" class="alert-danger hidden"></div>
   <button type="submit" id="login-btn" class="btn-primary">Sign In</button>
-  <p class="text-center text-xs text-gray-400 mt-2" id="login-hint">User 2FA is currently disabled by admin — sign in with your password only, no code step is asked.</p>
+  <p class="text-center text-xs text-gray-400 mt-2" id="login-hint">User 2FA is currently disabled by Nexora FX — sign in with your password only, no code step is asked.</p>
   <p class="text-center text-sm text-gray-500 mt-2">Not Registered Yet? <a href="/register" class="text-orange-500 font-semibold">Create an Account</a></p>
   </form></div>
   <p class="text-center text-xs text-gray-400 mt-4">Protected by 2FA security · Nexora FX account area</p>

@@ -50,7 +50,7 @@ const AdminApp = {
     if (modal && modal.innerHTML.trim()) return;
     const ae = document.activeElement;
     if (ae && /^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName)) return;
-    if (typeof AdminPages !== 'undefined' && AdminPages._activeTicketId) return;
+    if (typeof AdminPages !== 'undefined' && (AdminPages._activeTicketId || AdminPages._activeForgetId)) return;
     if (document.hidden) return;
     const p = window.location.pathname.replace('/admin','') || '/dashboard';
     if (!AdminApp._refreshable.includes(p)) return;

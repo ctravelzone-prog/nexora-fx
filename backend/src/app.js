@@ -50,6 +50,7 @@ const limiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 1000, skip: (req) => 
   if (u.startsWith('/api/app/version')) return true;
   if (req.method === 'GET' && u.startsWith('/api/user/notifications')) return true;
   if (req.method === 'GET' && u.startsWith('/api/support/tickets')) return true;
+  if (req.method === 'GET' && u.startsWith('/api/auth/forget-request/')) return true;
   return false;
 } });
 app.use('/api/', limiter);
