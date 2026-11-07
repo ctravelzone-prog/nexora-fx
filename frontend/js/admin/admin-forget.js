@@ -35,7 +35,7 @@ AdminPages.forgetRequests=async function(){
     AdminComponents.layout(`<h2 class="font-bold text-lg mb-4">Forget Requests</h2>
     <div class="alert-info mb-4 text-sm">User email diye password help-er ticket khule — ticket-e live chat-e document pathabe, verify kore <strong>Generate OTP</strong> dao. OTP 24 ghonta, password change na howa porjonto bar bar login kora jabe. OTP chat-eo jabe.</div>
     <div class="overflow-x-auto"><table class="data-table"><thead><tr><th>User</th><th>Contact</th><th>Message</th><th>Status</th><th>Date</th><th>Actions</th></tr></thead><tbody>
-      ${rows.map(r=>`<tr><td>${r.full_name} (@${r.username})<div class="text-xs text-gray-400">${r.email}</div></td><td class="text-sm">${r.contact||'—'}</td><td class="text-sm max-w-xs">${r.message||'—'}</td><td>${utils.statusBadge(r.status)}</td><td class="text-xs">${utils.fmtDateTime(r.created_at)}</td><td><button onclick="AdminPages.viewForgetRequest(${r.id})" class="btn-secondary text-xs mr-1" style="padding:6px 12px">Chat</button>${['pending','otp_sent'].includes(r.status)?`<button onclick="AdminPages._genForgetOtp(${r.id})" class="btn-primary text-xs mr-1" style="width:auto;padding:6px 12px">Generate OTP</button><button onclick="AdminPages._rejectForget(${r.id})" class="btn-secondary text-xs" style="padding:6px 12px">Reject</button>`:'—'}</td></tr>`).join('')}
+      ${rows.map(r=>`<tr><td>${r.full_name} (@${r.username})<div class="text-xs text-gray-400">${r.email}</div></td><td class="text-sm">${r.contact||'—'}</td><td class="text-sm max-w-xs">${r.message||'—'}</td><td>${utils.statusBadge(r.status)}</td><td class="text-xs">${utils.fmtDateTime(r.created_at)}</td><td><div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><button onclick="AdminPages.viewForgetRequest(${r.id})" class="btn-secondary text-xs" style="padding:6px 12px;width:auto;white-space:nowrap">Chat</button>${['pending','otp_sent'].includes(r.status)?`<button onclick="AdminPages._genForgetOtp(${r.id})" class="btn-primary text-xs" style="width:auto;padding:6px 12px;white-space:nowrap">Generate OTP</button><button onclick="AdminPages._rejectForget(${r.id})" class="btn-secondary text-xs" style="padding:6px 12px;width:auto;white-space:nowrap">Reject</button>`:'—'}</div></td></tr>`).join('')}
       ${rows.length===0?'<tr><td colspan="6" class="text-center py-8 text-gray-400">No forget requests</td></tr>':''}
     </tbody></table></div>`,'Forget Requests');
   }catch(e){document.getElementById('admin-app').innerHTML=`<p class="p-8 text-red-500">${e.message}</p>`;}
@@ -48,7 +48,7 @@ AdminPages.viewForgetRequest=async function(id){
   try{
     const d=await adminApi.getForgetChat(id);
     const r=d.request;
-    AdminComponents.layout(`<div class="max-w-2xl">
+    AdminComponents.layout(`<div class="w-full">
       <div class="flex items-center gap-3 mb-4"><button onclick="AdminPages.forgetRequests()" class="p-2 rounded-lg hover:bg-gray-100">← Forget Requests</button><h2 class="font-bold text-lg flex-1">${r.full_name} (@${r.username})</h2><span id="admin-forget-status-badge">${utils.statusBadge(r.status)}</span><span class="text-xs text-green-600 font-semibold">● Live</span></div>
       <div class="text-xs text-gray-400 mb-4">${r.email}${r.contact?` · ${r.contact}`:''} · ${utils.fmtDateTime(r.created_at)}</div>
       <div class="card mb-4">
@@ -97,7 +97,7 @@ AdminPages._refreshForgetMsgs=async function(id,forceScroll){
     if(!document.getElementById('admin-forget-msgs')||AdminPages._activeForgetId!==id){AdminPages._stopForgetPoll();return;}
     const badge=document.getElementById('admin-forget-status-badge');
     if(badge)badge.innerHTML=utils.statusBadge(d.request.status);
-    if(d.messages.length===AdminPages._forgetMsgCount&&!forceScroll)return;
+    if(d.messages.length===AdminPages._forgetMsgCount&&!forceScroll){AdminPages._forgetPollBusy=false;return;}
     const nearBottom=box.scrollHeight-box.scrollTop-box.clientHeight<100;
     box.innerHTML=AdminPages._forgetMsgsHTML(d.messages);
     AdminPages._forgetMsgCount=d.messages.length;

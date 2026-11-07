@@ -23,7 +23,7 @@
   // adminApi.sendNotif.
 AdminPages.sendNotification=async function(){
   AdminComponents.layout(`<h2 class="font-bold text-lg mb-4">Send Notification</h2>
-  <div class="card max-w-lg">
+  <div class="card w-full">
     <form id="notif-form" class="space-y-4">
       <div><label class="input-label">Target</label>
         <select name="target" id="notif-target" class="input-field" onchange="document.getElementById('user-search-row').style.display=this.value==='user'?'block':'none'">

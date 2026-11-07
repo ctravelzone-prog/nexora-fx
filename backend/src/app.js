@@ -16,6 +16,7 @@ const path = require('path');
 const rateLimit = require('express-rate-limit');
 const { getDb } = require('./models/database');
 const { ADMIN_LOGIN_PATH } = require('./config/admin');
+const { getUploadsDir, ensureUploadsDir } = require('./services/uploads');
 
 const app = express();
 app.set('trust proxy', 1); // behind Render proxy — rate limit uses real client IP
@@ -24,7 +25,8 @@ app.set('trust proxy', 1); // behind Render proxy — rate limit uses real clien
 app.use(cors({ origin: '*', credentials: true }));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
-app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+ensureUploadsDir();
+app.use('/uploads', express.static(getUploadsDir()));
 app.use('/assets', express.static(path.join(__dirname, '../../frontend/assets')));
 
 // Rate limiting — the public API is capped at 1000 requests / 15 min per IP.

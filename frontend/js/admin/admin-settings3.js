@@ -32,7 +32,7 @@ AdminPages.twoFAControl=async function(){
     const s=await adminApi.get2FAControl();
     AdminComponents.layout(`<h2 class="font-bold text-lg mb-4">2FA Control</h2>
     <div class="alert-info mb-4 text-sm">Both switches are <strong>OFF at start</strong>. Admin login is password-only by default. User login is password-only until you enable user 2FA here.</div>
-    <div class="card" style="max-width:480px">
+    <div class="card">
       <div class="switch-row">
         <div class="grow"><b>Admin 2FA</b><p>Require 2FA for admin login (admin panel)</p></div>
         <label class="switch"><input type="checkbox" ${s.admin_2fa_enabled==='1'?'checked':''} onchange="AdminPages._set2FA('admin',this)"><i></i></label>
@@ -64,13 +64,13 @@ AdminPages.kycControl=async function(){
     const requested=d.requested_users||[];
     AdminComponents.layout(`<h2 class="font-bold text-lg mb-4">KYC Control</h2>
     <div class="alert-info mb-4 text-sm">KYC is <strong>OFF by default</strong>. OFF = no banner, no block. ON = Action Required notification sent to all users.</div>
-    <div class="card mb-4" style="max-width:480px">
+    <div class="card mb-4">
       <div class="switch-row">
         <div class="grow"><b>KYC Required</b><p>Show KYC banner and send action notifications to users</p></div>
         <label class="switch"><input type="checkbox" ${d.kyc_enabled==='1'?'checked':''} onchange="AdminPages._setKYC(this)"><i></i></label>
       </div>
     </div>
-    <div class="card" style="max-width:480px">
+    <div class="card">
       <div class="mb-3"><b>Request KYC \u2014 Single User</b><p class="text-sm text-gray-400 mt-1">Select one user. Only that user will see the KYC banner and get an Action Required notification, even when KYC Required above is OFF. Other users are not affected.</p></div>
       <label class="input-label">Select User</label>
       <select id="kyc-single-user" class="input-field mb-3"><option value="">Select a user\u2026</option>${users.map(u=>`<option value="${u.id}">${u.full_name} (@${u.username}) \u2014 ${u.kyc_status}</option>`).join('')}</select>

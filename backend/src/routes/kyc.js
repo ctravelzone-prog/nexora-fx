@@ -5,14 +5,16 @@
 // pending kyc_submissions row; the admin reviews it in the admin panel.
 // Rules: one open submission per user (a pending or approved submission
 // blocks a second one). KYC is required before withdrawals can be used.
-// Uploaded files are stored under backend/uploads/.
+// Uploaded files are stored in the uploads dir (UPLOADS_DIR).
 const router = require('express').Router();
 const { getDb } = require('../models/database');
 const { authImpersonation } = require('../middleware/auth');
 const multer = require('multer');
 const path = require('path');
+const { getUploadsDir, ensureUploadsDir } = require('../services/uploads');
+ensureUploadsDir();
 const storage = multer.diskStorage({
-  destination:(req,file,cb)=>cb(null,path.join(__dirname,'../../uploads')),
+  destination:(req,file,cb)=>cb(null,getUploadsDir()),
   filename:(req,file,cb)=>cb(null,`kyc_${req.userId}_${Date.now()}_${file.originalname}`)
 });
 const upload = multer({storage,limits:{fileSize:10*1024*1024}});

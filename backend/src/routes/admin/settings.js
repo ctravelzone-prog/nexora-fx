@@ -15,7 +15,9 @@ const { getDb } = require('../../models/database');
 const { authAdmin, superAdminOnly } = require('../../middleware/auth');
 const multer = require('multer');
 const path = require('path');
-const upload = multer({storage:multer.diskStorage({destination:(req,file,cb)=>cb(null,path.join(__dirname,'../../../uploads')),filename:(req,file,cb)=>cb(null,`${file.fieldname}_${Date.now()}_${file.originalname}`)}),limits:{fileSize:5*1024*1024}});
+const { getUploadsDir, ensureUploadsDir } = require('../../services/uploads');
+ensureUploadsDir();
+const upload = multer({storage:multer.diskStorage({destination:(req,file,cb)=>cb(null,getUploadsDir()),filename:(req,file,cb)=>cb(null,`${file.fieldname}_${Date.now()}_${file.originalname}`)}),limits:{fileSize:5*1024*1024}});
 
 // Writes one site_settings key (insert or replace).
 function setSetting(k,v){getDb().prepare('INSERT OR REPLACE INTO site_settings (key,value,updated_at) VALUES (?,?,unixepoch())').run(k,v);}

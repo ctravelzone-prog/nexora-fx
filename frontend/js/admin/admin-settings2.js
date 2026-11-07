@@ -134,7 +134,7 @@ AdminPages.depositWallet=async function(){
   try{
     const w=await adminApi.getDepositWallet();
     AdminComponents.layout(`<h2 class="font-bold text-lg mb-4">Deposit Wallet Settings</h2>
-    <div class="card max-w-lg">
+    <div class="card w-full">
       ${w.qr?`<img src="${w.qr}" class="w-40 h-40 rounded-xl border mb-3" alt="QR">`:''}
       ${w.address?`<p class="text-xs text-gray-400 mb-3 break-all">${w.address}</p>`:''}
       <form id="wf" class="space-y-4">

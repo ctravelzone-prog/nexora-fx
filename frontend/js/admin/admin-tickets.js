@@ -77,7 +77,7 @@ AdminPages.viewTicket=async function(id){
   AdminPages._stopTicketPoll();
   try{
     const t=await adminApi.getTicket(id);
-    AdminComponents.layout(`<div class="max-w-2xl">
+    AdminComponents.layout(`<div class="w-full">
       <div class="flex items-center gap-3 mb-4"><button onclick="AdminPages.tickets()" class="p-2 rounded-lg hover:bg-gray-100">\u2190 Tickets</button><h2 class="font-bold text-lg flex-1">${t.subject}</h2><span id="admin-ticket-status-badge">${utils.statusBadge(t.status)}</span><span class="text-xs text-green-600 font-semibold">\u25cf Live</span></div>
       <div class="card mb-4">
         <div id="admin-ticket-msgs" class="space-y-4 max-h-96 overflow-y-auto">

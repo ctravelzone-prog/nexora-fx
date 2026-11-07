@@ -12,7 +12,9 @@ const { authAdmin } = require('../../middleware/auth');
 const { stopCopy } = require('../../services/copyService');
 const multer = require('multer');
 const path = require('path');
-const upload = multer({storage:multer.diskStorage({destination:(req,file,cb)=>cb(null,path.join(__dirname,'../../../uploads')),filename:(req,file,cb)=>cb(null,`trader_${Date.now()}_${file.originalname}`)}),limits:{fileSize:5*1024*1024}});
+const { getUploadsDir, ensureUploadsDir } = require('../../services/uploads');
+ensureUploadsDir();
+const upload = multer({storage:multer.diskStorage({destination:(req,file,cb)=>cb(null,getUploadsDir()),filename:(req,file,cb)=>cb(null,`trader_${Date.now()}_${file.originalname}`)}),limits:{fileSize:5*1024*1024}});
 
 // GET / — all traders (including hidden), newest first.
 router.get('/', authAdmin, (req,res)=>res.json(getDb().prepare('SELECT * FROM traders ORDER BY created_at DESC').all()));

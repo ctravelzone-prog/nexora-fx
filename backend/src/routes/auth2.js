@@ -17,6 +17,7 @@ const path = require('path');
 const { v4: uuidv4 } = require('uuid');
 const { getDb } = require('../models/database');
 const emailSvc = require('../services/emailService');
+const { getUploadsDir, ensureUploadsDir } = require('../services/uploads');
 // Abuse guards: forget-request is capped at 20/hour per IP, and
 // authenticator-based reset at 10 attempts per 15 minutes per IP.
 
@@ -24,8 +25,9 @@ const rateLimit = require('express-rate-limit');
 const forgetLimiter = rateLimit({windowMs:60*60*1000,max:20,handler:(req,res)=>res.status(429).json({error:'Too many forget requests from this connection. Please try again later.'}),standardHeaders:false,legacyHeaders:false});
 const authResetLimiter = rateLimit({windowMs:15*60*1000,max:10,handler:(req,res)=>res.status(429).json({error:'Too many attempts. Please try again later.'}),standardHeaders:false,legacyHeaders:false});
 // Document upload for the forget ticket chat: one image or PDF, max 5 MB,
-// stored under backend/uploads/ (served at /uploads/).
-const forgetUpload = multer({storage:multer.diskStorage({destination:(req,file,cb)=>cb(null,path.join(__dirname,'../../uploads')),filename:(req,file,cb)=>cb(null,`forget_${req.params.id}_${Date.now()}_${file.originalname}`)}),limits:{fileSize:5*1024*1024}});
+// stored in the uploads dir (UPLOADS_DIR, served at /uploads/).
+ensureUploadsDir();
+const forgetUpload = multer({storage:multer.diskStorage({destination:(req,file,cb)=>cb(null,getUploadsDir()),filename:(req,file,cb)=>cb(null,`forget_${req.params.id}_${Date.now()}_${file.originalname}`)}),limits:{fileSize:5*1024*1024}});
 // GET /verify-email?token=… — marks the user's email verified when the
 // token matches and has not expired (24 hours).
 router.get('/verify-email',(req,res)=>{
