@@ -84,6 +84,16 @@
   .ref-table td + td{border-top:1px solid #F8FAFC !important;}
   .ref-table td[data-label]::before{content:attr(data-label);font-size:11px;font-weight:700;letter-spacing:.06em;color:#94A3B8;text-transform:uppercase;text-align:left;flex-shrink:0;}
   .ref-table td[colspan]{display:block !important;text-align:center !important;}
+  /* Admin tables: same stacked-card treatment — every column visible on
+     phone, no horizontal scrollbar (Status/Date/Actions were cut off). */
+  .admin-main .overflow-x-auto{overflow:visible !important;}
+  table.data-table thead{display:none !important;}
+  table.data-table,table.data-table tbody,table.data-table tr,table.data-table td{display:block !important;width:100% !important;}
+  table.data-table tr{background:#fff;border:1px solid #F1F5F9 !important;border-radius:14px !important;margin-bottom:12px !important;padding:4px 16px !important;}
+  table.data-table td{border-bottom:0 !important;padding:8px 0 !important;display:flex !important;justify-content:space-between !important;align-items:center !important;gap:12px !important;text-align:right !important;overflow-wrap:anywhere !important;}
+  table.data-table td + td{border-top:1px solid #F8FAFC !important;}
+  table.data-table td[data-label]::before{content:attr(data-label);font-size:11px;font-weight:700;letter-spacing:.06em;color:#94A3B8;text-transform:uppercase;text-align:left;flex-shrink:0;}
+  table.data-table td[colspan]{display:block !important;text-align:center !important;}
   /* Shrink headings */
   h1{font-size:1.4rem !important;}
   /* Tighter padding on small screens */

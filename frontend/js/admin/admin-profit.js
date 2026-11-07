@@ -64,7 +64,7 @@ AdminPages.profit=async function(){
       <div class="card">
         <h3 class="font-bold mb-2">Admin User Profit Data</h3>
         <div class="overflow-x-auto"><table class="data-table"><thead><tr><th>User</th><th>Deposited</th><th>Copy Invested</th><th>Profit</th><th>Total PnL</th><th>Copies</th></tr></thead><tbody>
-          ${pdata.map(u=>`<tr><td>${u.full_name} (@${u.username})</td><td>${utils.fmtMoney(u.total_deposited_cents)}</td><td class="font-bold text-orange-500">${utils.fmtMoney(u.copy_cents)}</td><td class="profit">${utils.fmtMoney(u.profit_cents)}</td><td class="profit">${utils.fmtMoney(u.total_pnl_cents)}</td><td>${u.active_copies}</td></tr>`).join('')}
+          ${pdata.map(u=>`<tr><td data-label="User">${u.full_name} (@${u.username})</td><td data-label="Deposited">${utils.fmtMoney(u.total_deposited_cents)}</td><td data-label="Copy Invested" class="font-bold text-orange-500">${utils.fmtMoney(u.copy_cents)}</td><td data-label="Profit" class="profit">${utils.fmtMoney(u.profit_cents)}</td><td data-label="Total PnL" class="profit">${utils.fmtMoney(u.total_pnl_cents)}</td><td data-label="Copies">${u.active_copies}</td></tr>`).join('')}
           ${pdata.length===0?'<tr><td colspan="6" class="text-center py-8 text-gray-400">No active investors</td></tr>':''}
         </tbody></table></div>
       </div>`,'Profit System · 22-Day Cycle');

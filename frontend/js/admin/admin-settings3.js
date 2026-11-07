@@ -116,7 +116,7 @@ AdminPages.auditLog=async function(){
     const rows=await adminApi.getAuditLog();
     AdminComponents.layout(`<h2 class="font-bold text-lg mb-4">Audit Log</h2>
     <div class="overflow-x-auto"><table class="data-table"><thead><tr><th>Admin</th><th>Action</th><th>Before</th><th>After</th><th>Date</th></tr></thead><tbody>
-      ${rows.map(r=>`<tr><td>${r.admin_email||'system'}</td><td class="text-sm">${r.action}</td><td class="text-xs text-gray-400 max-w-xs truncate">${r.before_value||'—'}</td><td class="text-xs text-gray-400 max-w-xs truncate">${r.after_value||'—'}</td><td class="text-xs">${utils.fmtDateTime(r.created_at)}</td></tr>`).join('')}
+      ${rows.map(r=>`<tr><td data-label="Admin">${r.admin_email||'system'}</td><td data-label="Action" class="text-sm">${r.action}</td><td data-label="Before" class="text-xs text-gray-400 max-w-xs truncate">${r.before_value||'—'}</td><td data-label="After" class="text-xs text-gray-400 max-w-xs truncate">${r.after_value||'—'}</td><td data-label="Date" class="text-xs">${utils.fmtDateTime(r.created_at)}</td></tr>`).join('')}
       ${rows.length===0?'<tr><td colspan="5" class="text-center py-8 text-gray-400">No audit records</td></tr>':''}
     </tbody></table></div>`,'Audit Log');
   }catch(e){document.getElementById('admin-app').innerHTML=`<p class="p-8 text-red-500">${e.message}</p>`;}
