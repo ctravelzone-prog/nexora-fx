@@ -4,8 +4,8 @@
      The app icon comes from res/mipmap-*/ic_launcher.png (the NX mark). -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.nexorafx.app"
-    android:versionCode="7"
-    android:versionName="1.4.2">
+    android:versionCode="8"
+    android:versionName="1.5">
 
     <!-- Target Android 14 (API 34). WITHOUT targetSdkVersion the APK
          defaults to target 1 and Google Play Protect blocks the install
@@ -21,6 +21,12 @@
          COMPLETED lets the poll re-schedule after a phone restart. -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <!-- v1.5: instant notifications — the live WebSocket runs as a
+         foreground service (data sync), so the system keeps the
+         connection alive. The service shows one quiet persistent
+         notification ("Nexora FX live") while it runs. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
     <!-- v1.4.1: REQUEST_INSTALL_PACKAGES REMOVED — it made Play Protect block
          fresh installs as a 'harmful app'. Updates now install from the browser. -->
 
@@ -47,6 +53,12 @@
         <service
             android:name=".NotificationJobService"
             android:permission="android.permission.BIND_JOB_SERVICE"
+            android:exported="false" />
+
+        <!-- v1.5: instant notifications — foreground WebSocket service. -->
+        <service
+            android:name=".LivePushService"
+            android:foregroundServiceType="dataSync"
             android:exported="false" />
 
         <!-- v1.3: re-schedule the poll after a phone restart. -->

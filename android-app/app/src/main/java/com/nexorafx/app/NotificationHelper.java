@@ -194,6 +194,20 @@ public class NotificationHelper {
         js.schedule(job);
     }
 
+    // v1.5: a notification that arrived over the live WebSocket. Posts it
+    // and advances last_seen_id under the same lock the 15-minute poller
+    // uses, so the poller never posts the same row twice.
+    public static void noteLiveNotification(Context ctx, int id, String title, String message, String actionUrl) {
+        if (id <= 0) return;
+        synchronized (CHECK_LOCK) {
+            SharedPreferences prefs = prefs(ctx);
+            long lastSeen = prefs.getLong(KEY_LAST_SEEN_ID, 0);
+            if (id <= lastSeen) return; // the poller already showed it
+            prefs.edit().putLong(KEY_LAST_SEEN_ID, id).apply();
+            postNotification(ctx, id, title, message, actionUrl);
+        }
+    }
+
     // Show one notification row as a phone notification. Tapping it opens
     // the app on the notification's page (or /notifications by default).
     public static void postNotification(Context ctx, int id, String title, String message, String actionUrl) {

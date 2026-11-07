@@ -4,7 +4,29 @@ A native Android wrapper for the Nexora FX website. The app opens the live
 site in a WebView — login, trading, admin, everything works exactly as on
 the web. There is no separate app code for trading features.
 
-- **Package:** `com.nexorafx.app` — **App name:** Nexora FX — **Version:** 1.3 (versionCode 4)
+- **Package:** `com.nexorafx.app` — **App name:** Nexora FX — **Version:** 1.5 (versionCode 8)
+
+**v1.5 (7 Nov) — instant notifications (live connection, no Firebase).**
+A foreground service (`LivePushService`) holds a persistent secure
+WebSocket to the site (`wss://nexorafx.us/ws/live`, server side is the
+`ws` package on `/ws/live` — see `backend/src/services/livePush.js`)
+and shows each notification the moment it is sent (target 1–3 s,
+verified 0.3 s locally). The app authenticates with its user JWT as
+the first WS message (never in the URL); the server pushes new
+`notifications` rows to that user's live sockets (2 s poller, no
+replay of old rows, bad token closes the socket). The WS client is
+hand-written (framework APIs only — Android has no built-in WS client),
+with ping/pong keep-alive and reconnect backoff (2 s → 60 s). Each
+push goes through `NotificationHelper.noteLiveNotification`, which also
+advances `last_seen_id`, so the 15-minute poller never posts the same
+row twice. The 15-min job and the on-open check stay as fallbacks.
+Android requires a quiet persistent notification while the service
+runs ("Nexora FX live", IMPORTANCE_LOW); battery optimisation can
+still pause it. A dead token stops the service (MainActivity restarts
+it on the next login); logging out clears the saved token so the
+previous user's notifications stop. v1.5 is signed with the same
+keystore, so it installs as an update over v1.4.2.
+- **Site address:** `https://nexorafx.us` (see `MainActivity.java`, `SITE_URL`)
 
 **v1.3 (6 Nov) — phone notifications + in-app updates, no Firebase.**
 A background job (`NotificationJobService`, every 15 min — the JobScheduler
@@ -26,8 +48,9 @@ downloads the APK with DownloadManager and opens the installer
 allowed for Nexora FX first (the app opens that setting). If the phone's
 battery optimization kills the background job, notifications stop until
 the app is opened again. v1.3 is signed with the same keystore, so it
-installs as an update over v1.2.
-- **Site address:** `https://nexora-fx-uxvy.onrender.com` (see `MainActivity.java`, `SITE_URL`)
+installs as an update over v1.2. (v1.5 supersedes the 15-minute wait:
+the live WebSocket pushes notifications instantly; the poll stays as
+a fallback.)
 
 **v1.2 fix (6 Nov):** the Copy Trade page rendered cut off on the right in
 the app (cards too wide, Copy Now button unreachable, modal shifted, bottom

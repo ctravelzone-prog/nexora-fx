@@ -77,6 +77,8 @@ public class MainActivity extends Activity {
         // v1.3: phone notifications (polling, no Firebase).
         NotificationHelper.createChannel(this);
         NotificationHelper.scheduleJob(this);
+        // v1.5: instant notifications — start the live WebSocket service.
+        LivePushService.start(this);
         // v1.4.2: check right away on open — waiting for the 15-min job
         // left fresh notifications (e.g. a deposit reject) unseen.
         NotificationHelper.checkNow(this);
@@ -229,16 +231,29 @@ public class MainActivity extends Activity {
                 // is closed. The token lives in localStorage; read it
                 // after every page load (it refreshes on each login).
                 webView.evaluateJavascript("localStorage.getItem('nx_token')", value -> {
-                    if (value == null || value.length() < 4 || "null".equals(value)) return;
-                    String token = value.replaceAll("^\"|\"$", "");
-                    if (token.isEmpty()) return;
                     SharedPreferences p = NotificationHelper.prefs(MainActivity.this);
+                    if (value == null || value.length() < 4 || "null".equals(value)) {
+                        // Logged out (or not logged in yet) — the live
+                        // service and the poller must not keep using the
+                        // previous user's token.
+                        p.edit().remove(NotificationHelper.KEY_TOKEN).apply();
+                        return;
+                    }
+                    String token = value.replaceAll("^\"|\"$", "");
+                    if (token.isEmpty()) {
+                        p.edit().remove(NotificationHelper.KEY_TOKEN).apply();
+                        return;
+                    }
                     boolean fresh = !token.equals(p.getString(NotificationHelper.KEY_TOKEN, null));
                     p.edit().putString(NotificationHelper.KEY_TOKEN, token).apply();
                     // v1.4.2: a fresh login means a new token — check right
                     // away (bypasses the 60s throttle) so notifications
                     // arrive at once instead of at the next 15-min tick.
-                    if (fresh) NotificationHelper.checkNow(MainActivity.this, true);
+                    // v1.5: also (re)start the live service with it.
+                    if (fresh) {
+                        NotificationHelper.checkNow(MainActivity.this, true);
+                        LivePushService.start(MainActivity.this);
+                    }
                 });
             }
 

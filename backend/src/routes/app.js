@@ -7,10 +7,10 @@ const router = require('express').Router();
 const {getDb} = require('../models/database');
 
 const DEFAULTS = {
-  version_code: 7,
-  version_name: '1.4.2',
-  download_url: 'https://github.com/ctravelzone-prog/nexora-fx/releases/download/v1.4.2-android/NexoraFX-1.4.2.apk',
-  changelog: 'Phone notifications — deposit, withdrawal, profit and account alerts in the notification bar.',
+  version_code: 8,
+  version_name: '1.5',
+  download_url: 'https://github.com/ctravelzone-prog/nexora-fx/releases/download/v1.5-android/NexoraFX-1.5.apk',
+  changelog: 'Instant notifications — alerts arrive on your phone the moment they are sent (live connection), plus all the latest site updates.',
 };
 
 function getSetting(k) {

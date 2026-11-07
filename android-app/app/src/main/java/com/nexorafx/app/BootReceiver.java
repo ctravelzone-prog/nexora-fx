@@ -11,6 +11,8 @@ public class BootReceiver extends BroadcastReceiver {
     public void onReceive(Context context, Intent intent) {
         if (Intent.ACTION_BOOT_COMPLETED.equals(intent.getAction())) {
             NotificationHelper.scheduleJob(context);
+            // v1.5: resume the live connection after a phone restart.
+            LivePushService.start(context);
         }
     }
 }

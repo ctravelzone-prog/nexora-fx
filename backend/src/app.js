@@ -137,10 +137,13 @@ app.get('*', (req, res) => {
 
 // Start
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`\nNexora Fx running at http://localhost:${PORT}`);
   console.log(`Admin login: http://localhost:${PORT}${ADMIN_LOGIN_PATH}`);
   console.log(`Press Ctrl+C to stop\n`);
 });
+
+// v1.5: instant phone notifications — WebSocket live push on /ws/live.
+require('./services/livePush').attachLivePush(server);
 
 module.exports = app;
