@@ -26,7 +26,8 @@ Pages._db2=function(b,u,copies,f){
   html+='<h3 style="font-size:14.5px;font-weight:800;color:var(--ink);margin-bottom:8px">Quick actions &amp; balances</h3><div class="compact-grid">';
   html+='<div class="c-card"><small>MAIN BALANCE</small><div class="cv">'+f(b.main_cents)+'</div></div>';
   var refAvail=(b.referral_available_cents!=null?b.referral_available_cents:b.referral_cents);
-  html+='<div class="c-card"><small>REFERRAL BONUS</small><div class="cv">'+f(refAvail)+'</div>'+(refAvail>0?'<div style="margin-top:6px"><span onclick="App.navigate(\'/promotion\')" style="cursor:pointer;color:var(--orange);font-size:12px;font-weight:700">Transfer →</span></div>':'')+'</div>';
+  Pages._refAvail=refAvail;
+  html+='<div class="c-card"><small>REFERRAL BONUS</small><div class="cv">'+f(refAvail)+'</div><div style="margin-top:8px"><button onclick="Pages._refTransferOpen()" '+(refAvail>0?'':'disabled')+' style="background:linear-gradient(135deg,var(--orange),var(--orange2));color:#fff;border:none;border-radius:8px;padding:7px 14px;font-weight:700;font-size:12px;cursor:pointer;font-family:inherit;'+(refAvail>0?'':'opacity:.45;cursor:not-allowed;')+'">Transfer →</button></div></div>';
   html+='<div class="c-card"><small>TOTAL PNL</small><div class="cv '+(b.profit_cents>=0?'green':'red')+'">'+f(b.profit_cents)+'</div></div>';
   html+='<div class="c-card"><small>TOTAL DEPOSIT</small><div class="cv">'+f(b.total_deposited_cents)+'</div></div>';
   html+='<div class="c-card"><small>TOTAL WITHDRAW</small><div class="cv">'+f(b.total_withdrawn_cents)+'</div></div>';
@@ -67,4 +68,24 @@ Pages._db2=function(b,u,copies,f){
   var refUrl=window.location.origin+'/register?ref='+(u.referral_code||'');
   html+='<div class="card" style="padding:20px;margin-top:16px"><span style="font-size:11px;font-weight:800;letter-spacing:.7px;color:var(--faint);display:block;margin-bottom:8px">REFERRAL URL</span><div style="display:flex"><input id="ref-inp" readonly value="'+refUrl+'" style="flex:1;border:1.5px solid var(--border);border-right:0;border-radius:12px 0 0 12px;padding:12px 14px;font-size:12px;color:var(--body);background:var(--bg);min-width:0;font-family:inherit"><button onclick="navigator.clipboard.writeText(document.getElementById(\'ref-inp\').value);utils.toast(\'Copied!\',\'success\')" style="border:0;background:var(--orange);color:#fff;font-weight:800;font-size:13px;padding:0 16px;border-radius:0 12px 12px 0;cursor:pointer;font-family:inherit">COPY</button></div><p style="font-size:12px;color:var(--muted);margin-top:8px">Share your link and earn 4% commission.</p></div>';
   return html;
+};
+
+// Referral Bonus transfer from the dashboard card: opens a modal with the
+// available amount, reuses Pages._refTransferMax (same #ref-transfer-amt id
+// as the Promotion page) and the same POST /api/referral/transfer API.
+Pages._refTransferOpen=function(){
+  var avail=(Pages._refAvail||0)/100;
+  utils.showModal('<div class="modal"><h2 class="text-lg font-bold mb-2">Transfer Referral Bonus</h2><p class="text-sm text-gray-400 mb-4">Available: <strong>$'+avail.toFixed(2)+'</strong> — moves to your Profit Balance (Total PnL).</p><label class="input-label">Amount ($)</label><div class="flex gap-2"><input id="ref-transfer-amt" type="number" step="0.01" min="0.01" max="'+avail.toFixed(2)+'" value="'+avail.toFixed(2)+'" class="input-field flex-1"><button type="button" onclick="Pages._refTransferMax()" class="btn-secondary" style="width:auto;padding:10px 14px">Max</button></div><div id="ref-transfer-msg" class="text-sm mt-2"></div><div class="flex gap-3 mt-4"><button onclick="utils.closeModal()" class="btn-secondary flex-1">Cancel</button><button onclick="Pages._refTransferDash()" class="btn-primary flex-1">Transfer</button></div></div>');
+};
+// Same transfer as the Promotion page, but refreshes the dashboard after.
+Pages._refTransferDash=async function(){
+  var el=document.getElementById('ref-transfer-amt'),msg=document.getElementById('ref-transfer-msg');
+  var amt=parseFloat(el?el.value:'');
+  if(!amt||amt<=0){if(msg){msg.textContent='Enter an amount above $0';msg.style.color='var(--red)';}return;}
+  try{
+    await api.transferReferral(amt);
+    utils.closeModal();
+    utils.toast('Transferred $'+amt.toFixed(2)+' to Profit!','success');
+    Pages.dashboard();
+  }catch(e){if(msg){msg.textContent=e.message;msg.style.color='var(--red)';}}
 };
