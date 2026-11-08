@@ -37,11 +37,13 @@ Pages.kyc=async function(){
     // The form is built from the admin-configured fields (status.fields):
     // text/date/number/tel/email inputs, textareas, dropdowns and file
     // uploads, in the admin's order. Required fields are marked *.
-    // Layout (v118): two sections — Personal Information and Identity
+    // Layout (v118, v119): two sections — Personal Information and Identity
     // Documents — each in a .kyc-grid. The grid is ONE column on phones
-    // and TWO columns on desktop (media query below), so the form is about
-    // half as long on a wide screen. Long fields (address, file uploads)
-    // span both columns (.kyc-full). Card is max-w-2xl, not max-w-md.
+    // and TWO columns on tablet/desktop (media query below), so the form
+    // is about half as long on a wide screen. Long fields (address, file
+    // uploads) span both columns (.kyc-full). The card is max-w-3xl and
+    // mx-auto, so it sits centered in the content area on every device
+    // instead of hugging the left edge.
     const isDoc=f=>f.field_name==='selfie'||f.field_name.startsWith('doc_');
     const fieldHtmlFor=list=>list.map(fld=>{
       const req=fld.required?' required':'';
@@ -65,7 +67,7 @@ Pages.kyc=async function(){
     const fieldHtml=
       (personal.length?`<h3 class="font-bold text-sm mb-3">Personal Information</h3><div class="kyc-grid">${fieldHtmlFor(personal)}</div>`:'')+
       (docs.length?`<h3 class="font-bold text-sm mt-6 mb-3 pt-4" style="border-top:1px solid var(--border)">Identity Documents</h3><div class="kyc-grid">${fieldHtmlFor(docs)}</div>`:'');
-    Components.layout(`<style>.kyc-grid{display:grid;grid-template-columns:1fr;gap:1rem}@media (min-width:768px){.kyc-grid{grid-template-columns:1fr 1fr}.kyc-full{grid-column:1/-1}}</style><div class="max-w-2xl card">
+    Components.layout(`<style>.kyc-grid{display:grid;grid-template-columns:1fr;gap:1rem}@media (min-width:768px){.kyc-grid{grid-template-columns:1fr 1fr}.kyc-full{grid-column:1/-1}}</style><div class="max-w-3xl card mx-auto">
       <h2 class="font-bold mb-4">Submit KYC</h2>
       <p class="text-sm text-gray-400 mb-4">Fill in your details and upload your documents to verify your identity and unlock Main Balance withdrawals.</p>
       <form id="kyc-form">
