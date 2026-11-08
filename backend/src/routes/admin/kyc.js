@@ -25,6 +25,7 @@ router.get('/:id', authAdmin, (req,res)=>{
   const db=getDb();
   const kyc=db.prepare('SELECT k.*,u.full_name,u.username,u.email,u.phone FROM kyc_submissions k JOIN users u ON k.user_id=u.id WHERE k.id=?').get(req.params.id);
   if(!kyc) return res.status(404).json({error:'KYC submission not found'});
+  try{ kyc.form_data=kyc.form_data?JSON.parse(kyc.form_data):{}; }catch(_){ kyc.form_data={}; }
   res.json(kyc);
 });
 

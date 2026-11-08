@@ -46,6 +46,44 @@ function addTransactionShim(rawDb) {
 // Column migrations for older databases: add the column only when it is
 // missing, so starting the server never fails on an existing database.
 function applyMigrations(handle) {
+    // KYC form builder (v117): form_data holds the submitted values of
+    // the admin-configured (dynamic) fields as JSON; field_options holds a
+    // select field's options as JSON [{value,label}].
+    try{const cols=handle.prepare("PRAGMA table_info(kyc_submissions)").all();if(!cols.some(c=>c.name==='form_data')){handle.exec('ALTER TABLE kyc_submissions ADD COLUMN form_data TEXT');}}catch(_){}
+    try{const cols=handle.prepare("PRAGMA table_info(kyc_form_fields)").all();if(!cols.some(c=>c.name==='field_options')){handle.exec('ALTER TABLE kyc_form_fields ADD COLUMN field_options TEXT');}}catch(_){}
+    // One-time backfill of the full standard KYC form (v117). Inserts any
+    // missing default field by field_name and sets the canonical order and
+    // select options, then sets the flag so it never runs again (an admin
+    // who deletes a field will not see it come back on restart).
+    try{
+      const flag=handle.prepare("SELECT value FROM site_settings WHERE key='kyc_fields_v117'").get();
+      if(!flag||flag.value!=='1'){
+        const defs=[
+          ['full_name','Full Legal Name','text',1,1,null],
+          ['date_of_birth','Date of Birth','date',1,2,null],
+          ['nationality','Nationality','text',1,3,null],
+          ['country','Country of Residence','text',1,4,null],
+          ['address','Residential Address','textarea',1,5,null],
+          ['city','City','text',1,6,null],
+          ['postal_code','Postal / ZIP Code','text',0,7,null],
+          ['occupation','Occupation','text',0,8,null],
+          ['source_of_funds','Source of Funds','select',0,9,JSON.stringify([{value:'salary',label:'Salary'},{value:'business',label:'Business'},{value:'investments',label:'Investments'},{value:'savings',label:'Savings'},{value:'other',label:'Other'}])],
+          ['doc_type','Document Type','select',1,10,JSON.stringify([{value:'passport',label:'Passport'},{value:'id_card',label:'National ID'},{value:'driving_license',label:'Driving License'}])],
+          ['doc_number','Document Number','text',1,11,null],
+          ['doc_front','Document Front','file',1,12,null],
+          ['doc_back','Document Back','file',0,13,null],
+          ['selfie','Selfie with Document','file',1,14,null],
+        ];
+        const hasStmt=handle.prepare('SELECT id FROM kyc_form_fields WHERE field_name=?');
+        const ins=handle.prepare('INSERT INTO kyc_form_fields (field_name,field_label,field_type,required,sort_order,field_options) VALUES (?,?,?,?,?,?)');
+        const upd=handle.prepare('UPDATE kyc_form_fields SET sort_order=?,field_options=? WHERE field_name=?');
+        for(const d of defs){
+          if(!hasStmt.get(d[0])) ins.run(...d);
+          upd.run(d[4],d[5],d[0]);
+        }
+        handle.prepare("INSERT OR REPLACE INTO site_settings (key,value) VALUES ('kyc_fields_v117','1')").run();
+      }
+    }catch(_){}
     // Website visitor analytics (v116): one row per page view. visitor_id
     // is a random per-device ID (cookie + localStorage); distinct IDs are
     // unique visitors. Only the main DB is written to — the showcase copy

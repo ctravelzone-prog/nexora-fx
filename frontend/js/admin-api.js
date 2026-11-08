@@ -36,6 +36,10 @@ const adminApi = {
   setKYCControl:(d)=>api.request('PUT','/api/admin/settings/kyc-control',d,true),
   requestSingleKYC:(d)=>api.request('POST','/api/admin/settings/kyc-control/request',d,true),
   cancelSingleKYC:(d)=>api.request('POST','/api/admin/settings/kyc-control/cancel',d,true),
+  addKYCField:(d)=>api.request('POST','/api/admin/settings/kyc-control/fields',d,true),
+  updateKYCField:(id,d)=>api.request('PUT',`/api/admin/settings/kyc-control/fields/${id}`,d,true),
+  deleteKYCField:(id)=>api.request('DELETE',`/api/admin/settings/kyc-control/fields/${id}`,null,true),
+  moveKYCField:(id,d)=>api.request('POST',`/api/admin/settings/kyc-control/fields/${id}/move`,d,true),
   getAuditLog:()=>api.request('GET','/api/admin/settings/audit-log',null,true),
   getReports:()=>api.request('GET','/api/admin/settings/reports',null,true),
   // Finance: deposits, withdrawals, transactions and referrals.
@@ -79,6 +83,7 @@ const adminApi = {
   // KYC reviews, support tickets, password-reset (forget) requests and
   // request-money approvals.
   getKYCList:(p)=>api.request('GET',`/api/admin/kyc?${new URLSearchParams(p||{})}`,null,true),
+  getKYC:(id)=>api.request('GET',`/api/admin/kyc/${id}`,null,true),
   reviewKYC:(id,d)=>api.request('POST',`/api/admin/kyc/${id}/review`,d,true),
   getTickets:(p)=>api.request('GET',`/api/admin/tickets?${new URLSearchParams(p||{})}`,null,true),
   getForgetRequests:()=>api.request('GET','/api/admin/forget-requests',null,true),

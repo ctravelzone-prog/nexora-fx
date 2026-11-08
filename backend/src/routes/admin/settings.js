@@ -96,7 +96,88 @@ router.put('/kyc-control',authAdmin,superAdminOnly,(req,res)=>{const{kyc_enabled
 router.post('/kyc-control/request',authAdmin,superAdminOnly,(req,res)=>{const db=getDb();const user=db.prepare('SELECT * FROM users WHERE id=? AND is_showcase=0').get(req.body.user_id);if(!user)return res.status(404).json({error:'User not found'});if(user.kyc_status==='approved')return res.status(400).json({error:'User already KYC verified'});const pending=db.prepare("SELECT id FROM kyc_submissions WHERE user_id=? AND status='pending'").get(user.id);if(pending)return res.status(400).json({error:'User already submitted KYC. Review it in KYC Control.'});if(user.kyc_requested)return res.json({success:true,already_requested:true});db.prepare('UPDATE users SET kyc_requested=1,updated_at=unixepoch() WHERE id=?').run(user.id);db.prepare('INSERT INTO notifications (user_id,title,message,type,action_url,action_label,sent_by_admin) VALUES (?,?,?,?,?,?,?)').run(user.id,'KYC Verification Required','Please complete your KYC verification to unlock withdrawals.','action_required','/kyc','Complete KYC \u2192',req.adminId);db.prepare('INSERT INTO audit_log (admin_id,user_id,action) VALUES (?,?,?)').run(req.adminId,user.id,'kyc_request_single');res.json({success:true});});
 // POST /kyc-control/cancel — Super Admin only. Removes one user's KYC
 // request (clears their kyc_requested flag).
-router.post('/kyc-control/cancel',authAdmin,superAdminOnly,(req,res)=>{const db=getDb();const user=db.prepare('SELECT * FROM users WHERE id=? AND is_showcase=0').get(req.body.user_id);if(!user)return res.status(404).json({error:'User not found'});const pending=db.prepare("SELECT id FROM kyc_submissions WHERE user_id=? AND status='pending'").get(user.id);if(pending)return res.status(400).json({error:'User KYC is under review. Review it in KYC Control instead of cancelling.'});db.prepare('UPDATE users SET kyc_requested=0,updated_at=unixepoch() WHERE id=?').run(user.id);db.prepare('INSERT INTO audit_log (admin_id,user_id,action) VALUES (?,?,?)').run(req.adminId,user.id,'kyc_request_cancelled');res.json({success:true});});
+router.post('/kyc-control/cancel',authAdmin,superAdminOnly,(req,res)=>{const db=getDb();const user=db.prepare('SELECT * FROM users WHERE id=? AND is_showcase=0').get(req.body.user_id);if(!user)return res.status(404).json({error:'User not found'});const pending=db.prepare("SELECT id FROM kyc_submissions WHERE user_id=? AND status='pending'").get(user.id);if(pending)return res.status(400).json({error:'User KYC is under review. Review it in KYC Control instead of cancelling.'});db.prepare('UPDATE users SET kyc_requested=0,updated_at=unixepoch() WHERE id=?').run(user.id);
+db.prepare('INSERT INTO audit_log (admin_id,user_id,action) VALUES (?,?,?)').run(req.adminId,user.id,'kyc_request_cancelled');res.json({success:true});});
+
+// KYC form builder (v117) — Super Admin only. The KYC form is defined by
+// kyc_form_fields; the user form renders the active fields in sort order.
+// The four document fields (doc_type, doc_front, doc_back, selfie) are
+// structural — they can be edited and toggled but never deleted, because
+// the submit route stores them in fixed kyc_submissions columns.
+const KYC_FIELD_TYPES=['text','textarea','date','number','tel','email','select','file'];
+const KYC_CORE_FIELDS=['doc_type','doc_front','doc_back','selfie'];
+// Normalises select options from any shape the admin UI may send: a JSON
+// array, a JSON string of one, or one option per line ("label" or
+// "value | label"). Returns [{value,label}] or null.
+function parseFieldOptions(raw){
+  if(!raw) return null;
+  if(Array.isArray(raw)) return raw.map(o=>typeof o==='string'?{value:o,label:o}:(o&&o.value?{value:o.value,label:o.label||o.value}:null)).filter(Boolean);
+  if(typeof raw==='string'){
+    const t=raw.trim();
+    if(t.startsWith('[')){try{const arr=JSON.parse(t);if(Array.isArray(arr))return parseFieldOptions(arr);}catch(_){}}
+    return t.split('\n').map(l=>l.trim()).filter(Boolean).map(l=>{const p=l.split('|').map(x=>x.trim());return p.length>1?{value:p[0],label:p[1]}:{value:p[0],label:p[0]};});
+  }
+  return null;
+}
+// POST /kyc-control/fields — add a form field.
+router.post('/kyc-control/fields',authAdmin,superAdminOnly,(req,res)=>{
+  const {field_name,field_label,field_type,required,field_options}=req.body||{};
+  const name=typeof field_name==='string'?field_name.trim().toLowerCase().replace(/[^a-z0-9_]/g,''):'';
+  if(!name||!/^[a-z][a-z0-9_]*$/.test(name)) return res.status(400).json({error:'Field name must start with a letter and use only lowercase letters, numbers and _'});
+  if(!field_label||!String(field_label).trim()) return res.status(400).json({error:'Field label is required'});
+  if(!KYC_FIELD_TYPES.includes(field_type)) return res.status(400).json({error:'Invalid field type'});
+  const db=getDb();
+  if(db.prepare('SELECT id FROM kyc_form_fields WHERE field_name=?').get(name)) return res.status(400).json({error:'A field with this name already exists'});
+  const opts=field_type==='select'?JSON.stringify(parseFieldOptions(field_options)||[]):null;
+  if(field_type==='select'&&JSON.parse(opts).length===0) return res.status(400).json({error:'Select fields need at least one option (one per line)'});
+  const maxOrder=db.prepare('SELECT COALESCE(MAX(sort_order),0) as m FROM kyc_form_fields').get().m;
+  const id=db.prepare('INSERT INTO kyc_form_fields (field_name,field_label,field_type,required,sort_order,field_options,is_active) VALUES (?,?,?,?,?,?,1)').run(name,String(field_label).trim(),field_type,required?1:0,maxOrder+1,opts).lastInsertRowid;
+  res.json({success:true,id});
+});
+// PUT /kyc-control/fields/:id — edit label/type/required/options/active.
+router.put('/kyc-control/fields/:id',authAdmin,superAdminOnly,(req,res)=>{
+  const db=getDb();
+  const f=db.prepare('SELECT * FROM kyc_form_fields WHERE id=?').get(req.params.id);
+  if(!f) return res.status(404).json({error:'Field not found'});
+  const {field_label,field_type,required,field_options,is_active}=req.body||{};
+  if(field_label!==undefined&&!String(field_label).trim()) return res.status(400).json({error:'Field label is required'});
+  if(field_type!==undefined&&!KYC_FIELD_TYPES.includes(field_type)) return res.status(400).json({error:'Invalid field type'});
+  const type=field_type||f.field_type;
+  const opts=type==='select'?JSON.stringify(parseFieldOptions(field_options!==undefined?field_options:f.field_options)||[]):null;
+  if(type==='select'&&JSON.parse(opts).length===0) return res.status(400).json({error:'Select fields need at least one option (one per line)'});
+  db.prepare('UPDATE kyc_form_fields SET field_label=?,field_type=?,required=?,field_options=?,is_active=? WHERE id=?').run(
+    field_label!==undefined?String(field_label).trim():f.field_label,
+    type,
+    required!==undefined?(required?1:0):f.required,
+    opts,
+    is_active!==undefined?(is_active?1:0):f.is_active,
+    f.id);
+  res.json({success:true});
+});
+// DELETE /kyc-control/fields/:id — delete a field (never the 4 core ones).
+router.delete('/kyc-control/fields/:id',authAdmin,superAdminOnly,(req,res)=>{
+  const db=getDb();
+  const f=db.prepare('SELECT * FROM kyc_form_fields WHERE id=?').get(req.params.id);
+  if(!f) return res.status(404).json({error:'Field not found'});
+  if(KYC_CORE_FIELDS.includes(f.field_name)) return res.status(400).json({error:'The document fields cannot be deleted — turn them off instead'});
+  db.prepare('DELETE FROM kyc_form_fields WHERE id=?').run(f.id);
+  res.json({success:true});
+});
+// POST /kyc-control/fields/:id/move — move a field up or down in the form.
+router.post('/kyc-control/fields/:id/move',authAdmin,superAdminOnly,(req,res)=>{
+  const {direction}=req.body||{};
+  if(!['up','down'].includes(direction)) return res.status(400).json({error:'Direction must be up or down'});
+  const db=getDb();
+  const f=db.prepare('SELECT * FROM kyc_form_fields WHERE id=?').get(req.params.id);
+  if(!f) return res.status(404).json({error:'Field not found'});
+  const other=direction==='up'
+    ? db.prepare('SELECT * FROM kyc_form_fields WHERE sort_order<? ORDER BY sort_order DESC LIMIT 1').get(f.sort_order)
+    : db.prepare('SELECT * FROM kyc_form_fields WHERE sort_order>? ORDER BY sort_order ASC LIMIT 1').get(f.sort_order);
+  if(!other) return res.json({success:true,moved:false});
+  db.prepare('UPDATE kyc_form_fields SET sort_order=? WHERE id=?').run(other.sort_order,f.id);
+  db.prepare('UPDATE kyc_form_fields SET sort_order=? WHERE id=?').run(f.sort_order,other.id);
+  res.json({success:true,moved:true});
+});
 
 // POST /logo — Super Admin only. Uploads the site logo (max 5 MB) and
 // saves its URL as logo_url.

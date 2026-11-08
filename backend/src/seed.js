@@ -50,8 +50,8 @@ async function seed() {
   }
   // KYC fields
   if(!db.prepare('SELECT COUNT(*) as c FROM kyc_form_fields').get().c){
-    const kf=[['doc_type','Document Type','select',1,1],['doc_front','Document Front','file',1,2],['doc_back','Document Back','file',0,3],['selfie','Selfie with Document','file',1,4]];
-    const ink=db.prepare('INSERT INTO kyc_form_fields (field_name,field_label,field_type,required,sort_order) VALUES (?,?,?,?,?)');
+    const kf=[['full_name','Full Legal Name','text',1,1,null],['date_of_birth','Date of Birth','date',1,2,null],['nationality','Nationality','text',1,3,null],['country','Country of Residence','text',1,4,null],['address','Residential Address','textarea',1,5,null],['city','City','text',1,6,null],['postal_code','Postal / ZIP Code','text',0,7,null],['occupation','Occupation','text',0,8,null],['source_of_funds','Source of Funds','select',0,9,JSON.stringify([{value:'salary',label:'Salary'},{value:'business',label:'Business'},{value:'investments',label:'Investments'},{value:'savings',label:'Savings'},{value:'other',label:'Other'}])],['doc_type','Document Type','select',1,10,JSON.stringify([{value:'passport',label:'Passport'},{value:'id_card',label:'National ID'},{value:'driving_license',label:'Driving License'}])],['doc_number','Document Number','text',1,11,null],['doc_front','Document Front','file',1,12,null],['doc_back','Document Back','file',0,13,null],['selfie','Selfie with Document','file',1,14,null]];
+    const ink=db.prepare('INSERT INTO kyc_form_fields (field_name,field_label,field_type,required,sort_order,field_options) VALUES (?,?,?,?,?,?)');
     for(const f of kf) ink.run(...f);
   }
   // Profit schedule
