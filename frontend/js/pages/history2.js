@@ -25,7 +25,7 @@ Pages.copyHistory=async function(){
     Components.layout(
       '<div class="flex items-center gap-3 mb-4">'+backBtn+'<h1 style="font-size:21px;font-weight:800">Copy History</h1></div>'
       +'<div class="card" style="padding:0;overflow:hidden"><div style="overflow-x:auto"><table class="data-table"><thead><tr><th>Trader</th><th>Amount</th><th>Profit</th><th>Status</th><th>Started</th><th>Stopped</th></tr></thead><tbody>'
-      +copies.map(c=>'<tr><td>'+c.trader_name+'</td><td>'+utils.fmtMoney(c.amount_cents)+'</td><td style="color:var(--green-d);font-weight:700">'+(c.profit_cents>=0?'+':'')+utils.fmtMoney(c.profit_cents)+'</td><td>'+utils.statusBadge(c.status)+'</td><td style="font-size:12px">'+utils.fmtDate(c.created_at)+'</td><td style="font-size:12px">'+(c.stopped_at?utils.fmtDate(c.stopped_at):'—')+'</td></tr>').join('')
+      +copies.map(c=>'<tr><td>'+c.trader_name+'</td><td style="font-weight:700">'+utils.fmtMoney(c.amount_cents)+'</td><td style="color:var(--green-d);font-weight:700">'+(c.profit_cents>=0?'+':'')+utils.fmtMoney(c.profit_cents)+'</td><td>'+utils.statusBadge(c.status)+'</td><td style="font-size:12px">'+utils.fmtDate(c.created_at)+'</td><td style="font-size:12px">'+(c.stopped_at?utils.fmtDate(c.stopped_at):'—')+'</td></tr>').join('')
       +(copies.length===0?'<tr><td colspan="6" style="text-align:center;padding:32px;color:var(--muted)">No copy history yet</td></tr>':'')
       +'</tbody></table></div></div>'
     ,'Copy History','');
