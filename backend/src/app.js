@@ -83,6 +83,7 @@ app.use('/api/2fa', require('./routes/twofa'));
 app.use('/api/referral', require('./routes/referral'));
 app.use('/api/market', require('./routes/market'));
 app.use('/api/app', require('./routes/app'));
+app.use('/api/track', require('./routes/track'));
 
 // Admin routes (all under /api/admin/*)
 app.use('/api/admin/auth', require('./routes/admin/auth'));

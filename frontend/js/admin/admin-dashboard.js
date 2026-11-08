@@ -24,7 +24,18 @@
 AdminPages.dashboard=async function(){
   try{
     const _gen=AdminApp._gen;
-    const d=await adminApi.dashboard();if(_gen!==AdminApp._gen)return;const s=d.stats;
+    const [d,v]=await Promise.all([adminApi.dashboard(),adminApi.visitors().catch(()=>null)]);if(_gen!==AdminApp._gen)return;const s=d.stats;
+    // Last 7 days (Dhaka dates, newest first), zero-filled from the daily
+    // breakdown so days with no visits still show.
+    const vDays=[];
+    if(v){
+      const dayMap={};v.daily.forEach(r=>{dayMap[r.date]=r;});
+      for(let i=0;i<7;i++){
+        const dt=new Date(Date.now()+21600000-i*86400000).toISOString().slice(0,10);
+        const r=dayMap[dt]||{views:0,unique:0};
+        vDays.push({date:dt,views:r.views,unique:r.unique});
+      }
+    }
     AdminComponents.layout(`
       <div class="flex items-center justify-between mb-6">
         <div><h2 class="text-xl font-bold">Admin Dashboard</h2><p class="text-sm text-gray-400">Platform totals at a glance — all figures are sample design data.</p></div>
@@ -33,6 +44,23 @@ AdminPages.dashboard=async function(){
       <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         ${[['TOTAL USERS',s.totalUsers,`+${s.newThisWeek} this week`,''],['TOTAL DEPOSIT',utils.fmtMoney(s.totalDeposit),'All time, approved only',''],['TOTAL WITHDRAW',utils.fmtMoney(s.totalWithdraw),'Paid out, all time',''],['PENDING DEPOSIT',`${s.pendingDepCount} · ${utils.fmtMoney(s.pendingDepAmount)}`,'Waiting for review','text-orange-500'],['PENDING WITHDRAW',`${s.pendingWdCount} · ${utils.fmtMoney(s.pendingWdAmount)}`,'Main & Profit','text-orange-500'],['PENDING KYC',s.pendingKyc,'Documents to review','text-orange-500'],['OPEN TICKETS',s.openTickets,`${s.highTickets} high priority`,'text-orange-500'],['TOTAL MAIN BALANCE',utils.fmtMoney(s.totalMain),'Across all users',''],['TOTAL COPY INVESTED',utils.fmtMoney(s.totalCopy),'Active copies',''],['TOTAL PROFIT PAID',utils.fmtMoney(s.totalProfit),'Credited system-wide','text-green-500'],["TODAY'S DAILY PnL TOTAL",utils.fmtMoney(s.todayPnl),'Applied to all copies','text-green-500'],['TOTAL REFERRAL PAID',utils.fmtMoney(s.totalRef),'One-time 4% commissions','']].map(([l,v,sub,cls])=>`<div class="card"><div class="text-xs text-gray-400 uppercase font-semibold mb-1">${l}</div><div class="text-xl font-bold ${cls}">${v}</div><div class="text-xs text-gray-400 mt-1">${sub}</div></div>`).join('')}
       </div>
+      ${v?`<h3 class="font-bold mb-3">Website Visitors</h3>
+      <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        ${[['TOTAL VIEWS',v.totalViews,'All time',''],['UNIQUE VISITORS',v.totalUnique,'All time — one device counts once',''],['VIEWS TODAY',v.todayViews,'Dhaka time',''],['UNIQUE TODAY',v.todayUnique,'Dhaka time','']].map(([l,val,sub,cls])=>`<div class="card"><div class="text-xs text-gray-400 uppercase font-semibold mb-1">${l}</div><div class="text-xl font-bold ${cls}">${val}</div><div class="text-xs text-gray-400 mt-1">${sub}</div></div>`).join('')}
+      </div>
+      <div class="grid lg:grid-cols-2 gap-4 mb-6">
+        <div class="card">
+          <div class="font-bold mb-3">Top Pages</div>
+          ${v.topPages.length?v.topPages.map(pg=>`<div class="flex items-center justify-between py-2 border-b border-gray-50 last:border-0"><span class="text-sm break-all">${pg.path}</span><span class="font-bold text-sm">${pg.views} views</span></div>`).join(''):'<p class="text-sm text-gray-400">No visits yet — counts start from the first visitor after this update.</p>'}
+          <div class="text-xs text-gray-400 mt-3">Last 7 days: ${v.weekViews} views · ${v.weekUnique} unique visitors</div>
+        </div>
+        <div class="card">
+          <div class="font-bold mb-3">Last 7 Days</div>
+          <table class="data-table"><thead><tr><th>Date</th><th>Views</th><th>Unique</th></tr></thead><tbody>
+          ${vDays.map(r=>`<tr><td>${r.date}</td><td style="font-weight:700">${r.views}</td><td style="font-weight:700">${r.unique}</td></tr>`).join('')}
+          </tbody></table>
+        </div>
+      </div>`:''}
       <h3 class="font-bold mb-3">Recent Activity</h3>
       <div class="card">
         ${d.activity.slice(0,12).map(a=>`<div class="flex items-center gap-3 py-3 border-b border-gray-50 last:border-0">

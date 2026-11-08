@@ -46,6 +46,11 @@ function addTransactionShim(rawDb) {
 // Column migrations for older databases: add the column only when it is
 // missing, so starting the server never fails on an existing database.
 function applyMigrations(handle) {
+    // Website visitor analytics (v116): one row per page view. visitor_id
+    // is a random per-device ID (cookie + localStorage); distinct IDs are
+    // unique visitors. Only the main DB is written to — the showcase copy
+    // of this table stays empty.
+    try{handle.exec('CREATE TABLE IF NOT EXISTS visits (id INTEGER PRIMARY KEY AUTOINCREMENT, visitor_id TEXT NOT NULL, path TEXT NOT NULL, visited_at INTEGER NOT NULL)');handle.exec('CREATE INDEX IF NOT EXISTS idx_visits_time ON visits(visited_at)');handle.exec('CREATE INDEX IF NOT EXISTS idx_visits_visitor ON visits(visitor_id)');}catch(_){}
     try{const cols=handle.prepare("PRAGMA table_info(users)").all();if(!cols.some(c=>c.name==='kyc_requested')){handle.exec('ALTER TABLE users ADD COLUMN kyc_requested INTEGER NOT NULL DEFAULT 0');}}catch(_){}
     try{const cols=handle.prepare("PRAGMA table_info(users)").all();if(!cols.some(c=>c.name==='profit_target_bp')){handle.exec('ALTER TABLE users ADD COLUMN profit_target_bp INTEGER');}}catch(_){}
     try{const cols=handle.prepare("PRAGMA table_info(users)").all();if(!cols.some(c=>c.name==='showcase_withdraw_cents')){handle.exec('ALTER TABLE users ADD COLUMN showcase_withdraw_cents INTEGER DEFAULT 0');}}catch(_){}

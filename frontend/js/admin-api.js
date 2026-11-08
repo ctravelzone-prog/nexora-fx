@@ -18,6 +18,7 @@ const adminApi = {
   deleteProfilePhoto:()=>api.request('DELETE','/api/admin/auth/profile-photo',null,true),
   // Dashboard summary and admin notifications.
   dashboard:()=>api.request('GET','/api/admin/dashboard',null,true),
+  visitors:()=>api.request('GET','/api/admin/visitors',null,true),
   notifications:()=>api.request('GET','/api/admin/notifications',null,true),
   readAllNotifs:()=>api.request('PUT','/api/admin/notifications/read-all',null,true),
   readNotif:(id)=>api.request('PUT',`/api/admin/notifications/${id}/read`,null,true),

@@ -58,13 +58,43 @@ const App = {
 
     // Route to current path
     App.route(window.location.pathname);
-    window.onpopstate = () => App.route(window.location.pathname);
+    App._track();
+    window.onpopstate = () => { App.route(window.location.pathname); App._track(); };
   },
 
   // In-page navigation: push the URL into history, then route to it.
   navigate(path) {
     history.pushState({}, '', path);
     App.route(path);
+    App._track();
+  },
+
+  // Visitor tracking (built-in analytics, v116): one random ID per device,
+  // kept in localStorage + a first-party cookie (nx_vid, 1 year). Sent once
+  // per page view; the server counts distinct IDs as unique visitors, so
+  // one device is counted once no matter how often it visits, and bots
+  // are skipped server-side. No personal data is collected or stored.
+  // Silent by design — a failed beacon never bothers the user.
+  _track() {
+    try {
+      let id = null;
+      try { id = localStorage.getItem('nx_vid'); } catch(e) {}
+      if (!id) {
+        const m = document.cookie.match(/(?:^|; )nx_vid=([^;]+)/);
+        if (m) id = decodeURIComponent(m[1]);
+      }
+      if (!id) {
+        id = 'v_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
+        try { localStorage.setItem('nx_vid', id); } catch(e) {}
+        document.cookie = 'nx_vid=' + encodeURIComponent(id) + '; max-age=31536000; path=/; SameSite=Lax';
+      }
+      fetch('/api/track/visit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ visitor_id: id, path: window.location.pathname }),
+        keepalive: true
+      }).catch(() => {});
+    } catch(e) {}
   },
 
   // Log out: clear the user token (and any saved admin token used for

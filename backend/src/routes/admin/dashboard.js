@@ -6,7 +6,7 @@
 // Rule: showcase accounts (is_showcase=1) are excluded from EVERY total
 // here — their display money must never appear in admin figures.
 const router = require('express').Router();
-const { getDb } = require('../../models/database');
+const { getDb, getMainDb } = require('../../models/database');
 const { authAdmin } = require('../../middleware/auth');
 
 // GET /dashboard — all dashboard numbers + recent users/deposits/
@@ -33,6 +33,30 @@ router.get('/dashboard', authAdmin, (req,res)=>{
   const kycs=db.prepare(`SELECT 'kyc' as atype,k.id,k.submitted_at as created_at,u.full_name,u.username FROM kyc_submissions k JOIN users u ON k.user_id=u.id ORDER BY k.submitted_at DESC LIMIT 5`).all();
   const activity=[...deposits,...withdraws,...newUsers,...kycs].sort((a,b)=>b.created_at-a.created_at).slice(0,15);
   res.json({stats:{totalUsers,newThisWeek,totalDeposit,totalWithdraw,pendingDepCount:pendingDep.c,pendingDepAmount:pendingDep.s,pendingWdCount:pendingWd.c,pendingWdAmount:pendingWd.s,pendingKyc,openTickets,highTickets,totalMain,totalCopy,totalProfit,todayPnl,totalRef},activity});
+});
+
+// GET /visitors — website visitor stats (v116, main DB only).
+// "Today" and the daily breakdown use Asia/Dhaka midnight (UTC+6, no
+// DST): a visitor_id counts once per period, so one device is one unique
+// visitor no matter how many pages it opens.
+router.get('/visitors', authAdmin, (req, res) => {
+  const db = getMainDb();
+  const now = Math.floor(Date.now() / 1000);
+  const todayStart = Math.floor((now + 21600) / 86400) * 86400 - 21600;
+  const weekStart = todayStart - 6 * 86400;
+  const totalViews = db.prepare('SELECT COUNT(*) as c FROM visits').get().c;
+  const totalUnique = db.prepare('SELECT COUNT(DISTINCT visitor_id) as c FROM visits').get().c;
+  const todayViews = db.prepare('SELECT COUNT(*) as c FROM visits WHERE visited_at >= ?').get(todayStart).c;
+  const todayUnique = db.prepare('SELECT COUNT(DISTINCT visitor_id) as c FROM visits WHERE visited_at >= ?').get(todayStart).c;
+  const weekViews = db.prepare('SELECT COUNT(*) as c FROM visits WHERE visited_at >= ?').get(weekStart).c;
+  const weekUnique = db.prepare('SELECT COUNT(DISTINCT visitor_id) as c FROM visits WHERE visited_at >= ?').get(weekStart).c;
+  const topPages = db.prepare('SELECT path, COUNT(*) as views FROM visits GROUP BY path ORDER BY views DESC LIMIT 5').all();
+  const daily = db.prepare('SELECT CAST((visited_at + 21600) / 86400 AS INTEGER) as daynum, COUNT(*) as views, COUNT(DISTINCT visitor_id) as unique_visitors FROM visits WHERE visited_at >= ? GROUP BY daynum ORDER BY daynum DESC').all(weekStart).map(r => ({
+    date: new Date(r.daynum * 86400 * 1000).toISOString().slice(0, 10),
+    views: r.views,
+    unique: r.unique_visitors
+  }));
+  res.json({ totalViews, totalUnique, todayViews, todayUnique, weekViews, weekUnique, topPages, daily });
 });
 
 // GET /notifications — admin notifications, newest first, enriched
