@@ -26,8 +26,10 @@
   // below. Data comes from adminApi.getMoneyRequests().
 AdminPages.requestMoney=async function(){
   try{const _gen=AdminApp._gen;const rs=await adminApi.getMoneyRequests();if(_gen!==AdminApp._gen)return;
-  // Request Money access (per-user ON/OFF switch, same as Money Settings >
-  // User Access Controls): Request Money is ON for every user by default.
+  // Request Money access (GLOBAL on/off for all users + per-user ON/OFF
+  // switch, same keys as Money Settings): the global switch is ON by
+  // default and sits at the top of this panel; per-user switches below.
+  // Request Money is ON for every user by default.
   // The panel lists the users who are switched OFF (each with a Turn ON
   // button, so the admin gives the permission with one click) and the
   // once-only users (each with a Turn OFF button). Search finds any user;
@@ -37,6 +39,11 @@ AdminPages.requestMoney=async function(){
   // refresh skips while an input is focused.
   let _rmBlocks={blocks:[],requestMoneyOff:[],requestMoneyOnce:[]};
   try{_rmBlocks=await adminApi.getUserBlocks();}catch(e){}
+  // Global switch for ALL users (same site_settings key as Money
+  // Settings): ON by default. The toggle at the top of this panel flips
+  // it for everyone at once.
+  let _rmGlobal='1';
+  try{const _m=await adminApi.getMoney();if(_m&&_m.request_money_enabled!==undefined)_rmGlobal=String(_m.request_money_enabled);}catch(e){}
   const _rmOff=_rmBlocks.requestMoneyOff||[],_rmOnce=_rmBlocks.requestMoneyOnce||[];
   const _rmQ=AdminPages._rmQuery||'',_rmRes=AdminPages._rmResults||[],_rmSelId=AdminPages._rmSelectedId||null;
   const _rmSelU=_rmSelId?(AdminPages._rmFound||{})[_rmSelId]:null;
@@ -63,7 +70,9 @@ AdminPages.requestMoney=async function(){
   if(_rmOnce.length){
     _rmListsHtml+='<div style="margin-top:14px"><div style="font-weight:700;font-size:13px;margin-bottom:6px">ON — once only ('+_rmOnce.length+')</div>'+_rmOnce.slice(0,10).map(u=>'<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 4px;border-top:1px solid var(--border)"><span><b style="font-size:13px">'+_rmEsc(u.full_name)+' (@'+_rmEsc(u.username)+')</b><br><span style="color:var(--faint);font-size:12px">'+_rmEsc(u.email||'')+'</span></span><button class="btn-secondary text-sm" style="width:auto;padding:6px 12px;white-space:nowrap" onclick="AdminPages._rmSet('+u.id+',0,0)">Turn OFF</button></div>').join('')+'</div>';
   }
-  const _rmPanel='<div class="panel" style="margin-top:0"><h3 style="font-weight:800;margin-bottom:6px">Request Money access</h3><p style="color:var(--muted);font-size:13px;margin-bottom:12px">Request Money is ON for every user by default. Turn it off for someone here, or turn it back on yourself — you give the permission.</p><div style="display:flex;gap:8px;margin-bottom:6px"><input id="rm-q" type="text" class="input-field" placeholder="Search user by name, username or email" value="'+_rmEsc(_rmQ)+'" style="flex:1"><button class="btn-primary text-sm" style="width:auto;padding:8px 16px" onclick="AdminPages._rmSearch()">Search</button></div><div>'+_rmResHtml+'</div>'+_rmSelHtml+_rmListsHtml+'</div>';
+  const _rmGlobalOn=_rmGlobal!=='0';
+  const _rmGlobalHtml='<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin-bottom:12px"><span><b style="font-size:14px">Request Money for all users</b><br><span style="color:var(--muted);font-size:13px">Status: <b style="color:'+(_rmGlobalOn?'var(--green)':'var(--red)')+'">'+(_rmGlobalOn?'ON':'OFF')+'</b>'+(_rmGlobalOn?' — every user can request money.':' — nobody can request money right now.')+'</span></span>'+(_rmGlobalOn?'<button class="btn-danger text-sm" style="width:auto;padding:8px 14px;white-space:nowrap" onclick="AdminPages._rmSetGlobal(0)">Turn OFF for everyone</button>':'<button class="btn-primary text-sm" style="width:auto;padding:8px 14px;white-space:nowrap" onclick="AdminPages._rmSetGlobal(1)">Turn ON for everyone</button>')+'</div>';
+  const _rmPanel='<div class="panel" style="margin-top:0"><h3 style="font-weight:800;margin-bottom:6px">Request Money access</h3><p style="color:var(--muted);font-size:13px;margin-bottom:12px">Turn Request Money on or off for everyone at once with the switch below — or for one user at a time with the lists and search. You give the permission.</p>'+_rmGlobalHtml+'<div style="display:flex;gap:8px;margin-bottom:6px"><input id="rm-q" type="text" class="input-field" placeholder="Search user by name, username or email" value="'+_rmEsc(_rmQ)+'" style="flex:1"><button class="btn-primary text-sm" style="width:auto;padding:8px 16px" onclick="AdminPages._rmSearch()">Search</button></div><div>'+_rmResHtml+'</div>'+_rmSelHtml+_rmListsHtml+'</div>';
   const pend=rs.filter(r=>r.status==='pending'),done=rs.filter(r=>r.status!=='pending');
   AdminComponents.layout('<div class="admin-head"><div><h2>Request Money</h2><p style="color:var(--muted);font-size:13px">Money requests from users. Approve to add the amount to Main Balance, reject with a reason.</p></div></div>'
   +_rmPanel
@@ -89,6 +98,11 @@ AdminPages._rmSearch=async function(){
   }catch(e){utils.toast(e.message,'error');}
 };
 AdminPages._rmSelect=function(id){AdminPages._rmSelectedId=id;AdminPages.requestMoney();};
+// Global switch for ALL users: saves the Money Settings key and re-renders.
+AdminPages._rmSetGlobal=async function(v){
+  const on=Number(v)===1;
+  try{await adminApi.saveMoney({request_money_enabled:on?'1':'0'});utils.toast(on?'Request Money turned ON for everyone':'Request Money turned OFF for everyone','success');AdminPages.requestMoney();}catch(e){utils.toast(e.message,'error');}
+};
 AdminPages._rmSet=async function(id,enabled,oneTime){
   try{await adminApi.setRequestMoney(id,enabled,oneTime);utils.toast(enabled?'Request Money enabled':'Request Money disabled','success');AdminPages.requestMoney();}catch(e){utils.toast(e.message,'error');}
 };

@@ -33,7 +33,7 @@ router.post('/',authAdmin,(req,res)=>{const db=getDb();const ins=db.prepare('INS
 
 // GET /money — the Money Settings values (fees, lock, profit target,
 // profit minimum, referral rate, deposit/withdraw switches).
-router.get('/money',authAdmin,(req,res)=>res.json({withdraw_early_fee_bp:getSetting('withdraw_early_fee_bp')||'1500',withdraw_regular_fee_bp:getSetting('withdraw_regular_fee_bp')||'0',profit_target_bp:getSetting('profit_target_bp')||'1000',withdraw_lock_months:getSetting('withdraw_lock_months')||'3',profit_min_cents:getSetting('profit_min_cents')||'1000',referral_bp:getSetting('referral_bp')||'400',deposit_enabled:getSetting('deposit_enabled')||'1',withdraw_enabled:getSetting('withdraw_enabled')||'1'}));
+router.get('/money',authAdmin,(req,res)=>res.json({withdraw_early_fee_bp:getSetting('withdraw_early_fee_bp')||'1500',withdraw_regular_fee_bp:getSetting('withdraw_regular_fee_bp')||'0',profit_target_bp:getSetting('profit_target_bp')||'1000',withdraw_lock_months:getSetting('withdraw_lock_months')||'3',profit_min_cents:getSetting('profit_min_cents')||'1000',referral_bp:getSetting('referral_bp')||'400',deposit_enabled:getSetting('deposit_enabled')||'1',withdraw_enabled:getSetting('withdraw_enabled')||'1',request_money_enabled:getSetting('request_money_enabled')||'1'}));
 
 // PUT /money — Super Admin only. Saves the Money Settings values.
 router.put('/money',authAdmin,superAdminOnly,(req,res)=>{

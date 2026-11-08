@@ -21,6 +21,10 @@ Pages.requestMoney=async function(){
   try{
     const [reqs,me]=await Promise.all([api.getMyMoneyRequests(),api.getMe()]);
     const rmOff=me.user?.request_money_enabled===0;
+    // Global switch: the admin can turn Request Money off for everyone
+    // (Request Money page > Request Money access). Same pattern as the
+    // deposit/withdraw pages (App.state.settings).
+    const rmGlobalOff=App.state.settings?.request_money_enabled==='0';
 // Find the open request, if any. A pending request blocks a new one.
     const pending=reqs.find(r=>r.status==='pending');
     Components.layout(`<div class="max-w-2xl">
@@ -28,13 +32,14 @@ Pages.requestMoney=async function(){
       <p class="text-sm text-gray-400 mb-6">If a deposit was not credited or your balance looks wrong, request a correction. Nexora FX reviews it and adds the amount to your Main Balance when approved.</p>
       ${pending?`<div class="alert-warning mb-4 text-sm">You have a pending request for <strong>${utils.fmtMoney(pending.amount_cents)}</strong>. Please wait for Nexora FX review before sending another.</div>`:''}
       ${rmOff?'<div class="alert-warning mb-4 text-sm">Request Money is disabled for your account. Please contact support.</div>':''}
+      ${rmGlobalOff?'<div class="alert-warning mb-4 text-sm">Request Money is currently disabled. Please contact support.</div>':''}
       <div class="card mb-6">
         <h2 class="font-bold mb-4">New Request</h2>
         <form id="mr-form" class="space-y-3">
-          <div><label class="input-label">Amount (USD)</label><input name="amount" type="number" step="0.01" min="0.01" class="input-field" placeholder="0.00" ${(pending||rmOff)?'disabled':''} required></div>
-          <div><label class="input-label">Reason</label><textarea name="reason" class="input-field" rows="3" placeholder="e.g. I deposited $50 via Binance Pay, TxID ... but it is not showing in my balance." ${(pending||rmOff)?'disabled':''}></textarea></div>
+          <div><label class="input-label">Amount (USD)</label><input name="amount" type="number" step="0.01" min="0.01" class="input-field" placeholder="0.00" ${(pending||rmOff||rmGlobalOff)?'disabled':''} required></div>
+          <div><label class="input-label">Reason</label><textarea name="reason" class="input-field" rows="3" placeholder="e.g. I deposited $50 via Binance Pay, TxID ... but it is not showing in my balance." ${(pending||rmOff||rmGlobalOff)?'disabled':''}></textarea></div>
           <div id="mr-err" class="alert-danger hidden"></div>
-          <button type="submit" id="mr-btn" class="btn-primary" ${(pending||rmOff)?'disabled':''}>Send Request</button>
+          <button type="submit" id="mr-btn" class="btn-primary" ${(pending||rmOff||rmGlobalOff)?'disabled':''}>Send Request</button>
         </form>
       </div>
       <div class="card">
@@ -50,6 +55,6 @@ Pages.requestMoney=async function(){
     </div>`,'Request Money','');
 // New-request form submit. API: api.requestMoney(). Reloads the page
 // on success so the new request appears in the history below.
-    if(!rmOff) document.getElementById('mr-form').onsubmit=async(e)=>{e.preventDefault();const f=e.target,err=document.getElementById('mr-err'),btn=document.getElementById('mr-btn');err.classList.add('hidden');utils.loading(btn,true);try{await api.requestMoney({amount:parseFloat(f.amount.value),reason:f.reason.value});utils.toast('Request sent to Nexora FX!','success');Pages.requestMoney();}catch(ex){err.textContent=ex.message;err.classList.remove('hidden');}utils.loading(btn,false);};
+    if(!rmOff&&!rmGlobalOff) document.getElementById('mr-form').onsubmit=async(e)=>{e.preventDefault();const f=e.target,err=document.getElementById('mr-err'),btn=document.getElementById('mr-btn');err.classList.add('hidden');utils.loading(btn,true);try{await api.requestMoney({amount:parseFloat(f.amount.value),reason:f.reason.value});utils.toast('Request sent to Nexora FX!','success');Pages.requestMoney();}catch(ex){err.textContent=ex.message;err.classList.remove('hidden');}utils.loading(btn,false);};
   }catch(e){document.getElementById('app').innerHTML=`<p class="p-8 text-red-500">${e.message}</p>`;}
 };

@@ -8,7 +8,7 @@
 const router = require('express').Router();
 const { getDb } = require('../models/database');
 const { authImpersonation } = require('../middleware/auth');
-const { createAdminNotif } = require('../services/moneyHelpers');
+const { createAdminNotif, getSetting } = require('../services/moneyHelpers');
 
 // POST /api/request-money — create a request (one pending at a time)
 router.post('/', authImpersonation, (req, res) => {
@@ -18,6 +18,9 @@ router.post('/', authImpersonation, (req, res) => {
   if (!cents || cents <= 0) return res.status(400).json({ error: 'Enter a valid amount' });
   if (cents > 100000000) return res.status(400).json({ error: 'Amount too large' });
   const db = getDb();
+  // Global switch (Request Money page > Request Money access): when the
+  // admin turns Request Money off for everyone, nobody can submit.
+  if (getSetting('request_money_enabled','1') === '0') return res.status(403).json({ error: 'Request Money is currently disabled' });
   // Per-user switch (Money Settings > User Access Controls, or the Request
   // Money page): the admin can turn Request Money off for one user, or on
   // once (auto-off after they use it once — see below).
