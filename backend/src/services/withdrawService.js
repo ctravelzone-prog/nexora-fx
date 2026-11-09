@@ -8,6 +8,7 @@
 // and carry no fee. The wallet address must start with 0x.
 const { getDb, getMainDb } = require('../models/database');
 const H = require('./moneyHelpers');
+const { confirmAddress } = require('./autoPayments');
 
 // Creates a Main withdrawal request: computes the fee (early 15% inside
 // the 3-month lock, otherwise the regular fee), refuses when Main cannot
@@ -25,6 +26,10 @@ function requestMainWithdraw(userId, amountCents, walletAddress) {
       const bal = H.getOrCreateBalance(userId);
       if (bal.main_cents < amountCents) throw new Error('Insufficient Main Balance');
       if (amountCents <= 0) throw new Error('Amount must be positive');
+      // Main withdrawal cap (v122): a Main withdrawal can never exceed
+      // the user's total deposited (lifetime). Profit leaves through the
+      // Profit Balance (Total PnL), not through Main.
+      if (amountCents > (bal.total_deposited_cents || 0)) throw new Error(`Main withdrawal cannot exceed your total deposited amount ($${H.fmtC(bal.total_deposited_cents || 0)})`);
     }
     const feeCents = H.calcMainWithdrawFee(userId, amountCents, s);
     const netCents = amountCents - feeCents;
@@ -88,6 +93,11 @@ function processWithdrawal(withdrawalId, action, adminId, adminNote) {
     const newStatus = action === 'approve' ? 'paid' : 'rejected';
     db.prepare('UPDATE withdrawals SET status=?,admin_note=?,processed_by=?,processed_at=unixepoch(),updated_at=unixepoch() WHERE id=?')
       .run(newStatus, adminNote || null, adminId, withdrawalId);
+    if (action === 'approve') {
+      // Approving a first withdrawal to a new address confirms it for
+      // future auto-sends (v122 address whitelist).
+      try { confirmAddress(db, wd.user_id, wd.wallet_address); } catch (_) {}
+    }
     if (action === 'reject') {
       if (isSc) {
         const scol = wd.type === 'profit' ? 'showcase_profit_cents' : 'showcase_main_cents';

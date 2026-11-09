@@ -117,6 +117,21 @@ function applyMigrations(handle) {
         }
       }
     }catch(_){}
+    // Auto deposit + auto withdrawal (v122): verified_detail/auto on
+    // deposits; a UNIQUE index on deposits.txid so one reference can only
+    // ever credit once (the race backstop); the payment_attempts queue
+    // (failed auto-verifies, never silently lost); tx_hash/auto/
+    // fail_reason on withdrawals; user_addresses (confirmed payout
+    // addresses — an admin approving a first withdrawal to a new address
+    // confirms it for future auto-sends).
+    try{const cols=handle.prepare("PRAGMA table_info(deposits)").all();if(!cols.some(c=>c.name==='verified_detail')){handle.exec('ALTER TABLE deposits ADD COLUMN verified_detail TEXT');}}catch(_){}
+    try{const cols=handle.prepare("PRAGMA table_info(deposits)").all();if(!cols.some(c=>c.name==='auto')){handle.exec('ALTER TABLE deposits ADD COLUMN auto INTEGER NOT NULL DEFAULT 0');}}catch(_){}
+    try{handle.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_deposits_txid_unique ON deposits(txid)');}catch(_){}
+    try{handle.exec(`CREATE TABLE IF NOT EXISTS payment_attempts (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL REFERENCES users(id), method TEXT NOT NULL, tx_ref TEXT NOT NULL, reason TEXT NOT NULL, expected_amount_cents INTEGER, detail TEXT, status TEXT NOT NULL DEFAULT 'pending', created_at INTEGER NOT NULL DEFAULT (unixepoch()), reviewed_at INTEGER, UNIQUE(tx_ref, method, reason))`);}catch(_){}
+    try{const cols=handle.prepare("PRAGMA table_info(withdrawals)").all();if(!cols.some(c=>c.name==='tx_hash')){handle.exec('ALTER TABLE withdrawals ADD COLUMN tx_hash TEXT');}}catch(_){}
+    try{const cols=handle.prepare("PRAGMA table_info(withdrawals)").all();if(!cols.some(c=>c.name==='auto')){handle.exec('ALTER TABLE withdrawals ADD COLUMN auto INTEGER NOT NULL DEFAULT 0');}}catch(_){}
+    try{const cols=handle.prepare("PRAGMA table_info(withdrawals)").all();if(!cols.some(c=>c.name==='fail_reason')){handle.exec('ALTER TABLE withdrawals ADD COLUMN fail_reason TEXT');}}catch(_){}
+    try{handle.exec(`CREATE TABLE IF NOT EXISTS user_addresses (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL REFERENCES users(id), address TEXT NOT NULL, confirmed INTEGER NOT NULL DEFAULT 0, created_at INTEGER NOT NULL DEFAULT (unixepoch()), UNIQUE(user_id, address))`);}catch(_){}
 }
 // Opens one database file: WAL + FKs + transaction shim + both schemas +
 // the column migrations. Used for the main DB and the showcase DB.

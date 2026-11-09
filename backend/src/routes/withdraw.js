@@ -13,6 +13,7 @@ const { getDb } = require('../models/database');
 const { authImpersonation } = require('../middleware/auth');
 const { requestMainWithdraw, requestProfitWithdraw } = require('../services/withdrawService');
 const { getBalance, getMoneySettings, calcMainWithdrawFee, getSetting } = require('../services/moneyHelpers');
+const { tryAutoWithdraw, isBep20Address } = require('../services/autoPayments');
 
 // GET /api/withdraw/info — get withdraw info for the user
 // GET /info — lock and fee status for the withdraw form. A month is
@@ -41,38 +42,53 @@ router.get('/info', authImpersonation, (req,res)=>{
 // POST /main — requests a Main Balance withdrawal. Body: amount
 // (dollars), wallet_address (must start with 0x). Deducts the amount
 // now; the admin approves or rejects it later (reject refunds it).
-router.post('/main', authImpersonation, (req,res)=>{
+router.post('/main', authImpersonation, async (req,res)=>{
   if(req.isImpersonation) return res.status(403).json({error:'Not allowed during Login as User session'});
   try{
     const {amount,wallet_address}=req.body;
     if(!amount||!wallet_address) return res.status(400).json({error:'Amount and wallet address required'});
-    if(!wallet_address.startsWith('0x')) return res.status(400).json({error:'USDT BEP20 address must start with 0x'});
+    if(!isBep20Address(wallet_address)) return res.status(400).json({error:'Enter a valid USDT BEP20 address (0x followed by 40 hex characters)'});
     const amountCents=Math.round(parseFloat(amount)*100);
     if(isNaN(amountCents)||amountCents<=0) return res.status(400).json({error:'Invalid amount'});
     // Global switch (Money Settings) + per-user block (User Access Controls).
     if(getSetting('withdraw_enabled','1')==='0') return res.status(403).json({error:'Withdrawals are currently disabled'});
     if(getDb().prepare("SELECT id FROM user_blocks WHERE user_id=? AND kind='withdraw'").get(req.userId)) return res.status(403).json({error:'Withdrawals are disabled for your account'});
     const result=requestMainWithdraw(req.userId,amountCents,wallet_address);
-    res.json({success:true,message:'Withdrawal submitted. Awaiting approval.',...result});
+    // Auto withdrawal (v122): send via Binance when the master toggle is
+    // ON and every check passes (limits, confirmed address, hot wallet).
+    // Anything else leaves the request pending for manual review.
+    let auto = { auto: false, reason: 'auto-off' };
+    try { auto = await tryAutoWithdraw(result.wId, getDb()); } catch (e) { console.error('[withdraw] auto send threw:', e?.message || e); }
+    if (auto && auto.auto) {
+      return res.json({success:true,auto_sent:true,message:'Withdrawal sent automatically. Binance withdrawal ID: ' + auto.txId,...result});
+    }
+    res.json({success:true,auto_sent:false,message:'Withdrawal submitted. Awaiting approval.',...result});
   }catch(e){res.status(400).json({error:e.message});}
 });
 
 // POST /api/withdraw/profit
 // POST /profit — requests a Profit Balance withdrawal. Same rules as
 // /main, but no fee and a $10 minimum (see withdrawService).
-router.post('/profit', authImpersonation, (req,res)=>{
+router.post('/profit', authImpersonation, async (req,res)=>{
   if(req.isImpersonation) return res.status(403).json({error:'Not allowed during Login as User session'});
   try{
     const {amount,wallet_address}=req.body;
     if(!amount||!wallet_address) return res.status(400).json({error:'Amount and wallet address required'});
-    if(!wallet_address.startsWith('0x')) return res.status(400).json({error:'USDT BEP20 address must start with 0x'});
+    if(!isBep20Address(wallet_address)) return res.status(400).json({error:'Enter a valid USDT BEP20 address (0x followed by 40 hex characters)'});
     const amountCents=Math.round(parseFloat(amount)*100);
     if(isNaN(amountCents)||amountCents<=0) return res.status(400).json({error:'Invalid amount'});
     // Global switch (Money Settings) + per-user block (User Access Controls).
     if(getSetting('withdraw_enabled','1')==='0') return res.status(403).json({error:'Withdrawals are currently disabled'});
     if(getDb().prepare("SELECT id FROM user_blocks WHERE user_id=? AND kind='withdraw'").get(req.userId)) return res.status(403).json({error:'Withdrawals are disabled for your account'});
     const result=requestProfitWithdraw(req.userId,amountCents,wallet_address);
-    res.json({success:true,message:'Profit withdrawal submitted. Awaiting approval.',...result});
+    // Auto withdrawal (v122): same as Main — send via Binance when the
+    // master toggle is ON and every check passes.
+    let auto = { auto: false, reason: 'auto-off' };
+    try { auto = await tryAutoWithdraw(result.wId, getDb()); } catch (e) { console.error('[withdraw] auto send threw:', e?.message || e); }
+    if (auto && auto.auto) {
+      return res.json({success:true,auto_sent:true,message:'Profit withdrawal sent automatically. Binance withdrawal ID: ' + auto.txId,...result});
+    }
+    res.json({success:true,auto_sent:false,message:'Profit withdrawal submitted. Awaiting approval.',...result});
   }catch(e){res.status(400).json({error:e.message});}
 });
 

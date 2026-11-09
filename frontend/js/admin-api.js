@@ -51,6 +51,9 @@ const adminApi = {
   processWithdrawal:(id,d)=>api.request('POST',`/api/admin/finance/withdrawals/${id}/process`,d,true),
   getTransactions:(p)=>api.request('GET',`/api/admin/finance/transactions?${new URLSearchParams(p||{})}`,null,true),
   getReferrals:()=>api.request('GET','/api/admin/finance/referrals',null,true),
+  // Auto payments (v122): failed auto-verifies waiting for admin review.
+  getPaymentAttempts:(p)=>api.request('GET',`/api/admin/finance/payment-attempts?${new URLSearchParams(p||{})}`,null,true),
+  reviewPaymentAttempt:(id)=>api.request('POST',`/api/admin/finance/payment-attempts/${id}/review`,{},true),
   // Users and showcase (demo) accounts. Showcase accounts show DISPLAY
   // balances set by the admin, not real money.
   getUsers:(p)=>api.request('GET',`/api/admin/users?${new URLSearchParams(p||{})}`,null,true),

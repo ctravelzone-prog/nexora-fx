@@ -135,4 +135,29 @@ router.get('/referrals', authAdmin, (req,res)=>{
   res.json(db.prepare(`SELECT r.*,ru.full_name as referrer_name,ru.username as referrer_username,rd.full_name as referred_name,rd.username as referred_username FROM referrals r JOIN users ru ON r.referrer_user_id=ru.id JOIN users rd ON r.referred_user_id=rd.id ORDER BY r.created_at DESC`).all());
 });
 
+// GET /payment-attempts — failed auto-verifies waiting for admin
+// review ("Needs review" queue). Each row carries the reason and the
+// real on-chain detail (from / to / amount) so the admin can check the
+// payment and approve or reject the matching pending deposit.
+router.get('/payment-attempts', authAdmin, (req,res)=>{
+  const {status='pending',limit=50,offset=0}=req.query;
+  const db=getMainDb();
+  const rows=db.prepare(`SELECT a.*,u.full_name,u.username,u.email FROM payment_attempts a JOIN users u ON a.user_id=u.id WHERE a.status=? ORDER BY a.created_at DESC LIMIT ? OFFSET ?`).all(status,parseInt(limit),parseInt(offset));
+  const count=db.prepare(`SELECT COUNT(*) AS c FROM payment_attempts WHERE status=?`).get(status);
+  res.json({attempts:rows,total:count?count.c:0});
+});
+
+// POST /payment-attempts/:id/review — mark an attempt reviewed (the
+// admin has looked at it; the matching deposit is approved or rejected
+// from the Deposits queue as usual).
+router.post('/payment-attempts/:id/review', authAdmin, (req,res)=>{
+  try{
+    const db=getMainDb();
+    const a=db.prepare('SELECT * FROM payment_attempts WHERE id=?').get(req.params.id);
+    if(!a||a.status!=='pending') return res.status(400).json({error:'Attempt not found or already reviewed'});
+    db.prepare(`UPDATE payment_attempts SET status='reviewed',reviewed_at=unixepoch() WHERE id=?`).run(req.params.id);
+    res.json({success:true});
+  }catch(e){res.status(500).json({error:e.message});}
+});
+
 module.exports = router;

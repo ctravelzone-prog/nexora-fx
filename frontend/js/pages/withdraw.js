@@ -29,6 +29,8 @@ Pages.withdraw=async function(){
 // Fee for this withdraw: the early fee percent while locked, otherwise
 // the regular fee percent (0% once the lock has expired).
     const b=me.balance,locked=info.is_locked,fee=locked?info.early_fee_percent:(info.regular_fee_percent||0);
+    // Main withdrawal cap (v122): never more than the total deposited.
+    const mainMaxCents=Math.min(b.main_cents, b.total_deposited_cents||0);
     const blocked=me.user?.blocks?.includes('withdraw');
     const enabled=App.state.settings?.withdraw_enabled!=='0' && !blocked;
     Components.layout(`<div class="max-w-4xl">
@@ -37,12 +39,12 @@ Pages.withdraw=async function(){
       ${enabled?`<div class="flex flex-col lg:grid lg:grid-cols-2 gap-4 lg:gap-6 two-col-layout">
         <div class="card">
           <h2 class="font-bold mb-1">Main Balance Withdraw</h2>
-          <p class="text-xs text-gray-400 mb-4">From Main Balance only — ${utils.fmtMoney(b.main_cents)} available</p>
+          <p class="text-xs text-gray-400 mb-4">From Main Balance only — ${utils.fmtMoney(b.main_cents)} available · Max ${utils.fmtMoney(mainMaxCents)} (your total deposited)</p>
           ${locked?`<div class="alert-warning mb-3 text-sm"><strong>🔒 Locked until ${info.unlock_date||'—'}</strong> · ${info.months_remaining||0} months remaining<div class="mt-2 h-1.5 bg-gray-200 rounded-full"><div class="h-full bg-orange-500 rounded-full" style="width:${Math.max(5,100-((info.months_remaining||0)/3*100))}%"></div></div></div>`:''}
           <p class="text-sm mb-3">${locked?'<strong>'+info.early_fee_percent+'% deducted</strong> until lock expires.':(fee>0?'<strong>'+fee+'% fee applies</strong> on every withdraw.':'No fee — lock has expired.')}</p>
           <div class="mb-3 p-3 border-2 border-orange-200 rounded-xl text-sm"><strong>USDT (BEP20)</strong> — The only withdraw method</div>
           <form id="main-wd-form" class="space-y-3">
-            <div><label class="input-label">Amount (USD)</label><input name="amount" type="number" step="0.01" min="0.01" class="input-field" placeholder="0.00" oninput="Pages._mfee(this,${fee},${locked?1:0})"></div>
+            <div><label class="input-label">Amount (USD)</label><input name="amount" type="number" step="0.01" min="0.01" max="${(mainMaxCents/100).toFixed(2)}" class="input-field" placeholder="0.00" oninput="Pages._mfee(this,${fee},${locked?1:0})"><p class="text-xs text-gray-400 mt-1">Max $${(mainMaxCents/100).toFixed(2)} — a Main withdrawal cannot exceed your total deposited amount.</p></div>
             <div id="main-fee-info" class="text-sm text-gray-500 min-h-5"></div>
             <div><label class="input-label">USDT BEP20 Wallet Address</label><input name="wallet" type="text" placeholder="0x..." class="input-field" required></div>
             <div id="main-err" class="alert-danger hidden"></div>

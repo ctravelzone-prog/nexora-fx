@@ -45,6 +45,25 @@ AdminPages.moneySettings=async function(){
       <div id="me" class="alert-danger hidden"></div>
       <button type="submit" id="mb" class="btn-primary">Save Money Settings</button>
     </form>
+    <form id="auto-form" class="card mt-6 space-y-4">
+      <h3 class="font-bold text-lg">Auto Payments</h3>
+      <p class="text-sm text-gray-400">Auto Deposit Approve verifies a payment on-chain (BEP20) or on Binance Pay and credits Main Balance at once. Auto Withdrawal sends approved payouts via Binance. Both are OFF by default — turn them on only after the Binance keys are in the VPS .env. When OFF, the manual flow continues as before.</p>
+      <div class="grid grid-cols-2 gap-4">
+        <div><label class="input-label">Auto Deposit Approve</label><select name="auto_dep" class="input-field"><option value="1" ${s.auto_deposit_enabled==='1'?'selected':''}>Enabled</option><option value="0" ${s.auto_deposit_enabled!=='1'?'selected':''}>Disabled</option></select></div>
+        <div><label class="input-label">Auto Withdrawal</label><select name="auto_wd" class="input-field"><option value="1" ${s.auto_withdraw_enabled==='1'?'selected':''}>Enabled</option><option value="0" ${s.auto_withdraw_enabled!=='1'?'selected':''}>Disabled</option></select></div>
+        <div><label class="input-label">Binance Pay rail</label><select name="bp_rail" class="input-field"><option value="1" ${s.binance_pay_rail_enabled!=='0'?'selected':''}>Enabled</option><option value="0" ${s.binance_pay_rail_enabled==='0'?'selected':''}>Disabled</option></select></div>
+        <div><label class="input-label">BEP20 rail</label><select name="bep20_rail" class="input-field"><option value="1" ${s.bep20_rail_enabled!=='0'?'selected':''}>Enabled</option><option value="0" ${s.bep20_rail_enabled==='0'?'selected':''}>Disabled</option></select></div>
+        <div><label class="input-label">Daily withdrawal limit — per user ($)</label><input name="daily_lim" type="number" step="0.01" min="0" value="${parseInt(s.auto_daily_withdraw_limit_cents||'50000')/100}" class="input-field"></div>
+        <div><label class="input-label">Per-transaction max withdrawal ($)</label><input name="per_tx_max" type="number" step="0.01" min="0" value="${parseInt(s.auto_per_tx_max_cents||'100000')/100}" class="input-field"></div>
+        <div><label class="input-label">Global daily withdrawal cap ($)</label><input name="global_cap" type="number" step="0.01" min="0" value="${parseInt(s.auto_global_daily_cap_cents||'500000')/100}" class="input-field"></div>
+        <div><label class="input-label">Binance Pay ID</label><input name="pay_id" type="text" value="${s.binance_pay_id||''}" class="input-field" placeholder="Your Binance Pay ID"></div>
+        <div><label class="input-label">BEP20 USDT address (BSC)</label><input name="bep20_addr" type="text" value="${s.bep20_address||''}" class="input-field" placeholder="0x..."></div>
+        <div><label class="input-label">BscScan API key (optional)</label><input name="bsc_key" type="text" value="${s.bscscan_key||''}" class="input-field" placeholder="Leave empty to use the public BSC RPC"></div>
+      </div>
+      <p class="text-xs text-gray-400">Binance API keys are NOT stored here. Put them in the VPS .env: BINANCE_READ_API_KEY / BINANCE_READ_API_SECRET (read-only, verifies deposits) and BINANCE_WITHDRAW_API_KEY / BINANCE_WITHDRAW_API_SECRET (sends withdrawals). Both keys IP-whitelisted to the VPS.</p>
+      <div id="ape" class="alert-danger hidden"></div>
+      <button type="submit" id="apb" class="btn-primary">Save Auto Payments</button>
+    </form>
     <div class="card mt-6">
       <h3 class="font-bold text-lg mb-1">User Access Controls</h3>
       <p class="text-sm text-gray-400 mb-4">Block Deposit or Withdraw for one user, or switch Request Money off / on once for them. A blocked user sees a notice on their Deposit, Withdraw and Request Money pages, and the server blocks the request too.</p>
@@ -64,6 +83,18 @@ AdminPages.moneySettings=async function(){
         utils.loading(btn,true);
         // Convert percent inputs to basis points and dollar inputs to cents.
         try{await adminApi.saveMoney({withdraw_early_fee_bp:Math.round(parseFloat(f.fee.value)*100),withdraw_regular_fee_bp:Math.round(parseFloat(f.rfee.value)*100),profit_target_bp:Math.round(parseFloat(f.ptarget.value)*100),withdraw_lock_months:parseInt(f.lock.value),profit_min_cents:Math.round(parseFloat(f.pmin.value)*100),referral_bp:Math.round(parseFloat(f.ref.value)*100),deposit_enabled:f.dep.value,withdraw_enabled:f.wd.value});utils.toast('Saved!','success');}
+        catch(ex){err.textContent=ex.message;err.classList.remove('hidden');}
+        utils.loading(btn,false);
+      },'Save');
+    };
+// Auto Payments form (v122): toggles + limits + Pay ID / BSC address.
+    // Limits are saved in cents; the Binance API keys are NOT here (env).
+    document.getElementById('auto-form').onsubmit=async(e)=>{
+      e.preventDefault();const f=e.target,err=document.getElementById('ape'),btn=document.getElementById('apb');
+      err.classList.add('hidden');
+      utils.confirm('Save auto payment settings? Audit-logged.',async()=>{
+        utils.loading(btn,true);
+        try{await adminApi.saveMoney({auto_deposit_enabled:f.auto_dep.value,auto_withdraw_enabled:f.auto_wd.value,binance_pay_rail_enabled:f.bp_rail.value,bep20_rail_enabled:f.bep20_rail.value,auto_daily_withdraw_limit_cents:Math.round(parseFloat(f.daily_lim.value)*100),auto_per_tx_max_cents:Math.round(parseFloat(f.per_tx_max.value)*100),auto_global_daily_cap_cents:Math.round(parseFloat(f.global_cap.value)*100),binance_pay_id:f.pay_id.value.trim(),bep20_address:f.bep20_addr.value.trim(),bscscan_key:f.bsc_key.value.trim()});utils.toast('Saved!','success');}
         catch(ex){err.textContent=ex.message;err.classList.remove('hidden');}
         utils.loading(btn,false);
       },'Save');
