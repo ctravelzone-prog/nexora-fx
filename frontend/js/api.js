@@ -32,13 +32,19 @@ const api = {
 
   // Core request helper: adds the Bearer token, sends JSON, parses the
   // response, and throws an Error with the backend message on failure.
+  // Every request has a 10s timeout (AbortController) — a hung API call used
+  // to freeze the whole app on a blank page, because App.init() awaited it.
   async request(method,path,data,admin=false){
     const token=admin?this.getAdminToken():this.getToken();
     const headers={'Content-Type':'application/json'};
     if(token) headers['Authorization']=`Bearer ${token}`;
     const opts={method,headers};
     if(data&&method!=='GET') opts.body=JSON.stringify(data);
-    const res=await fetch(path,opts);
+    const ctl=new AbortController();
+    const to=setTimeout(()=>ctl.abort(),10000);
+    opts.signal=ctl.signal;
+    let res;
+    try { res=await fetch(path,opts); } finally { clearTimeout(to); }
     const json=await res.json().catch(()=>({}));
     if(!res.ok){ if(res.status===401&&admin) api._adminAuthFail(path); const _e=new Error(json.error||`HTTP ${res.status}`); if(json.suggestion) _e.suggestion=json.suggestion; throw _e; }
     return json;

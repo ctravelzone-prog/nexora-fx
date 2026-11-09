@@ -181,7 +181,7 @@ function traderPlansExist(year, month) {
 
 // All plan rows for a month, with trader names, ordered by trader, day.
 function getTraderPlans(year, month) {
-  return getMainDb().prepare(`SELECT p.*, t.name AS trader_name FROM trader_profit_schedule p JOIN traders t ON p.trader_id=t.id WHERE p.cycle_year=? AND p.cycle_month=? ORDER BY p.trader_id, p.day_number`).all(year, month);
+  return getMainDb().prepare(`SELECT p.*, t.name AS trader_name, t.username AS trader_username FROM trader_profit_schedule p JOIN traders t ON p.trader_id=t.id WHERE p.cycle_year=? AND p.cycle_month=? ORDER BY p.trader_id, p.day_number`).all(year, month);
 }
 function getTraderPlan(year, month, traderId) {
   return getMainDb().prepare('SELECT * FROM trader_profit_schedule WHERE trader_id=? AND cycle_year=? AND cycle_month=? ORDER BY day_number').all(traderId, year, month);

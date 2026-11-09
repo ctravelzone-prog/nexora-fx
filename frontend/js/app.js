@@ -15,18 +15,43 @@ const App = {
 
   // App startup: load public settings, handle maintenance mode and
   // email/reset URL tokens, validate the saved token, then route.
+  // First paint must never wait on the network: the page used to stay blank
+  // for 20-60s when /api/settings (or the Tailwind CDN) was slow, because
+  // init() awaited settings before routing. Now a loader shows instantly,
+  // settings load in the background, and the page re-renders once they land.
   async init() {
-    // Load public settings (never block on failure)
-    try { App.state.settings = await api.getSettings(); } catch(e) {}
-    utils.applySiteFont(App.state.settings.site_font || 'Plus Jakarta Sans');
-    utils.applyLoaderSetting(App.state.settings.site_loader || '1');
-    utils.applyFavicon(App.state.settings.favicon_url);
+    // Instant loader so the page is never a blank white screen.
+    const _appEl = document.getElementById('app');
+    if (_appEl) _appEl.innerHTML = '<div class="flex items-center justify-center min-h-screen"><div class="text-center p-8"><div class="mx-auto mb-4" style="width:40px;height:40px;border:3px solid #FFE1CC;border-top-color:#FF6A00;border-radius:50%;animation:spin 0.8s linear infinite"></div><p class="text-gray-500">Loading…</p></div></div><style>@keyframes spin{to{transform:rotate(360deg)}}</style>';
+    // Load public settings in the background — never block the first paint.
+    // When they arrive, apply branding and re-render once so the page uses
+    // the real settings instead of the defaults it rendered with.
+    let _settingsApplied = false;
+    const _initAt = Date.now();
+    const _applySettings = (st) => {
+      App.state.settings = st || {};
+      utils.applySiteFont(App.state.settings.site_font || 'Plus Jakarta Sans');
+      utils.applyLoaderSetting(App.state.settings.site_loader || '1');
+      utils.applyFavicon(App.state.settings.favicon_url);
+      if (!_settingsApplied) {
+        _settingsApplied = true;
+        // Re-render once with the real settings — but only if they arrived
+        // within 5s of load (before the user can have started typing); a
+        // later arrival must never wipe what the user is doing.
+        if (Date.now() - _initAt < 5000) {
+          try { App.route(window.location.pathname); } catch(e) {}
+        }
+      }
+    };
+    const _settingsP = api.getSettings().then(_applySettings).catch(() => {});
 
-    // Maintenance mode — only block non-logged-in visitors
-    if (App.state.settings.maintenance_mode === '1' && !utils.isLoggedIn()) {
-      document.getElementById('app').innerHTML = '<div class="flex items-center justify-center min-h-screen"><div class="text-center p-8"><h1 class="text-2xl font-bold mb-2">Under Maintenance</h1><p class="text-gray-500">We\'ll be back shortly.</p></div></div>';
-      return;
-    }
+    // Maintenance mode — only block non-logged-in visitors. Checked as soon
+    // as settings arrive; the page may render first and switch to this.
+    _settingsP.then(() => {
+      if (App.state.settings.maintenance_mode === '1' && !utils.isLoggedIn()) {
+        document.getElementById('app').innerHTML = '<div class="flex items-center justify-center min-h-screen"><div class="text-center p-8"><h1 class="text-2xl font-bold mb-2">Under Maintenance</h1><p class="text-gray-500">We\'ll be back shortly.</p></div></div>';
+      }
+    });
 
     // Handle special URL tokens before any auth check
     const urlParams = new URLSearchParams(window.location.search);

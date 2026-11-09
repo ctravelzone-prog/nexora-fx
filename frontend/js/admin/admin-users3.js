@@ -50,7 +50,9 @@ AdminPages._newShowcase=function(){
       <div><label class="input-label">Display Copy</label><input name="copy" type="number" class="input-field" placeholder="0"></div>
       <div><label class="input-label">Display Profit</label><input name="profit" type="number" class="input-field" placeholder="0"></div>
       <div><label class="input-label">Display Total Withdraw</label><input name="withdraw" type="number" class="input-field" placeholder="0"></div>
+      <div><label class="input-label">Profit Target (%)</label><input name="profit_target" type="number" step="0.1" min="0" max="100" class="input-field" placeholder="Global default"></div>
     </div>
+    <p class="text-xs text-gray-400">Profit target is this account's own 22-day total (leave empty for the global target, now 10%).</p>
     <div id="sc-e" class="alert-danger hidden"></div>
     <div class="flex gap-3"><button type="button" onclick="utils.closeModal()" class="btn-secondary flex-1">Cancel</button><button type="submit" class="btn-primary flex-1">Create</button></div>
   </form></div>`);
@@ -58,7 +60,7 @@ AdminPages._newShowcase=function(){
     e.preventDefault();const f=e.target,err=document.getElementById('sc-e');
     try{
       // Convert dollar inputs to integer cents; a blank field counts as 0.
-      await adminApi.createShowcase({full_name:f.full_name.value,username:f.username.value,email:f.email.value,password:f.password.value,main_cents:Math.round((parseFloat(f.main.value)||0)*100),copy_cents:Math.round((parseFloat(f.copy.value)||0)*100),profit_cents:Math.round((parseFloat(f.profit.value)||0)*100),withdraw_cents:Math.round((parseFloat(f.withdraw.value)||0)*100)});
+      const _pt=f.profit_target.value; await adminApi.createShowcase({full_name:f.full_name.value,username:f.username.value,email:f.email.value,password:f.password.value,main_cents:Math.round((parseFloat(f.main.value)||0)*100),copy_cents:Math.round((parseFloat(f.copy.value)||0)*100),profit_cents:Math.round((parseFloat(f.profit.value)||0)*100),withdraw_cents:Math.round((parseFloat(f.withdraw.value)||0)*100),profit_target_bp:(_pt===''||_pt==null)?null:Math.round(parseFloat(_pt)*100)});
       utils.closeModal();utils.toast('Showcase account created!','success');AdminPages.showcase();
     }catch(ex){err.textContent=ex.message;err.classList.remove('hidden');}
   };
@@ -78,11 +80,11 @@ AdminPages._editShowcase=async function(id){
     <div><label class="input-label">Email</label><input name="email" type="email" class="input-field" required value="${(u.email||'').replace(/"/g,'&quot;')}"></div>
     <div><label class="input-label">New Password (leave empty to keep current)</label><input name="password" type="password" class="input-field" minlength="8" placeholder="Min 8 chars"></div>
     <div class="grid grid-cols-2 gap-2">
-      <div><label class="input-label">Display Main</label><input name="main" type="number" step="0.01" class="input-field" value="${((u.showcase_main_cents||0)/100)}"></div>
-      <div><label class="input-label">Display Copy</label><input name="copy" type="number" step="0.01" class="input-field" value="${((u.showcase_copy_cents||0)/100)}"></div>
-      <div><label class="input-label">Display Profit</label><input name="profit" type="number" step="0.01" class="input-field" value="${((u.showcase_profit_cents||0)/100)}"></div>
-      <div><label class="input-label">Display Total Withdraw</label><input name="withdraw" type="number" step="0.01" class="input-field" value="${((u.showcase_withdraw_cents||0)/100)}"></div>
-      <div><label class="input-label">Profit Target (%)</label><input name="profit_target" type="number" step="0.1" min="0" max="100" class="input-field" placeholder="Global default" value="${u.profit_target_bp==null?'':u.profit_target_bp/100}"></div>
+      <div><label class="input-label">Display Main</label><input name="main" type="number" step="0.01" class="input-field" value="${((u.showcase_main_cents||0)/100).toFixed(2)}"></div>
+      <div><label class="input-label">Display Copy</label><input name="copy" type="number" step="0.01" class="input-field" value="${((u.showcase_copy_cents||0)/100).toFixed(2)}"></div>
+      <div><label class="input-label">Display Profit</label><input name="profit" type="number" step="0.01" class="input-field" value="${((u.showcase_profit_cents||0)/100).toFixed(2)}"></div>
+      <div><label class="input-label">Display Total Withdraw</label><input name="withdraw" type="number" step="0.01" class="input-field" value="${((u.showcase_withdraw_cents||0)/100).toFixed(2)}"></div>
+      <div><label class="input-label">Profit Target (%)</label><input name="profit_target" type="number" step="0.1" min="0" max="100" class="input-field" placeholder="Global default" value="${u.profit_target_bp==null?'':(u.profit_target_bp/100).toFixed(1)}"></div>
     </div>
     <p class="text-xs text-gray-400">Display balances are demo numbers only — they never appear in admin totals, ledgers or reports. Profit target is this account's own 22-day total (leave empty for the global target, now 10%). Profit is applied automatically on the Display Copy balance.</p>
     <div id="sc-e" class="alert-danger hidden"></div>

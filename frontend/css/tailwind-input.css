@@ -1,0 +1,6 @@
+/* Tailwind input - compiled by `npx tailwindcss` into tailwind.css (same folder).
+   Do not edit the compiled file by hand; edit this file or tailwind.config.js
+   and rebuild. See tailwind.config.js for the rebuild command. */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;

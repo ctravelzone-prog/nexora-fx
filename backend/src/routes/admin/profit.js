@@ -46,7 +46,7 @@ router.get('/trader-plans', authAdmin, (req, res) => {
   const y = parseInt(year), m = parseInt(month);
   if (!traderPlansExist(y, m)) generateTraderPlans(y, m, globalNextDay(y, m));
   const plans = getTraderPlans(y, m);
-  const traders = [...new Map(plans.map(p => [p.trader_id, { id: p.trader_id, name: p.trader_name }])).values()];
+  const traders = [...new Map(plans.map(p => [p.trader_id, { id: p.trader_id, name: p.trader_name, username: p.trader_username }])).values()];
   res.json({ plans, traders, accountTotals: accountTotals(y, m, plans), year: y, month: m });
 });
 

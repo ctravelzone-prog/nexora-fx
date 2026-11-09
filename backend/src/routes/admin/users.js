@@ -197,9 +197,16 @@ router.post('/showcase/create', authAdmin, superAdminOnly, async (req,res)=>{
     const {full_name,username,email,password,main_cents,copy_cents,profit_cents,withdraw_cents,profit_target_bp}=req.body;
     if(!full_name||!username||!email||!password) return res.status(400).json({error:'Required'});
     if(!USERNAME_RE.test(username)) return res.status(400).json({error:'Username can only use lowercase letters, numbers, - and _'});
+    // Profit target (basis points, 0-10000; null = global default). The
+    // create route used to accept this field and silently drop it.
+    let targetBp=null;
+    if(profit_target_bp!==undefined&&profit_target_bp!==null&&profit_target_bp!==''){
+      targetBp=Math.round(Number(profit_target_bp));
+      if(!Number.isFinite(targetBp)||targetBp<0||targetBp>10000) return res.status(400).json({error:'Profit target must be 0-100%'});
+    }
     const hash=await bcrypt.hash(password,12); const rc=Math.random().toString(36).substring(2,10).toUpperCase();
-    const uid=getShowcaseDb().prepare('INSERT INTO users (full_name,username,email,password_hash,referral_code,is_showcase,showcase_main_cents,showcase_copy_cents,showcase_profit_cents,showcase_withdraw_cents,email_verified) VALUES (?,?,?,?,?,1,?,?,?,?,1)')
-      .run(full_name,username,email,hash,rc,main_cents||0,copy_cents||0,profit_cents||0,withdraw_cents||0).lastInsertRowid;
+    const uid=getShowcaseDb().prepare('INSERT INTO users (full_name,username,email,password_hash,referral_code,is_showcase,showcase_main_cents,showcase_copy_cents,showcase_profit_cents,showcase_withdraw_cents,profit_target_bp,email_verified) VALUES (?,?,?,?,?,1,?,?,?,?,?,1)')
+      .run(full_name,username,email,hash,rc,main_cents||0,copy_cents||0,profit_cents||0,withdraw_cents||0,targetBp).lastInsertRowid;
     res.json({success:true,id:uid});
   }catch(e){res.status(500).json({error:e.message});}
 });

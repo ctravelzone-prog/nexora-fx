@@ -64,12 +64,30 @@ const AdminApp = {
 
 // Boot: if there is no admin token, show the login screen. Otherwise
   // load the current admin and site settings, then route to the current URL.
+  // First paint must never wait on the network: the admin page used to stay
+  // blank for 20-45s when the settings call was slow, because init() awaited
+  // it before routing. Now a loader shows instantly and settings load in the
+  // background; the page re-renders once they land (within 5s of load only).
   async init() {
     if (!api.getAdminToken()) { AdminApp.showLogin(); return; }
+    const _appEl = document.getElementById('app');
+    if (_appEl) _appEl.innerHTML = '<div class="flex items-center justify-center min-h-screen"><div class="text-center p-8"><div class="mx-auto mb-4" style="width:40px;height:40px;border:3px solid #FFE1CC;border-top-color:#FF6A00;border-radius:50%;animation:spin 0.8s linear infinite"></div><p class="text-gray-500">Loading…</p></div></div><style>@keyframes spin{to{transform:rotate(360deg)}}</style>';
+    const _initAt = Date.now();
+    let _settingsApplied = false;
+    const _settingsP = adminApi.getSettings().then((st) => {
+      utils.applySiteFont(st.site_font || 'Plus Jakarta Sans');
+      utils.applyLoaderSetting(st.site_loader || '1');
+      utils.applyFavicon(st.favicon_url);
+      if (!_settingsApplied) {
+        _settingsApplied = true;
+        if (Date.now() - _initAt < 5000 && AdminApp.state.admin) {
+          try { AdminApp.route(window.location.pathname); } catch(e) {}
+        }
+      }
+    }).catch(() => {});
     try {
       const a = await adminApi.me();
       AdminApp.state.admin = a;
-      try { const s = await adminApi.getSettings(); utils.applySiteFont(s.site_font || 'Plus Jakarta Sans'); utils.applyLoaderSetting(s.site_loader || '1'); utils.applyFavicon(s.favicon_url); } catch(e) {}
       AdminApp.route(window.location.pathname);
       // Live admin notifications: user requests reach the bell + toast
       // instantly on every page (AdminComponents.startLivePush is

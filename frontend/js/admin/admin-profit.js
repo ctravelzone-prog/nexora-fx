@@ -39,12 +39,21 @@
 AdminPages.profit=async function(selTraderId){
   try{
     const now=new Date(),y=now.getFullYear(),m=now.getMonth()+1;
-    const d=await adminApi.getTraderPlans({year:y,month:m});
-    const pdata=await adminApi.getUserProfitData();
-    let auto={}; try{auto=await adminApi.getAutoProfitStatus();}catch(e){}
-    let scUsers=[]; try{scUsers=await adminApi.getShowcaseUsers();}catch(e){}
+    // The 5 calls are independent — run them in parallel (they were
+    // sequential before, so switching traders took ~10s on a slow server).
+    const [dRes,pRes,aRes,scRes,mRes]=await Promise.allSettled([
+      adminApi.getTraderPlans({year:y,month:m}),
+      adminApi.getUserProfitData(),
+      adminApi.getAutoProfitStatus(),
+      adminApi.getShowcaseUsers(),
+      adminApi.getMoney(),
+    ]);
+    const d=dRes.status==='fulfilled'?dRes.value:{plans:[],traders:[]};
+    const pdata=pRes.status==='fulfilled'?pRes.value:[];
+    const auto=aRes.status==='fulfilled'?aRes.value:{};
+    const scUsers=scRes.status==='fulfilled'?scRes.value:[];
     let targetPct='10.00';
-    try{const money=await adminApi.getMoney(); if(money&&money.profit_target_bp) targetPct=(parseInt(money.profit_target_bp)/100).toFixed(2);}catch(e){}
+    if(mRes.status==='fulfilled'&&mRes.value&&mRes.value.profit_target_bp) targetPct=(parseInt(mRes.value.profit_target_bp)/100).toFixed(2);
     const traders=d.traders||[];
     const selId=selTraderId||(traders.length?traders[0].id:null);
     const selPlan=d.plans.filter(p=>p.trader_id===selId);
@@ -107,7 +116,7 @@ AdminPages.profit=async function(selTraderId){
         <div class="flex items-center justify-between mb-2 flex-wrap gap-2"><h3 class="font-bold">Traders</h3><button onclick="AdminPages.traders()" class="btn-primary text-sm" style="width:auto;padding:8px 14px">Add Trader</button></div>
         <p class="text-xs text-gray-400 mb-2">Adding a trader creates their plan automatically. Removing one settles every active copy (money returns to Main, profit stays in Profit Balance), deletes their future plan, keeps past History.</p>
         <div class="overflow-x-auto"><table class="data-table"><thead><tr><th>Trader</th><th>Plan</th><th></th></tr></thead><tbody>
-          ${traders.map(t=>{const tp=d.plans.filter(p=>p.trader_id===t.id);const tot=tp.reduce((a,p)=>a+p.rate_bp,0);const app=tp.filter(p=>p.applied).length;return `<tr><td data-label="Trader">${t.name}</td><td data-label="Plan">${tp.length?`${app}/${tp.length} days applied · Total ${(tot/100).toFixed(2)}%`:'No plan yet'}</td><td><button onclick="AdminPages._removeTrader(${t.id},'${t.name.replace(/'/g,"\\'")}')" class="btn-danger text-xs" style="padding:6px 12px">Remove</button></td></tr>`;}).join('')}
+          ${traders.map(t=>{const tp=d.plans.filter(p=>p.trader_id===t.id);const tot=tp.reduce((a,p)=>a+p.rate_bp,0);const app=tp.filter(p=>p.applied).length;return `<tr><td data-label="Trader">${t.name}${t.username?` <span class=\"text-xs text-gray-400\">(@${t.username})</span>`:''}</td><td data-label="Plan">${tp.length?`${app}/${tp.length} days applied · Total ${(tot/100).toFixed(2)}%`:'No plan yet'}</td><td><button onclick="AdminPages._removeTrader(${t.id},'${t.name.replace(/'/g,"\\'")}')" class="btn-danger text-xs" style="padding:6px 12px">Remove</button></td></tr>`;}).join('')}
           ${traders.length===0?'<tr><td colspan="3" class="text-center py-8 text-gray-400">No traders yet</td></tr>':''}
         </tbody></table></div>
       </div>`,'Profit System · 22-Day Cycle');
@@ -147,6 +156,6 @@ AdminPages._toggleAuto=async function(){try{const s=await adminApi.getAutoProfit
 AdminPages._removeTrader=function(id,name){utils.confirm(`Remove ${name}? Every active copy is settled: the copied money returns to Main Balance, the profit stays in Profit Balance. Their future plan is deleted, past History stays.`,async()=>{try{const r=await adminApi.deleteTrader(id);utils.toast(`Trader removed — ${r.settled||0} copies settled`,'success');AdminPages.profit();}catch(e){utils.toast(e.message,'error');}},'Remove Trader');};
 // Opens the Set Profit Target modal for one showcase account. The
   // field is empty when the account follows the global target.
-AdminPages._setShowcaseTarget=function(id,cur){utils.showModal(`<div class="modal"><h2 class="font-bold mb-3">Profit Target (Showcase) #${id}</h2><p class="text-sm text-gray-400 mb-3">22-day total for this showcase account. Leave empty to use the global target.</p><label class="input-label">Profit Target (%)</label><input id="spt-v" type="number" step="0.1" min="0" max="100" class="input-field mb-3" value="${cur==null?'':cur/100}" placeholder="Global default"><div class="flex gap-3"><button onclick="utils.closeModal()" class="btn-secondary flex-1">Cancel</button><button onclick="AdminPages._doShowcaseTarget(${id})" class="btn-primary flex-1">Save</button></div></div>`);};
+AdminPages._setShowcaseTarget=function(id,cur){utils.showModal(`<div class="modal"><h2 class="font-bold mb-3">Profit Target (Showcase) #${id}</h2><p class="text-sm text-gray-400 mb-3">22-day total for this showcase account. Leave empty to use the global target.</p><label class="input-label">Profit Target (%)</label><input id="spt-v" type="number" step="0.1" min="0" max="100" class="input-field mb-3" value="${cur==null?'':(cur/100).toFixed(1)}" placeholder="Global default"><div class="flex gap-3"><button onclick="utils.closeModal()" class="btn-secondary flex-1">Cancel</button><button onclick="AdminPages._doShowcaseTarget(${id})" class="btn-primary flex-1">Save</button></div></div>`);};
 // Saves a showcase account's profit target via adminApi.setShowcaseProfitTarget.
 AdminPages._doShowcaseTarget=async function(id){const v=document.getElementById('spt-v').value;const bp=(v===''||v==null)?null:Math.round(parseFloat(v)*100);try{await adminApi.setShowcaseProfitTarget(id,{profit_target_bp:bp});utils.closeModal();utils.toast('Saved!','success');AdminPages.profit();}catch(ex){utils.toast(ex.message,'error');}};
