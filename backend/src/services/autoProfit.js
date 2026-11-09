@@ -126,9 +126,16 @@ function runAutoProfit(now = new Date(), opts = {}) {
     if (!traderPlansExist(nm.year, nm.month)) { generateTraderPlans(nm.year, nm.month, 1); generated = true; }
     return { applied: false, reason: 'cycle_complete_next_generated', dhakaDate: p.dateStr, weekday: p.weekday, nextYear: nm.year, nextMonth: nm.month, nextGenerated: generated };
   }
-  // Once-per-day guard first (same as before): if today already paid,
-  // say so — even when the NEXT day's time has not come yet.
-  if (getAutoLastDate() === p.dateStr || lastAppliedDhakaDate(p.year, p.month) === p.dateStr) {
+  // Once-per-day guard: if today already FULLY paid, say so — even
+  // when the NEXT day's time has not come yet. Only getAutoLastDate()
+  // is checked here: it is set ONLY on a full apply (below).
+  // lastAppliedDhakaDate must NOT be part of this guard — it returns
+  // today as soon as ANY single trader's row is marked applied, which
+  // would block the REST of a partial day's parts from ever landing
+  // (the exact failure the 'partial' branch below guards against).
+  // applyDailyPnl is idempotent (hasLog), so a re-run can never
+  // double-pay even if this guard were ever missed.
+  if (getAutoLastDate() === p.dateStr) {
     return { applied: false, reason: 'already_applied_today', dhakaDate: p.dateStr, weekday: p.weekday, day: nextDay };
   }
   // Today's time gate: the day opens at 10:00 AM (the trickle window).
