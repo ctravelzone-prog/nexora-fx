@@ -7,11 +7,13 @@
  * - Pages.copyHistory — past copies (api.getCopyHistory): trader,
  *   amount, profit, status, started and stopped dates.
  * - Pages.tradeHistory — daily profit log (api.getDailyPnlLog):
- *   trader, day number out of 22, rate and PnL for that day.
+ *   trader, day number out of 22, and dollar PnL for that day
+ *   (the daily rate is never shown to users).
  *
  * Rules: money is integer cents; display via utils.fmtMoney. The
- * daily rate is stored in basis points (rate_bp), so dividing by 100
- * gives the percent. Website UI text is always English.
+ * daily rate is stored in basis points (rate_bp) and used only to
+ * compute the dollar amount — it is never shown to users.
+ * Website UI text is always English.
  * Gotcha: the ?v= cache version in script tags must be bumped on every
  * release, or browsers may serve stale code.
  * Note: this file uses CRLF line endings — preserve them on every edit.
@@ -33,16 +35,16 @@ Pages.copyHistory=async function(){
 };
 
 // Trade History page. Loads the daily profit log and renders the
-// table; the rate is shown as a percent (rate_bp / 100).
+// table; only the dollar PnL is shown (the rate is never displayed).
 Pages.tradeHistory=async function(){
   try{
     const logs=await api.getDailyPnlLog();
     const backBtn='<button onclick="history.back()" style="width:36px;height:36px;border:1px solid var(--border);border-radius:10px;background:#fff;cursor:pointer;display:grid;place-items:center">'+svgIcons.arrow_left+'</button>';
     Components.layout(
       '<div class="flex items-center gap-3 mb-4">'+backBtn+'<h1 style="font-size:21px;font-weight:800">Trade History</h1></div>'
-      +'<div class="card" style="padding:0;overflow:hidden"><div style="overflow-x:auto"><table class="data-table"><thead><tr><th>Trader</th><th>Day</th><th>Rate</th><th>PnL</th><th>Date</th></tr></thead><tbody>'
-      +logs.map(l=>'<tr><td>'+l.trader_name+'</td><td>Day '+l.day_number+'/22</td><td style="font-weight:800;color:'+(l.rate_bp>=0?'var(--green-d)':'var(--red)')+'">'+( l.rate_bp>=0?'+':'')+( l.rate_bp/100).toFixed(2)+'%</td><td style="font-weight:800;color:'+(l.amount_cents>=0?'var(--green-d)':'var(--red)')+'">'+( l.amount_cents>=0?'+':'')+utils.fmtMoney(Math.abs(l.amount_cents))+'</td><td style="font-size:12px">'+utils.fmtDateTime(l.applied_at)+'</td></tr>').join('')
-      +(logs.length===0?'<tr><td colspan="5" style="text-align:center;padding:32px;color:var(--muted)">No trade history yet</td></tr>':'')
+      +'<div class="card" style="padding:0;overflow:hidden"><div style="overflow-x:auto"><table class="data-table"><thead><tr><th>Trader</th><th>Day</th><th>PnL</th><th>Date</th></tr></thead><tbody>'
+      +logs.map(l=>'<tr><td>'+l.trader_name+'</td><td>Day '+l.day_number+'/22</td><td style="font-weight:800;color:'+(l.amount_cents>=0?'var(--green-d)':'var(--red)')+'">'+( l.amount_cents>=0?'+':'')+utils.fmtMoney(Math.abs(l.amount_cents))+'</td><td style="font-size:12px">'+utils.fmtDateTime(l.applied_at)+'</td></tr>').join('')
+      +(logs.length===0?'<tr><td colspan="4" style="text-align:center;padding:32px;color:var(--muted)">No trade history yet</td></tr>':'')
       +'</tbody></table></div></div>'
     ,'Trade History','');
   }catch(e){document.getElementById('app').innerHTML='<p class="p-8" style="color:var(--red)">'+e.message+'</p>';}

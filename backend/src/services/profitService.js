@@ -395,8 +395,8 @@ function applyShowcasePnl(db, yr, mo, day, opts) {
       updUser.run(share, u.id);
       if (share !== 0) {
         const name = c.trader_name || 'Trader';
-        if (share >= 0) insN.run(u.id, `${name} made $${H.fmtC(share)} profit today`, `+${(rateBpCopy / 100).toFixed(2)}% added to your Profit Balance — Day ${day} of 22.`, 'success', '/dashboard');
-        else insN.run(u.id, `${name} lost $${H.fmtC(Math.abs(share))} today`, `-${(Math.abs(rateBpCopy) / 100).toFixed(2)}% deducted from your Profit Balance — Day ${day} of 22.`, 'warning', '/dashboard');
+        if (share >= 0) insN.run(u.id, `${name} made $${H.fmtC(share)} profit today`, `Added to your Profit Balance — Day ${day} of 22.`, 'success', '/dashboard');
+        else insN.run(u.id, `${name} lost $${H.fmtC(Math.abs(share))} today`, `Deducted from your Profit Balance — Day ${day} of 22.`, 'warning', '/dashboard');
       }
       cnt++; tot += share;
     });
@@ -489,8 +489,8 @@ function applyDailyPnl(yr, mo, day, targetUserId, opts) {
             `Daily PnL — Day ${day} of 22`,
             `Profit ${ac >= 0 ? '+=' : '-='} ${Math.abs(rateBpCopy) / 100}% x $${H.fmtC(copy.amount_cents)} = $${H.fmtC(Math.abs(ac))}${ac < 0 ? ' (loss)' : ''}`);
         if (ac !== 0) {
-          if (ac >= 0) insN.run(copy.user_id, `${copy.trader_name} made $${H.fmtC(ac)} profit today`, `+${(rateBpCopy / 100).toFixed(2)}% added to your Profit Balance — Day ${day} of 22.`, 'success', '/dashboard');
-          else insN.run(copy.user_id, `${copy.trader_name} lost $${H.fmtC(Math.abs(ac))} today`, `-${(Math.abs(rateBpCopy) / 100).toFixed(2)}% deducted from your Profit Balance — Day ${day} of 22.`, 'warning', '/dashboard');
+          if (ac >= 0) insN.run(copy.user_id, `${copy.trader_name} made $${H.fmtC(ac)} profit today`, `Added to your Profit Balance — Day ${day} of 22.`, 'success', '/dashboard');
+          else insN.run(copy.user_id, `${copy.trader_name} lost $${H.fmtC(Math.abs(ac))} today`, `Deducted from your Profit Balance — Day ${day} of 22.`, 'warning', '/dashboard');
         }
         cnt++; tot += ac;
       });
