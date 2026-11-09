@@ -70,7 +70,7 @@ AdminPages._bindTraderForm=function(tr){
 // Toggles a trader's hidden state via adminApi.toggleTraderHidden.
 AdminPages._toggleTrader=async function(id){try{await adminApi.toggleTraderHidden(id);utils.toast('Done','success');AdminPages.traders();}catch(e){utils.toast(e.message,'error');}};
 // Confirms, then deletes a trader via adminApi.deleteTrader.
-AdminPages._deleteTrader=function(id){utils.confirm('Delete this trader? This cannot be undone.',async()=>{try{await adminApi.deleteTrader(id);utils.toast('Trader deleted','success');AdminPages.traders();}catch(e){utils.toast(e.message,'error');}},'Delete');};
+AdminPages._deleteTrader=function(id){utils.confirm('Remove this trader? Every active copy is settled: the copied money returns to Main Balance, the profit stays in Profit Balance. Their future plan is deleted, past History stays, and the trader is hidden (not deleted).',async()=>{try{const r=await adminApi.deleteTrader(id);utils.toast(`Trader removed — ${r.settled||0} copies settled`,'success');AdminPages.traders();}catch(e){utils.toast(e.message,'error');}},'Remove Trader');};
 // Renders /admin/copies: active user copies with invested amount,
   // profit, daily PnL and cycle day. Data: adminApi.getActiveCopies.
 AdminPages.copies=async function(){

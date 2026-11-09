@@ -77,15 +77,17 @@ const adminApi = {
   deleteTrader:(id)=>api.request('DELETE',`/api/admin/traders/${id}`,null,true),
   getActiveCopies:()=>api.request('GET','/api/admin/traders/copies/active',null,true),
   adminStopCopy:(id)=>api.request('POST',`/api/admin/traders/copies/${id}/stop`,{},true),
-  // Profit schedule and auto-profit (daily PnL applied to Copy Invested).
-  getProfitSchedule:(p)=>api.request('GET',`/api/admin/profit/schedule?${new URLSearchParams(p||{})}`,null,true),
-  generateSchedule:(d)=>api.request('POST','/api/admin/profit/schedule/generate',d,true),
-  editScheduleDay:(y,m,d,data)=>api.request('PUT',`/api/admin/profit/schedule/${y}/${m}/${d}`,data,true),
+  // Per-trader profit plans and auto-profit (daily PnL applied to Copy Invested).
+  getTraderPlans:(p)=>api.request('GET',`/api/admin/profit/trader-plans?${new URLSearchParams(p||{})}`,null,true),
+  generateTraderPlans:(d)=>api.request('POST','/api/admin/profit/trader-plans/generate',d,true),
+  editTraderPlanDay:(tid,y,m,d,data)=>api.request('PUT',`/api/admin/profit/trader-plan/${tid}/${y}/${m}/${d}`,data,true),
   applyPnl:(d)=>api.request('POST','/api/admin/profit/apply',d,true),
   getAutoProfitStatus:()=>api.request('GET','/api/admin/profit/auto-status',null,true),
   runAutoProfit:()=>api.request('POST','/api/admin/profit/auto-run',{},true),
   toggleAutoProfit:(d)=>api.request('POST','/api/admin/profit/auto-toggle',d||{},true),
   getUserProfitData:()=>api.request('GET','/api/admin/profit/user-data',null,true),
+  getShowcaseUsers:()=>api.request('GET','/api/admin/profit/showcase-users',null,true),
+  setShowcaseProfitTarget:(id,d)=>api.request('POST',`/api/admin/users/showcase/${id}/profit-target`,d,true),
   // KYC reviews, support tickets, password-reset (forget) requests and
   // request-money approvals.
   getKYCList:(p)=>api.request('GET',`/api/admin/kyc?${new URLSearchParams(p||{})}`,null,true),

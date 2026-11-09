@@ -86,8 +86,8 @@ router.put('/money',authAdmin,superAdminOnly,(req,res)=>{
     try{
       const parts=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Dhaka',year:'numeric',month:'numeric'}).formatToParts(new Date());
       const y=parseInt(parts.find(p=>p.type==='year').value),m=parseInt(parts.find(p=>p.type==='month').value);
-      const {retargetSchedule}=require('../../services/profitService');
-      retargetSchedule(y,m,parseInt(req.body.profit_target_bp));
+      const {retargetTraderPlans}=require('../../services/profitService');
+      retargetTraderPlans(y,m,parseInt(req.body.profit_target_bp),parseInt(oldTarget||'1000'));
     }catch(_){}
   }
   res.json({success:true});

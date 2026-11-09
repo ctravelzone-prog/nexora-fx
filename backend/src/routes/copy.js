@@ -79,7 +79,8 @@ router.post('/decrease', authImpersonation, (req,res)=>{
   }catch(e){res.status(400).json({error:e.message});}
 });
 
-// POST /stop — stops a copy: principal + earned profit return to Main
+// POST /stop — stops a copy: ONLY the principal returns to Main;
+// the earned profit stays in Profit Balance (v128 rule).
 // Balance and the copy is marked stopped.
 router.post('/stop', authImpersonation, (req,res)=>{
   if(req.isImpersonation) return res.status(403).json({error:'Not allowed during Login as User session'});
@@ -87,7 +88,7 @@ router.post('/stop', authImpersonation, (req,res)=>{
     const {copy_id}=req.body;
     if(!copy_id) return res.status(400).json({error:'copy_id required'});
     const result=stopCopy(req.userId,parseInt(copy_id));
-    res.json({success:true,message:'Copy stopped. Funds returned to Main Balance.',...result});
+    res.json({success:true,message:'Copy stopped. Money returned to Main; profit stays in Profit Balance.',...result});
   }catch(e){res.status(400).json({error:e.message});}
 });
 

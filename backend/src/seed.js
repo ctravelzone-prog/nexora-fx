@@ -10,7 +10,7 @@
 require('dotenv').config();
 const bcrypt = require('bcrypt');
 const { getDb } = require('./models/database');
-const { generateSchedule } = require('./services/profitService');
+const { generateTraderPlans, traderPlansExist } = require('./services/profitService');
 
 // Seeds the database (see the header for what is created). The function
 // also creates the database handle and closes it when it runs standalone.
@@ -56,8 +56,8 @@ async function seed() {
   }
   // Profit schedule
   const now=new Date();
-  if(!db.prepare('SELECT id FROM profit_schedule WHERE cycle_year=? AND cycle_month=?').get(now.getFullYear(),now.getMonth()+1)){
-    generateSchedule(now.getFullYear(),now.getMonth()+1);
+  if(!traderPlansExist(now.getFullYear(),now.getMonth()+1)){
+    generateTraderPlans(now.getFullYear(),now.getMonth()+1,1);
     console.log('[SEED] Profit schedule generated for current month');
   }
   // Demo user

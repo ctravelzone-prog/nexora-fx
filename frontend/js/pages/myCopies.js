@@ -59,11 +59,12 @@ Pages._doAdj=async function(id,action){
 // Opens the Stop Copy confirmation dialog, showing principal and
 // profit up to yesterday. Today's Daily PnL is $0.00 at this point.
 Pages._stopCopyDlg=function(id,name,principal,profit){
-  utils.showModal(`<div class="modal"><h2 class="text-lg font-bold mb-3">Stop Copy — ${name}?</h2><div class="card bg-gray-50 mb-4"><div class="text-sm">Principal: <strong>${utils.fmtMoney(principal)}</strong></div><div class="text-sm">Profit (up to yesterday): <strong class="text-green-500">${utils.fmtMoney(profit)}</strong></div><div class="text-sm text-gray-400">Today's Daily PnL: $0.00</div></div><p class="text-sm text-gray-500 mb-4">Stopping moves all funds back to Main Balance. Today's PnL is $0.00.</p><div class="flex gap-3"><button onclick="utils.closeModal()" class="btn-secondary flex-1">Cancel</button><button id="stop-ok" onclick="Pages._doStop(${id})" class="btn-danger flex-1">Stop Copy</button></div></div>`);
+  utils.showModal(`<div class="modal"><h2 class="text-lg font-bold mb-3">Stop Copy — ${name}?</h2><div class="card bg-gray-50 mb-4"><div class="text-sm">Principal: <strong>${utils.fmtMoney(principal)}</strong> → returns to Main Balance</div><div class="text-sm">Profit (up to yesterday): <strong class="text-green-500">${utils.fmtMoney(profit)}</strong> → stays in Profit Balance</div><div class="text-sm text-gray-400">Today's Daily PnL: $0.00</div></div><p class="text-sm text-gray-500 mb-4">Only the copied money goes back to Main Balance. Your profit stays in Profit Balance — take it out from Profit Withdraw (min $10). Today's PnL is $0.00.</p><div class="flex gap-3"><button onclick="utils.closeModal()" class="btn-secondary flex-1">Cancel</button><button id="stop-ok" onclick="Pages._doStop(${id})" class="btn-danger flex-1">Stop Copy</button></div></div>`);
 };
-// Submits Stop Copy. API: api.stopCopy(). Funds return to Main Balance.
+// Submits Stop Copy. API: api.stopCopy(). Principal returns to Main
+// Balance; profit stays in Profit Balance.
 Pages._doStop=async function(id){
   utils.loading(document.getElementById('stop-ok'),true);
-  try{await api.stopCopy({copy_id:id});utils.closeModal();utils.toast('Copy stopped. Funds returned to Main.','success');Pages.myCopies();}
+  try{await api.stopCopy({copy_id:id});utils.closeModal();utils.toast('Copy stopped. Money returned to Main; profit stays in Profit Balance.','success');Pages.myCopies();}
   catch(e){utils.toast(e.message,'error');}
 };

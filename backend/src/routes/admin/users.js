@@ -168,6 +168,25 @@ router.post('/:id/profit-target', authAdmin, superAdminOnly, (req,res)=>{
 // Reads the SHOWCASE database (the main DB holds no showcase users).
 router.get('/showcase/list', authAdmin, (req,res)=>res.json(getShowcaseDb().prepare('SELECT * FROM users WHERE is_showcase=1 ORDER BY created_at DESC').all()));
 
+// POST /showcase/:id/profit-target — sets a showcase account's own
+// profit target (bp), the same as a real user's target: that account's
+// daily rates scale by target/global. An empty value clears it back to
+// the global target. The target lives in the SHOWCASE DB (the admin
+// dashboard never reads showcase money).
+router.post('/showcase/:id/profit-target', authAdmin, superAdminOnly, (req,res)=>{
+  const db=getShowcaseDb(); const user=db.prepare('SELECT * FROM users WHERE id=? AND is_showcase=1').get(req.params.id);
+  if(!user) return res.status(404).json({error:'Showcase user not found'});
+  const {profit_target_bp}=req.body||{};
+  let val=null;
+  if(profit_target_bp!==null&&profit_target_bp!==undefined&&profit_target_bp!==''){
+    val=parseInt(profit_target_bp);
+    if(isNaN(val)||val<0||val>10000) return res.status(400).json({error:'Profit target must be 0-100%'});
+  }
+  db.prepare('UPDATE users SET profit_target_bp=? WHERE id=?').run(val,user.id);
+  getDb().prepare('INSERT INTO audit_log (admin_id,user_id,action,before_value,after_value) VALUES (?,?,?,?,?)').run(req.adminId,user.id,'set_showcase_profit_target',String(user.profit_target_bp),String(val));
+  res.json({success:true,profit_target_bp:val});
+});
+
 // POST /showcase/create — Super Admin only. Creates a showcase account
 // with display balances (main/copy/profit/withdraw cents) and a password.
 // Showcase accounts CAN log in and do everything a real user can (copy,

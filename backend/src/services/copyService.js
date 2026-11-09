@@ -2,8 +2,11 @@
 // Moves money between Main Balance and Copy Invested and tracks each
 // copy's earned profit. startCopy checks the trader minimum and the Main
 // Balance, then creates the copy row; increaseCopy adds money to an active
-// copy; decreaseCopy returns money to Main; stopCopy returns the principal
-// + earned profit to Main and marks the copy stopped.
+// copy; decreaseCopy returns money to Main; stopCopy returns ONLY the
+// principal to Main and marks the copy stopped — the earned profit STAYS
+// in Profit Balance (Total PnL), taken out only via Profit Withdraw
+// (v128 rule, owner 9 Nov 2026). settleTraderCopies settles every active
+// copy of one trader with the same rule (trader removal).
 // Rule: profit is earned only on Copy Invested, on the first copied
 // amount, no compounding. Showcase accounts (is_showcase=1) cannot log
 // in, so the showcase display-balance path below is unreachable legacy
@@ -110,29 +113,52 @@ function decreaseCopy(userId, copyId, r) {
   })();
 }
 
-// Stops a copy: principal + earned profit return to Main Balance and
-// the copy is marked stopped with a timestamp.
-function stopCopy(userId, copyId) {
-  const db = getDb();
+// Stops a copy: ONLY the copied principal returns to Main Balance;
+// the earned profit STAYS in Profit Balance (Total PnL) — v128 rule
+// (owner 9 Nov 2026). Profit is taken out only via Profit Withdraw
+// (min $10, no fee). Same for showcase display balances.
+function stopCopyInDb(db, userId, copyId) {
   return db.transaction(() => {
     const sc = isShowcase(db, userId);
     const c = db.prepare(`SELECT * FROM copies WHERE id=? AND user_id=? AND status='active'`).get(copyId, userId);
     if (!c) throw new Error('Active copy not found');
-    const tot = c.amount_cents + c.profit_cents;
+    const principal = c.amount_cents;
     db.prepare(`UPDATE copies SET status='stopped',daily_pnl_cents=0,stopped_at=unixepoch(),updated_at=unixepoch() WHERE id=?`).run(copyId);
     if (sc) {
-      moveShowcase(db, userId, tot, -c.amount_cents, -c.profit_cents);
+      moveShowcase(db, userId, principal, -principal, 0);
     } else {
-      db.prepare('UPDATE balances SET main_cents=main_cents+?,copy_cents=copy_cents-?,profit_cents=profit_cents-?,updated_at=unixepoch() WHERE user_id=?')
-        .run(tot, c.amount_cents, c.profit_cents, userId);
+      db.prepare('UPDATE balances SET main_cents=main_cents+?,copy_cents=copy_cents-?,updated_at=unixepoch() WHERE user_id=?')
+        .run(principal, principal, userId);
       db.prepare('INSERT INTO transactions (user_id,type,amount_cents,fee_cents,net_cents,direction,status,reason,formula) VALUES (?,?,?,0,?,?,?,?,?)')
-        .run(userId, 'copy_stop', tot, tot, 'in', 'completed', 'Copy stopped — today PnL $0.00',
-          `Main += $${H.fmtC(c.amount_cents)} principal + $${H.fmtC(c.profit_cents)} profit; today PnL=$0.00`);
+        .run(userId, 'copy_stop', principal, principal, 'in', 'completed', 'Copy stopped — principal returned to Main; profit stays in Profit Balance',
+          `Main += $${H.fmtC(principal)} principal; profit $${H.fmtC(c.profit_cents)} stays in Profit Balance; today PnL=$0.00`);
     }
     const trader = db.prepare('SELECT * FROM traders WHERE id=?').get(c.trader_id);
     if (trader && trader.followers > 0) db.prepare('UPDATE traders SET followers=followers-1 WHERE id=?').run(c.trader_id);
-    return { principal: c.amount_cents, profit: c.profit_cents, total: tot };
+    return { principal: c.amount_cents, profit: c.profit_cents, total: principal };
   })();
 }
 
-module.exports = { startCopy, increaseCopy, decreaseCopy, stopCopy };
+// Stops a copy (main DB handle).
+function stopCopy(userId, copyId) {
+  return stopCopyInDb(getDb(), userId, copyId);
+}
+
+// Settles every active copy of one trader (admin trader removal):
+// principal returns to Main, profit stays in Profit Balance (same rule
+// as stopCopy). Runs on the given DB handle (main or showcase) and
+// notifies each affected user. Returns {settled, totalPrincipal}.
+function settleTraderCopies(db, traderId, traderName) {
+  const copies = db.prepare(`SELECT id, user_id, amount_cents FROM copies WHERE trader_id=? AND status='active' ORDER BY id`).all(traderId);
+  let settled = 0, totalPrincipal = 0;
+  const insN = db.prepare("INSERT INTO notifications (user_id,title,message,type,action_url) VALUES (?,?,?,?,?)");
+  for (const cp of copies) {
+    const r = stopCopyInDb(db, cp.user_id, cp.id);
+    totalPrincipal += r.principal;
+    settled++;
+    insN.run(cp.user_id, 'Trader removed — copy stopped', `${traderName || 'Trader'} was removed. Your $${H.fmtC(r.principal)} copy was returned to Main Balance; your $${H.fmtC(r.profit)} profit stays in Profit Balance.`, 'info', '/dashboard');
+  }
+  return { settled, totalPrincipal };
+}
+
+module.exports = { startCopy, increaseCopy, decreaseCopy, stopCopy, stopCopyInDb, settleTraderCopies };
