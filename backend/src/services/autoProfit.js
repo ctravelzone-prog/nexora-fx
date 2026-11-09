@@ -15,7 +15,7 @@
 //   schedule once, so the next cycle is ready. If auto is OFF, no shuffle
 //   happens — admin clicks Generate Dynamic Shuffle after 22 days.
 const { getDb } = require('../models/database');
-const { generateSchedule, getSchedule, applyDailyPnl, formatDayRunTime, formatTrickleWindow, formatMinutes, TRICKLE_START_MIN } = require('./profitService');
+const { generateSchedule, getSchedule, applyDailyPnl, resetShowcaseDay1IfDue, formatDayRunTime, formatTrickleWindow, formatMinutes, TRICKLE_START_MIN } = require('./profitService');
 
 // Profit times live in profitService as a TRICKLE: each day's PnL is
 // paid in one part per copied trader, each part at its own time in the
@@ -106,6 +106,15 @@ function runAutoProfit(now = new Date(), opts = {}) {
   if (p.isWeekend) {
     return { applied: false, reason: 'weekend_skip', dhakaDate: p.dateStr, weekday: p.weekday };
   }
+  // One-time Day-1 reset (9 Nov): the wrongly credited Day-1 showcase
+  // profit is removed at 1:00 PM so it re-adds fresh, part by part.
+  // resetShowcaseDay1IfDue is a no-op at any other time (date + time
+  // gate + once-only flag), and never breaks the apply.
+  try {
+    const rr = resetShowcaseDay1IfDue(p.hour * 60 + p.minute, p.dateStr);
+    if (rr.done) console.log(`[auto-profit] Day-1 showcase profit reset (removed $${((rr.removedCents || 0) / 100).toFixed(2)}) — re-adding from 1:00 PM`);
+    else if (rr.reason && rr.reason !== 'not_due' && rr.reason !== 'already_done') console.log(`[auto-profit] Day-1 reset skipped (${rr.reason})`);
+  } catch (e) { console.error('[auto-profit] Day-1 reset failed:', e.message); }
   let schedule = getSchedule(p.year, p.month);
   if (!schedule.length) { generateSchedule(p.year, p.month); schedule = getSchedule(p.year, p.month); }
   const next = schedule.find((s) => !s.applied);

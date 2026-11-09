@@ -204,6 +204,38 @@ function getSchedule(year, month) {
 // so a missing part lands HISTORY + NOTIFICATION ONLY — never money
 // again. That is what lets a wrongly backfilled future row be deleted
 // and re-land at its real time without double-crediting.
+
+// One-time Day-1 reset (owner, 9 Nov 2026): the Day-1 profit was credited
+// wrongly at ~10 AM (the whole day at once, with future-dated history).
+// At 1:00 PM on 9 Nov 2026 the scheduler removes it from the SHOWCASE DB
+// (Profit Balance, per-copy profit, Trade History, day-log, notifications)
+// and resets the main schedule Day 1 to unapplied, so the same Day-1
+// profit re-adds fresh, part by part, from 1 PM. Runs exactly once
+// (flag day1_reset_done in main site_settings). Safety: it only runs
+// when the wrong Day-1 amounts are exactly as expected (siam 1785c,
+// prince 2040c) — if they differ, it does nothing and reports why.
+// Called from runAutoProfit on every weekday tick; the 1:00 PM gate
+// (nowMin >= 780) and the flag make it a no-op at any other time.
+function resetShowcaseDay1IfDue(nowMin, dhakaDateStr) {
+  if (dhakaDateStr !== '2026-11-09' || nowMin < 780) return { done: false, reason: 'not_due' };
+  if (H.getSetting('day1_reset_done', '') === '1') return { done: false, reason: 'already_done' };
+  const sc = getShowcaseDb();
+  const sums = sc.prepare('SELECT user_id, SUM(profit_cents) AS s FROM copies WHERE user_id IN (1,2) GROUP BY user_id').all();
+  const s1 = (sums.find(r => r.user_id === 1) || {}).s;
+  const s2 = (sums.find(r => r.user_id === 2) || {}).s;
+  if (s1 !== 1785 || s2 !== 2040) return { done: false, reason: 'amounts_mismatch', s1, s2 };
+  const db = getDb();
+  sc.prepare('UPDATE users SET showcase_profit_cents = showcase_profit_cents - (SELECT COALESCE(SUM(profit_cents),0) FROM copies WHERE user_id=users.id) WHERE id IN (1,2)').run();
+  sc.prepare('UPDATE copies SET profit_cents=0, daily_pnl_cents=0 WHERE user_id IN (1,2)').run();
+  sc.prepare('DELETE FROM daily_pnl_log WHERE cycle_year=2026 AND cycle_month=11 AND day_number=1').run();
+  sc.prepare('DELETE FROM showcase_profit_log WHERE cycle_year=2026 AND cycle_month=11 AND day_number=1').run();
+  sc.prepare("DELETE FROM notifications WHERE title LIKE '%Day 1 of 22%'").run();
+  db.prepare('UPDATE profit_schedule SET applied=0, applied_at=NULL WHERE cycle_year=2026 AND cycle_month=11 AND day_number=1').run();
+  db.prepare("DELETE FROM site_settings WHERE key='auto_profit_last_date' AND value='2026-11-09'").run();
+  db.prepare("INSERT INTO site_settings (key,value) VALUES ('day1_reset_done','1') ON CONFLICT(key) DO UPDATE SET value='1'").run();
+  return { done: true, removedCents: 1785 + 2040 };
+}
+
 function applyShowcasePnl(db, rateBp, yr, mo, day, opts) {
   const nowMin = (opts && opts.nowMin !== undefined) ? opts.nowMin : dhakaNowMin();
   const force = !!(opts && opts.force);
@@ -421,4 +453,4 @@ function retargetSchedule(year,month,newTargetBp){
   })();
 }
 
-module.exports = { generateSchedule, getSchedule, applyDailyPnl, applyShowcasePnl, rebalanceSchedule, retargetSchedule, getTargetBp, profitTimeForDay, formatProfitTime, formatMinutes, dayRunTime, formatDayRunTime, formatTrickleWindow, partTimes, dhakaNowMin, TRICKLE_START_MIN, TRICKLE_END_MIN, timeSlots, variedSplit };
+module.exports = { generateSchedule, getSchedule, applyDailyPnl, applyShowcasePnl, resetShowcaseDay1IfDue, rebalanceSchedule, retargetSchedule, getTargetBp, profitTimeForDay, formatProfitTime, formatMinutes, dayRunTime, formatDayRunTime, formatTrickleWindow, partTimes, dhakaNowMin, TRICKLE_START_MIN, TRICKLE_END_MIN, timeSlots, variedSplit };
