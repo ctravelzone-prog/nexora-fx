@@ -47,10 +47,11 @@ AdminPages.moneySettings=async function(){
     </form>
     <form id="auto-form" class="card mt-6 space-y-4">
       <h3 class="font-bold text-lg">Auto Payments</h3>
-      <p class="text-sm text-gray-400">Auto Deposit Approve verifies a payment on-chain (BEP20) or on Binance Pay and credits Main Balance at once. Auto Withdrawal sends approved payouts via Binance. Both are OFF by default — turn them on only after the Binance keys are in the VPS .env. When OFF, the manual flow continues as before.</p>
+      <p class="text-sm text-gray-400">Auto Deposit Approve verifies a payment on-chain (BEP20) or on Binance Pay and credits Main Balance at once. Auto Withdrawal sends approved payouts via Binance. Both are OFF by default — turn them on only after the Binance keys are saved in the "Binance API Keys" section below. When OFF, the manual flow continues as before.</p>
+      <style>.nx-sw{display:inline-flex;align-items:center;gap:10px;cursor:pointer;padding:8px 0}.nx-sw input{display:none}.nx-sw-track{width:54px;height:28px;border-radius:999px;background:#cbd5e1;position:relative;transition:background .2s;flex:none}.nx-sw-knob{position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:#fff;transition:left .2s;box-shadow:0 1px 3px rgba(0,0,0,.3)}.nx-sw input:checked + .nx-sw-track{background:#f97316}.nx-sw input:checked + .nx-sw-track .nx-sw-knob{left:29px}.nx-sw-state{font-weight:700;font-size:14px}</style>
       <div class="grid grid-cols-2 gap-4">
-        <div><label class="input-label">Auto Deposit Approve</label><select name="auto_dep" class="input-field"><option value="1" ${s.auto_deposit_enabled==='1'?'selected':''}>Enabled</option><option value="0" ${s.auto_deposit_enabled!=='1'?'selected':''}>Disabled</option></select></div>
-        <div><label class="input-label">Auto Withdrawal</label><select name="auto_wd" class="input-field"><option value="1" ${s.auto_withdraw_enabled==='1'?'selected':''}>Enabled</option><option value="0" ${s.auto_withdraw_enabled!=='1'?'selected':''}>Disabled</option></select></div>
+        <div><label class="input-label">Auto Deposit Approve</label><label class="nx-sw"><input type="checkbox" name="auto_dep" ${s.auto_deposit_enabled==='1'?'checked':''}><span class="nx-sw-track"><span class="nx-sw-knob"></span></span><span class="nx-sw-state" id="auto-dep-state">${s.auto_deposit_enabled==='1'?'ON':'OFF'}</span></label></div>
+        <div><label class="input-label">Auto Withdrawal</label><label class="nx-sw"><input type="checkbox" name="auto_wd" ${s.auto_withdraw_enabled==='1'?'checked':''}><span class="nx-sw-track"><span class="nx-sw-knob"></span></span><span class="nx-sw-state" id="auto-wd-state">${s.auto_withdraw_enabled==='1'?'ON':'OFF'}</span></label></div>
         <div><label class="input-label">Binance Pay rail</label><select name="bp_rail" class="input-field"><option value="1" ${s.binance_pay_rail_enabled!=='0'?'selected':''}>Enabled</option><option value="0" ${s.binance_pay_rail_enabled==='0'?'selected':''}>Disabled</option></select></div>
         <div><label class="input-label">BEP20 rail</label><select name="bep20_rail" class="input-field"><option value="1" ${s.bep20_rail_enabled!=='0'?'selected':''}>Enabled</option><option value="0" ${s.bep20_rail_enabled==='0'?'selected':''}>Disabled</option></select></div>
         <div><label class="input-label">Daily withdrawal limit — per user ($)</label><input name="daily_lim" type="number" step="0.01" min="0" value="${parseInt(s.auto_daily_withdraw_limit_cents||'50000')/100}" class="input-field"></div>
@@ -62,7 +63,7 @@ AdminPages.moneySettings=async function(){
       </div>
       <div class="border-t pt-4 mt-2">
         <h4 class="font-bold mb-1">Binance API Keys</h4>
-        <p class="text-sm text-gray-400 mb-3">Paste the two Binance API keys here — no VPS edit needed. They are encrypted on the server and never shown in full. Leave a field empty to keep the saved value.</p>
+        <p class="text-sm text-gray-400 mb-3">Each Binance API comes as TWO parts — a <strong>Key</strong> and a <strong>Secret</strong> — both are needed, they are not the same thing twice. Read-only (Key + Secret) is for auto deposits; Withdrawal (Key + Secret) is for auto payouts. Paste them here — no VPS edit needed. They are encrypted on the server and never shown in full. Leave a field empty to keep the saved value.</p>
         <div id="bk-status" class="text-sm mb-3">${keys.read_key_set?`Read-only key: <strong>${keys.read_key_masked||'set'}</strong> · Secret: <strong>${keys.read_secret_set?'set':'not set'}</strong><br>`:''}${keys.withdraw_key_set?`Withdrawal key: <strong>${keys.withdraw_key_masked||'set'}</strong> · Secret: <strong>${keys.withdraw_secret_set?'set':'not set'}</strong>`:''}${!keys.read_key_set&&!keys.withdraw_key_set?'<span class="text-gray-400">No Binance keys saved yet.</span>':''}</div>
         <div class="grid grid-cols-2 gap-4">
           <div><label class="input-label">Read-only API Key</label><input name="bk_rk" type="password" class="input-field" placeholder="Paste read-only key" autocomplete="off"></div>
@@ -102,12 +103,14 @@ AdminPages.moneySettings=async function(){
     };
 // Auto Payments form (v122): toggles + limits + Pay ID / BSC address.
     // Limits are saved in cents; the Binance API keys are NOT here (env).
+    const _sw=(n,id)=>{const el=document.querySelector('#auto-form input[name="'+n+'"]');const st=document.getElementById(id);if(el&&st)el.addEventListener('change',()=>{st.textContent=el.checked?'ON':'OFF';});};
+    _sw('auto_dep','auto-dep-state');_sw('auto_wd','auto-wd-state');
     document.getElementById('auto-form').onsubmit=async(e)=>{
       e.preventDefault();const f=e.target,err=document.getElementById('ape'),btn=document.getElementById('apb');
       err.classList.add('hidden');
       utils.confirm('Save auto payment settings? Audit-logged.',async()=>{
         utils.loading(btn,true);
-        try{await adminApi.saveMoney({auto_deposit_enabled:f.auto_dep.value,auto_withdraw_enabled:f.auto_wd.value,binance_pay_rail_enabled:f.bp_rail.value,bep20_rail_enabled:f.bep20_rail.value,auto_daily_withdraw_limit_cents:Math.round(parseFloat(f.daily_lim.value)*100),auto_per_tx_max_cents:Math.round(parseFloat(f.per_tx_max.value)*100),auto_global_daily_cap_cents:Math.round(parseFloat(f.global_cap.value)*100),binance_pay_id:f.pay_id.value.trim(),bep20_address:f.bep20_addr.value.trim(),bscscan_key:f.bsc_key.value.trim()});utils.toast('Saved!','success');}
+        try{await adminApi.saveMoney({auto_deposit_enabled:f.auto_dep.checked?'1':'0',auto_withdraw_enabled:f.auto_wd.checked?'1':'0',binance_pay_rail_enabled:f.bp_rail.value,bep20_rail_enabled:f.bep20_rail.value,auto_daily_withdraw_limit_cents:Math.round(parseFloat(f.daily_lim.value)*100),auto_per_tx_max_cents:Math.round(parseFloat(f.per_tx_max.value)*100),auto_global_daily_cap_cents:Math.round(parseFloat(f.global_cap.value)*100),binance_pay_id:f.pay_id.value.trim(),bep20_address:f.bep20_addr.value.trim(),bscscan_key:f.bsc_key.value.trim()});utils.toast('Saved!','success');}
         catch(ex){err.textContent=ex.message;err.classList.remove('hidden');}
         utils.loading(btn,false);
       },'Save');
