@@ -27,7 +27,7 @@
   // Values come from adminApi.getMoney; saving needs a confirmation.
 AdminPages.moneySettings=async function(){
   try{
-    const [s,keys]=await Promise.all([adminApi.getMoney(),adminApi.getBinanceKeys().catch(()=>({}))]);
+    const [s,keys]=await Promise.all([adminApi.getMoney(),(adminApi.getBinanceKeys?adminApi.getBinanceKeys():Promise.resolve({})).catch(()=>({}))]);
     AdminComponents.layout(`<h2 class="font-bold text-lg mb-4">Money Settings</h2>
     <div class="alert-warning mb-4 text-sm">Changes are audit-logged. Super Admin only.</div>
     <form id="money-form" class="card space-y-4">
