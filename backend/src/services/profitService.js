@@ -188,14 +188,22 @@ function getSchedule(year, month) {
 // same 22-day schedule, computed on the DISPLAY copy balance (showcase_copy_cents)
 // and added to the DISPLAY profit (showcase_profit_cents). It TRICKLES exactly
 // like real users — one part per copied trader, each at its own time in the
-// 10:00 AM–7:00 PM Dhaka window (partTimes) — and every landed part writes a
-// daily_pnl_log row IN THE SHOWCASE DB ONLY, so the showcase user's Trade
-// History shows it. Still no transactions and no notifications, and the admin
-// dashboard / ledgers read the MAIN DB only, so showcase money never appears
-// there. Idempotent: a landed part is skipped via daily_pnl_log (UNIQUE
-// copy/day); the showcase_profit_log row is written only when the user's whole
-// day has landed. Runs on every scheduler tick (opts.nowMin/force, same as
+// 10:00 AM–7:00 PM Dhaka window (partTimes), a different rate per trader
+// (variedSplit 0.7x-1.3x), and every landed part writes a daily_pnl_log row
+// IN THE SHOWCASE DB ONLY, so the showcase user's Trade History shows it,
+// PLUS its own notification the moment it lands (same message as real
+// users — the live-push poller and the bell read the showcase DB too).
+// Still no transactions, and the admin dashboard / ledgers read the MAIN
+// DB only, so showcase money never appears there. Idempotent: a landed
+// part is skipped via daily_pnl_log (UNIQUE copy/day); the
+// showcase_profit_log row is written only when the user's whole day has
+// landed. Runs on every scheduler tick (opts.nowMin/force, same as
 // applyDailyPnl); a single-user manual apply never touches showcase.
+// Already-credited day: when the showcase_profit_log row exists, the
+// day's money was already credited in full (pre-v126 one-shot apply),
+// so a missing part lands HISTORY + NOTIFICATION ONLY — never money
+// again. That is what lets a wrongly backfilled future row be deleted
+// and re-land at its real time without double-crediting.
 function applyShowcasePnl(db, rateBp, yr, mo, day, opts) {
   const nowMin = (opts && opts.nowMin !== undefined) ? opts.nowMin : dhakaNowMin();
   const force = !!(opts && opts.force);
@@ -207,10 +215,13 @@ function applyShowcasePnl(db, rateBp, yr, mo, day, opts) {
   const insDay = db.prepare('INSERT INTO showcase_profit_log (user_id,cycle_year,cycle_month,day_number,rate_bp,amount_cents) VALUES (?,?,?,?,?,?)');
   const updUser = db.prepare('UPDATE users SET showcase_profit_cents=showcase_profit_cents+? WHERE id=?');
   const updCopy = db.prepare('UPDATE copies SET profit_cents=profit_cents+?,daily_pnl_cents=?,updated_at=unixepoch() WHERE id=?');
+  const insN = db.prepare("INSERT INTO notifications (user_id,title,message,type,action_url) VALUES (?,?,?,?,?)");
   for (const u of users) {
-    if (hasDay.get(u.id, yr, mo, day)) continue; // whole day already landed
+    // Money already fully credited for this day (pre-v126 one-shot) —
+    // missing parts still land, but history + notification only.
+    const dayLogged = !!hasDay.get(u.id, yr, mo, day);
     const ac = Math.round((u.showcase_copy_cents || 0) * rateBp / 10000);
-    const copies = db.prepare("SELECT id, trader_id, amount_cents FROM copies WHERE user_id=? AND status='active' ORDER BY id").all(u.id);
+    const copies = db.prepare("SELECT c.id, c.trader_id, c.amount_cents, t.name AS trader_name FROM copies c LEFT JOIN traders t ON c.trader_id=t.id WHERE c.user_id=? AND c.status='active' ORDER BY c.id").all(u.id);
     const totCopy = copies.reduce((s, c) => s + c.amount_cents, 0);
     if (totCopy <= 0) continue;
     // Same deterministic split as before (same seed), so the day total and
@@ -224,12 +235,19 @@ function applyShowcasePnl(db, rateBp, yr, mo, day, opts) {
       const share = shares[i];
       const rateBpCopy = c.amount_cents > 0 ? Math.round(share * 10000 / c.amount_cents) : 0;
       insLog.run(c.id, u.id, c.trader_id, yr, mo, day, rateBpCopy, share);
-      updCopy.run(share, share, c.id);
-      updUser.run(share, u.id);
+      if (!dayLogged) { // money not yet credited — credit it with the part
+        updCopy.run(share, share, c.id);
+        updUser.run(share, u.id);
+      }
+      if (share !== 0) {
+        const name = c.trader_name || 'Trader';
+        if (share >= 0) insN.run(u.id, `Daily profit — Day ${day} of 22`, `${name}: +$${H.fmtC(share)} (${(rateBpCopy / 100).toFixed(2)}%) added to your Profit Balance.`, 'success', '/dashboard');
+        else insN.run(u.id, `Daily loss — Day ${day} of 22`, `${name}: -$${H.fmtC(Math.abs(share))} (${(Math.abs(rateBpCopy) / 100).toFixed(2)}%) applied to your Profit Balance.`, 'warning', '/dashboard');
+      }
       cnt++; tot += share;
     });
-    if (userDone) insDay.run(u.id, yr, mo, day, rateBp, ac);
-    else allDone = false;
+    if (userDone && !dayLogged) insDay.run(u.id, yr, mo, day, rateBp, ac);
+    else if (!userDone) allDone = false;
   }
   return { count: cnt, totalApplied: tot, pending, nextPartMin, allApplied: allDone };
 }
