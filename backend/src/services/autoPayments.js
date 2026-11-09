@@ -23,14 +23,16 @@
 //
 // CONFIG: toggles + limits + Pay ID / BSC address live in site_settings
 // (admin Money Settings page, editable without redeploy). The two
-// Binance API keys live ONLY in env — never in code, chat, the DB or
-// an API response. The read-only key must have ONLY "Enable Reading";
-// the withdrawal key has Withdrawals + Reading, Trading OFF. Both keys
-// should be IP-whitelisted to the VPS (201.18.220.156).
+// Binance API keys live in site_settings ENCRYPTED (admin panel, v123)
+// with the .env as fallback — never in code, chat, the frontend or an
+// API response in full. The read-only key must have ONLY "Enable
+// Reading"; the withdrawal key has Withdrawals + Reading, Trading OFF.
+// Both keys should be IP-whitelisted to the VPS (201.18.220.156).
 const crypto = require('node:crypto');
 const { getDb, getMainDb } = require('../models/database');
 const H = require('./moneyHelpers');
 const { applyDeposit } = require('./moneyService');
+const { decryptSecret } = require('./secretStore');
 
 // --- Fixed facts -----------------------------------------------------------
 // USDT on BNB Smart Chain (BEP20): 18 decimals. The contract address is
@@ -66,10 +68,12 @@ function getAutoSettings() {
     binancePayId: (g('binance_pay_id', '') || '').trim(),
     bep20Address: (g('bep20_address', '') || '').trim().toLowerCase(),
     bscscanKey: (g('bscscan_key', '') || '').trim() || (process.env.BSCSCAN_API_KEY || '').trim(),
-    readKey: (process.env.BINANCE_READ_API_KEY || '').trim(),
-    readSecret: (process.env.BINANCE_READ_API_SECRET || '').trim(),
-    withdrawKey: (process.env.BINANCE_WITHDRAW_API_KEY || '').trim(),
-    withdrawSecret: (process.env.BINANCE_WITHDRAW_API_SECRET || '').trim(),
+    // Binance API keys: admin panel (encrypted in DB) first, .env
+    // fallback. The admin panel is how Siam sets them without SSH.
+    readKey: (decryptSecret(g('binance_read_key_enc', '')) || process.env.BINANCE_READ_API_KEY || '').trim(),
+    readSecret: (decryptSecret(g('binance_read_secret_enc', '')) || process.env.BINANCE_READ_API_SECRET || '').trim(),
+    withdrawKey: (decryptSecret(g('binance_withdraw_key_enc', '')) || process.env.BINANCE_WITHDRAW_API_KEY || '').trim(),
+    withdrawSecret: (decryptSecret(g('binance_withdraw_secret_enc', '')) || process.env.BINANCE_WITHDRAW_API_SECRET || '').trim(),
   };
 }
 

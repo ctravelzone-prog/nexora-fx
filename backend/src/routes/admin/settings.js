@@ -16,6 +16,7 @@ const { authAdmin, superAdminOnly } = require('../../middleware/auth');
 const multer = require('multer');
 const path = require('path');
 const { getUploadsDir, ensureUploadsDir } = require('../../services/uploads');
+const { encryptSecret, decryptSecret, maskKey } = require('../../services/secretStore');
 ensureUploadsDir();
 const upload = multer({storage:multer.diskStorage({destination:(req,file,cb)=>cb(null,getUploadsDir()),filename:(req,file,cb)=>cb(null,`${file.fieldname}_${Date.now()}_${file.originalname}`)}),limits:{fileSize:5*1024*1024}});
 
@@ -26,10 +27,39 @@ function getSetting(k){const r=getDb().prepare('SELECT value FROM site_settings 
 
 // GET / — public, no auth. Returns every site_settings row as one
 // JSON object (the frontend reads branding, money rules and flags).
-router.get('/',(req,res)=>{const rows=getDb().prepare('SELECT key,value FROM site_settings').all();const s={};for(const r of rows)s[r.key]=r.value;res.json(s);});
+// Encrypted secrets (keys ending in _enc) are NEVER exposed here.
+router.get('/',(req,res)=>{const rows=getDb().prepare('SELECT key,value FROM site_settings').all();const s={};for(const r of rows){if(!r.key.endsWith('_enc'))s[r.key]=r.value;}res.json(s);});
 // POST / — saves any settings keys from the body (generic: no
-// whitelist). Values are stored as strings.
-router.post('/',authAdmin,(req,res)=>{const db=getDb();const ins=db.prepare('INSERT OR REPLACE INTO site_settings (key,value,updated_at) VALUES (?,?,unixepoch())');db.transaction(e=>{for(const[k,v]of e)ins.run(k,String(v));})(Object.entries(req.body));res.json({success:true});});
+// whitelist). Values are stored as strings. Encrypted secrets are
+// refused here — they only go through POST /binance-keys.
+router.post('/',authAdmin,(req,res)=>{const db=getDb();const ins=db.prepare('INSERT OR REPLACE INTO site_settings (key,value,updated_at) VALUES (?,?,unixepoch())');db.transaction(e=>{for(const[k,v]of e){if(!k.endsWith('_enc'))ins.run(k,String(v));}})(Object.entries(req.body));res.json({success:true});});
+
+// Binance API keys (v123, Super Admin only). The keys are stored
+// ENCRYPTED in site_settings (secretStore, AES-256-GCM) so Siam can
+// paste them in the admin panel instead of editing the VPS .env. The
+// .env stays as a fallback. GET returns only "set" + the last 4 chars
+// of a KEY — never a secret, never the full value.
+function binanceKeyStatus(){
+  const readKey=decryptSecret(getSetting('binance_read_key_enc')||'')||process.env.BINANCE_READ_API_KEY||'';
+  const readSecret=decryptSecret(getSetting('binance_read_secret_enc')||'')||process.env.BINANCE_READ_API_SECRET||'';
+  const wdKey=decryptSecret(getSetting('binance_withdraw_key_enc')||'')||process.env.BINANCE_WITHDRAW_API_KEY||'';
+  const wdSecret=decryptSecret(getSetting('binance_withdraw_secret_enc')||'')||process.env.BINANCE_WITHDRAW_API_SECRET||'';
+  return {read_key_set:!!readKey,read_key_masked:maskKey(readKey),read_secret_set:!!readSecret,
+    withdraw_key_set:!!wdKey,withdraw_key_masked:maskKey(wdKey),withdraw_secret_set:!!wdSecret};
+}
+router.get('/binance-keys',authAdmin,superAdminOnly,(req,res)=>res.json(binanceKeyStatus()));
+router.post('/binance-keys',authAdmin,superAdminOnly,(req,res)=>{
+  const db=getDb();
+  const fields={read_key:'binance_read_key_enc',read_secret:'binance_read_secret_enc',withdraw_key:'binance_withdraw_key_enc',withdraw_secret:'binance_withdraw_secret_enc'};
+  for(const[bodyKey,storeKey]of Object.entries(fields)){
+    const v=req.body[bodyKey];
+    if(typeof v==='string'&&v.trim()){
+      setSetting(storeKey,encryptSecret(v.trim()));
+      db.prepare('INSERT INTO audit_log (admin_id,action,entity) VALUES (?,?,?)').run(req.adminId,'binance_key_change',storeKey);
+    }
+  }
+  res.json({success:true,...binanceKeyStatus()});
+});
 
 // GET /money — the Money Settings values (fees, lock, profit target,
 // profit minimum, referral rate, deposit/withdraw switches).

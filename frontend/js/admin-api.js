@@ -53,6 +53,9 @@ const adminApi = {
   getReferrals:()=>api.request('GET','/api/admin/finance/referrals',null,true),
   // Auto payments (v122): failed auto-verifies waiting for admin review.
   getPaymentAttempts:(p)=>api.request('GET',`/api/admin/finance/payment-attempts?${new URLSearchParams(p||{})}`,null,true),
+  // Binance API keys (v123): encrypted on the server, masked in the UI.
+  getBinanceKeys:()=>api.request('GET','/api/admin/settings/binance-keys',null,true),
+  saveBinanceKeys:(d)=>api.request('POST','/api/admin/settings/binance-keys',d,true),
   reviewPaymentAttempt:(id)=>api.request('POST',`/api/admin/finance/payment-attempts/${id}/review`,{},true),
   // Users and showcase (demo) accounts. Showcase accounts show DISPLAY
   // balances set by the admin, not real money.

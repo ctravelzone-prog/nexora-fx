@@ -108,7 +108,8 @@ app.get('/api/settings', (req, res) => {
   const db = getDb();
   const rows = db.prepare('SELECT key,value FROM site_settings').all();
   const s = {};
-  for (const r of rows) s[r.key] = r.value;
+  // Encrypted secrets (keys ending in _enc) are NEVER exposed publicly.
+  for (const r of rows) { if (!r.key.endsWith('_enc')) s[r.key] = r.value; }
   res.json(s);
 });
 

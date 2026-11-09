@@ -27,7 +27,7 @@
   // Values come from adminApi.getMoney; saving needs a confirmation.
 AdminPages.moneySettings=async function(){
   try{
-    const s=await adminApi.getMoney();
+    const [s,keys]=await Promise.all([adminApi.getMoney(),adminApi.getBinanceKeys().catch(()=>({}))]);
     AdminComponents.layout(`<h2 class="font-bold text-lg mb-4">Money Settings</h2>
     <div class="alert-warning mb-4 text-sm">Changes are audit-logged. Super Admin only.</div>
     <form id="money-form" class="card space-y-4">
@@ -60,7 +60,20 @@ AdminPages.moneySettings=async function(){
         <div><label class="input-label">BEP20 USDT address (BSC)</label><input name="bep20_addr" type="text" value="${s.bep20_address||''}" class="input-field" placeholder="0x..."></div>
         <div><label class="input-label">BscScan API key (optional)</label><input name="bsc_key" type="text" value="${s.bscscan_key||''}" class="input-field" placeholder="Leave empty to use the public BSC RPC"></div>
       </div>
-      <p class="text-xs text-gray-400">Binance API keys are NOT stored here. Put them in the VPS .env: BINANCE_READ_API_KEY / BINANCE_READ_API_SECRET (read-only, verifies deposits) and BINANCE_WITHDRAW_API_KEY / BINANCE_WITHDRAW_API_SECRET (sends withdrawals). Both keys IP-whitelisted to the VPS.</p>
+      <div class="border-t pt-4 mt-2">
+        <h4 class="font-bold mb-1">Binance API Keys</h4>
+        <p class="text-sm text-gray-400 mb-3">Paste the two Binance API keys here — no VPS edit needed. They are encrypted on the server and never shown in full. Leave a field empty to keep the saved value.</p>
+        <div id="bk-status" class="text-sm mb-3">${keys.read_key_set?`Read-only key: <strong>${keys.read_key_masked||'set'}</strong> · Secret: <strong>${keys.read_secret_set?'set':'not set'}</strong><br>`:''}${keys.withdraw_key_set?`Withdrawal key: <strong>${keys.withdraw_key_masked||'set'}</strong> · Secret: <strong>${keys.withdraw_secret_set?'set':'not set'}</strong>`:''}${!keys.read_key_set&&!keys.withdraw_key_set?'<span class="text-gray-400">No Binance keys saved yet.</span>':''}</div>
+        <div class="grid grid-cols-2 gap-4">
+          <div><label class="input-label">Read-only API Key</label><input name="bk_rk" type="password" class="input-field" placeholder="Paste read-only key" autocomplete="off"></div>
+          <div><label class="input-label">Read-only API Secret</label><input name="bk_rs" type="password" class="input-field" placeholder="Paste read-only secret" autocomplete="off"></div>
+          <div><label class="input-label">Withdrawal API Key</label><input name="bk_wk" type="password" class="input-field" placeholder="Paste withdrawal key" autocomplete="off"></div>
+          <div><label class="input-label">Withdrawal API Secret</label><input name="bk_ws" type="password" class="input-field" placeholder="Paste withdrawal secret" autocomplete="off"></div>
+        </div>
+        <p class="text-xs text-gray-400 mt-2">Read-only key: Binance → API Management → Create API → "Enable Reading" ONLY (no trading, no withdrawals). Withdrawal key: separate API → "Enable Withdrawals" + "Enable Reading", Trading OFF. Both keys: IP whitelist <strong>201.18.220.156</strong>. You can also set them in the VPS .env instead (BINANCE_READ_API_KEY / BINANCE_READ_API_SECRET / BINANCE_WITHDRAW_API_KEY / BINANCE_WITHDRAW_API_SECRET).</p>
+        <div id="bke" class="alert-danger hidden mt-3"></div>
+        <button type="button" id="bkb" class="btn-primary mt-3" onclick="AdminPages._saveBinanceKeys()">Save Binance Keys</button>
+      </div>
       <div id="ape" class="alert-danger hidden"></div>
       <button type="submit" id="apb" class="btn-primary">Save Auto Payments</button>
     </form>
@@ -99,6 +112,31 @@ AdminPages.moneySettings=async function(){
         utils.loading(btn,false);
       },'Save');
     };
+// Save Binance API keys (v123): posts only the filled fields; empty
+// fields keep the saved value. Refreshes the masked status line.
+AdminPages._saveBinanceKeys=async function(){
+  const form=document.getElementById('auto-form'); if(!form) return;
+  const err=document.getElementById('bke'),btn=document.getElementById('bkb');
+  err.classList.add('hidden');
+  const body={};
+  const g=(n)=>{const el=form.querySelector('[name="'+n+'"]');return el?el.value.trim():'';};
+  if(g('bk_rk')) body.read_key=g('bk_rk');
+  if(g('bk_rs')) body.read_secret=g('bk_rs');
+  if(g('bk_wk')) body.withdraw_key=g('bk_wk');
+  if(g('bk_ws')) body.withdraw_secret=g('bk_ws');
+  if(!Object.keys(body).length){err.textContent='Paste at least one key or secret first.';err.classList.remove('hidden');return;}
+  utils.confirm('Save these Binance API keys? They are encrypted on the server.',async()=>{
+    utils.loading(btn,true);
+    try{
+      const r=await adminApi.saveBinanceKeys(body);
+      const st=document.getElementById('bk-status');
+      if(st) st.innerHTML=`${r.read_key_set?`Read-only key: <strong>${r.read_key_masked||'set'}</strong> · Secret: <strong>${r.read_secret_set?'set':'not set'}</strong><br>`:''}${r.withdraw_key_set?`Withdrawal key: <strong>${r.withdraw_key_masked||'set'}</strong> · Secret: <strong>${r.withdraw_secret_set?'set':'not set'}</strong>`:''}${!r.read_key_set&&!r.withdraw_key_set?'<span class="text-gray-400">No Binance keys saved yet.</span>':''}`;
+      ['bk_rk','bk_rs','bk_wk','bk_ws'].forEach(n=>{const el=form.querySelector('[name="'+n+'"]');if(el)el.value='';});
+      utils.toast('Keys saved!','success');
+    }catch(ex){err.textContent=ex.message;err.classList.remove('hidden');}
+    utils.loading(btn,false);
+  },'Save');
+};
 // User Access Controls (below the money form): search a user, block or
 // unblock their Deposit/Withdraw, or switch their Request Money off / on
 // (optionally once). The list shows every currently blocked or restricted
