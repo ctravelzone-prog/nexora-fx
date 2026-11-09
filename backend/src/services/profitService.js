@@ -20,7 +20,7 @@
 // A per-user profit target scales that user's rates. All money is
 // integer cents; the profit goes to Copy Invested only, on the first
 // copied amount, no compounding.
-const { getDb } = require('../models/database');
+const { getDb, getShowcaseDb } = require('../models/database');
 const H = require('./moneyHelpers');
 
 // Global cycle target in basis points (100 = 1%). Admin sets it in Money Settings.
@@ -186,39 +186,52 @@ function getSchedule(year, month) {
 
 // Showcase profit: display-only profit for showcase accounts, 10% target over the
 // same 22-day schedule, computed on the DISPLAY copy balance (showcase_copy_cents)
-// and added to the DISPLAY profit (showcase_profit_cents). No real transactions,
-// no daily_pnl_log rows, no balances rows — so showcase money never appears in
-// admin totals, ledgers or reports. Idempotent via showcase_profit_log (one row
-// per showcase user per schedule day). Runs only on a FULL apply (not a
-// single-user manual apply).
-function applyShowcasePnl(db, rateBp, yr, mo, day) {
+// and added to the DISPLAY profit (showcase_profit_cents). It TRICKLES exactly
+// like real users — one part per copied trader, each at its own time in the
+// 10:00 AM–7:00 PM Dhaka window (partTimes) — and every landed part writes a
+// daily_pnl_log row IN THE SHOWCASE DB ONLY, so the showcase user's Trade
+// History shows it. Still no transactions and no notifications, and the admin
+// dashboard / ledgers read the MAIN DB only, so showcase money never appears
+// there. Idempotent: a landed part is skipped via daily_pnl_log (UNIQUE
+// copy/day); the showcase_profit_log row is written only when the user's whole
+// day has landed. Runs on every scheduler tick (opts.nowMin/force, same as
+// applyDailyPnl); a single-user manual apply never touches showcase.
+function applyShowcasePnl(db, rateBp, yr, mo, day, opts) {
+  const nowMin = (opts && opts.nowMin !== undefined) ? opts.nowMin : dhakaNowMin();
+  const force = !!(opts && opts.force);
   const users = db.prepare('SELECT id, showcase_copy_cents FROM users WHERE is_showcase=1 AND showcase_copy_cents>0').all();
-  let cnt = 0, tot = 0;
-  const has = db.prepare('SELECT id FROM showcase_profit_log WHERE user_id=? AND cycle_year=? AND cycle_month=? AND day_number=?');
-  const ins = db.prepare('INSERT INTO showcase_profit_log (user_id,cycle_year,cycle_month,day_number,rate_bp,amount_cents) VALUES (?,?,?,?,?,?)');
-  const upd = db.prepare('UPDATE users SET showcase_profit_cents=showcase_profit_cents+? WHERE id=?');
+  let cnt = 0, tot = 0, pending = 0, nextPartMin = null, allDone = true;
+  const hasLog = db.prepare('SELECT id FROM daily_pnl_log WHERE copy_id=? AND cycle_year=? AND cycle_month=? AND day_number=?');
+  const hasDay = db.prepare('SELECT id FROM showcase_profit_log WHERE user_id=? AND cycle_year=? AND cycle_month=? AND day_number=?');
+  const insLog = db.prepare('INSERT INTO daily_pnl_log (copy_id,user_id,trader_id,cycle_year,cycle_month,day_number,rate_bp,amount_cents) VALUES (?,?,?,?,?,?,?,?)');
+  const insDay = db.prepare('INSERT INTO showcase_profit_log (user_id,cycle_year,cycle_month,day_number,rate_bp,amount_cents) VALUES (?,?,?,?,?,?)');
+  const updUser = db.prepare('UPDATE users SET showcase_profit_cents=showcase_profit_cents+? WHERE id=?');
+  const updCopy = db.prepare('UPDATE copies SET profit_cents=profit_cents+?,daily_pnl_cents=?,updated_at=unixepoch() WHERE id=?');
   for (const u of users) {
-    if (has.get(u.id, yr, mo, day)) continue;
+    if (hasDay.get(u.id, yr, mo, day)) continue; // whole day already landed
     const ac = Math.round((u.showcase_copy_cents || 0) * rateBp / 10000);
-    ins.run(u.id, yr, mo, day, rateBp, ac);
-    upd.run(ac, u.id);
-    // Mirror the real-user flow: spread the day's profit across the user's
-    // active copies (proportional to each copy's amount) so the trader
-    // profile in Your Copies / My Copies shows its own profit too.
-    const copies = db.prepare("SELECT id, amount_cents FROM copies WHERE user_id=? AND status='active' ORDER BY id").all(u.id);
+    const copies = db.prepare("SELECT id, trader_id, amount_cents FROM copies WHERE user_id=? AND status='active' ORDER BY id").all(u.id);
     const totCopy = copies.reduce((s, c) => s + c.amount_cents, 0);
-    if (totCopy > 0) {
-      // Same per-trader variation as real users: each copy's share varies
-      // (same day total, same sign) so the trader rows don't look identical.
-      const shares = variedSplit(`${u.id}:${yr}:${mo}:${day}:showcase`, copies.map(c=>c.amount_cents), ac);
-      copies.forEach((c, i) => {
-        const share = shares[i];
-        db.prepare('UPDATE copies SET profit_cents=profit_cents+?,daily_pnl_cents=?,updated_at=unixepoch() WHERE id=?').run(share, share, c.id);
-      });
-    }
-    cnt++; tot += ac;
+    if (totCopy <= 0) continue;
+    // Same deterministic split as before (same seed), so the day total and
+    // the per-trader shares are unchanged — only the timing is new.
+    const shares = variedSplit(`${u.id}:${yr}:${mo}:${day}:showcase`, copies.map(c=>c.amount_cents), ac);
+    const times = partTimes(`${u.id}:${yr}:${mo}:${day}:showcase`, copies.length);
+    let userDone = true;
+    copies.forEach((c, i) => {
+      if (hasLog.get(c.id, yr, mo, day)) return; // part already landed
+      if (!force && nowMin < times[i]) { pending++; userDone = false; if (nextPartMin === null || times[i] < nextPartMin) nextPartMin = times[i]; return; }
+      const share = shares[i];
+      const rateBpCopy = c.amount_cents > 0 ? Math.round(share * 10000 / c.amount_cents) : 0;
+      insLog.run(c.id, u.id, c.trader_id, yr, mo, day, rateBpCopy, share);
+      updCopy.run(share, share, c.id);
+      updUser.run(share, u.id);
+      cnt++; tot += share;
+    });
+    if (userDone) insDay.run(u.id, yr, mo, day, rateBp, ac);
+    else allDone = false;
   }
-  return { count: cnt, totalApplied: tot };
+  return { count: cnt, totalApplied: tot, pending, nextPartMin, allApplied: allDone };
 }
 
 // Applies one schedule day to every active copy: each copy earns rate%
@@ -304,16 +317,27 @@ function applyDailyPnl(rateBp, yr, mo, day, targetUserId, opts) {
       ? "SELECT COUNT(*) AS n FROM copies c JOIN users u ON c.user_id=u.id WHERE c.status='active' AND u.is_showcase=0 AND c.user_id=? AND NOT EXISTS (SELECT 1 FROM daily_pnl_log d WHERE d.copy_id=c.id AND d.cycle_year=? AND d.cycle_month=? AND d.day_number=?)"
       : "SELECT COUNT(*) AS n FROM copies c JOIN users u ON c.user_id=u.id WHERE c.status='active' AND u.is_showcase=0 AND NOT EXISTS (SELECT 1 FROM daily_pnl_log d WHERE d.copy_id=c.id AND d.cycle_year=? AND d.cycle_month=? AND d.day_number=?)";
     const leftN=targetUserId?db.prepare(leftQ).get(targetUserId,yr,mo,day).n:db.prepare(leftQ).get(yr,mo,day).n;
-    let sc = { count: 0, totalApplied: 0 };
+    // Showcase accounts earn the same daily rate on their DISPLAY copy
+    // balance (showcase DB, separate file) — trickled on every tick, same
+    // as real users. A single-user manual apply never touches showcase.
+    // The schedule day is done only when BOTH real and showcase parts
+    // have all landed, so a partial showcase day never gets skipped.
+    // (The old code called applyShowcasePnl with the MAIN db handle here,
+    // which holds no showcase users — a no-op. The real showcase apply
+    // lived in the callers; now it lives here, on every tick.)
+    let sc = { count: 0, totalApplied: 0, pending: 0, nextPartMin: null, allApplied: true };
+    if (!targetUserId) {
+      try { sc = applyShowcasePnl(getShowcaseDb(), rateBp, yr, mo, day, { nowMin, force }); }
+      catch (e) { console.error('[profit] showcase apply failed:', e.message); }
+    }
+    const allApplied = leftN===0 && sc.allApplied;
     let dayTotalApplied=null;
-    if(leftN===0){
-      // Showcase accounts earn the same daily rate on their DISPLAY copy balance.
-      // Only on a full apply — a single-user manual apply must not touch showcase.
-      if (!targetUserId) sc = applyShowcasePnl(db, rateBp, yr, mo, day);
+    if(allApplied){
       db.prepare('UPDATE profit_schedule SET applied=1,applied_at=unixepoch() WHERE cycle_year=? AND cycle_month=? AND day_number=?').run(yr,mo,day);
       dayTotalApplied=db.prepare('SELECT COALESCE(SUM(amount_cents),0) AS t FROM daily_pnl_log WHERE cycle_year=? AND cycle_month=? AND day_number=?').get(yr,mo,day).t;
     }
-    return {count:cnt,totalApplied:tot,pending,allApplied:leftN===0,nextPartMin,dayTotalApplied,showcaseCount:sc.count,showcaseTotalApplied:sc.totalApplied};
+    const nextMin = nextPartMin===null ? sc.nextPartMin : (sc.nextPartMin===null ? nextPartMin : Math.min(nextPartMin, sc.nextPartMin));
+    return {count:cnt,totalApplied:tot,pending:pending+sc.pending,allApplied,nextPartMin:nextMin,dayTotalApplied,showcaseCount:sc.count,showcaseTotalApplied:sc.totalApplied};
   })();
 }
 

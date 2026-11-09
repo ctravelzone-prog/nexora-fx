@@ -9,9 +9,9 @@
 // Rule: the 22-day target is a target, never a guarantee; Day 22 always
 // balances the month to exactly the target.
 const router = require('express').Router();
-const { getDb, getShowcaseDb } = require('../../models/database');
+const { getDb } = require('../../models/database');
 const { authAdmin, superAdminOnly } = require('../../middleware/auth');
-const { generateSchedule, getSchedule, applyDailyPnl, applyShowcasePnl, rebalanceSchedule, formatDayRunTime } = require('../../services/profitService');
+const { generateSchedule, getSchedule, applyDailyPnl, rebalanceSchedule, formatDayRunTime } = require('../../services/profitService');
 const { runAutoProfit, autoStatus, isAutoEnabled, setAutoEnabled } = require('../../services/autoProfit');
 
 // GET /schedule — the month's 22-day schedule (generated first when
@@ -54,12 +54,9 @@ router.post('/apply', authAdmin, (req,res)=>{
   try{
     const {rate_bp,day_number,year,month,user_id}=req.body;
     if(rate_bp===undefined||!day_number||!year||!month) return res.status(400).json({error:'rate_bp, day_number, year, month required'});
-    const result=applyDailyPnl(parseInt(rate_bp),parseInt(year),parseInt(month),parseInt(day_number),user_id?parseInt(user_id):null);
     // A full (not single-user) manual apply also pays showcase accounts
-    // the same rate on their display copy balance (showcase DB). Idempotent.
-    if(!user_id && result.allApplied){
-      try{ const sc=applyShowcasePnl(getShowcaseDb(),parseInt(rate_bp),parseInt(year),parseInt(month),parseInt(day_number)); result.showcaseCount=sc.count; result.showcaseTotalApplied=sc.totalApplied; }catch(_){}
-    }
+    // the same rate, trickled — applyDailyPnl handles showcase inside.
+    const result=applyDailyPnl(parseInt(rate_bp),parseInt(year),parseInt(month),parseInt(day_number),user_id?parseInt(user_id):null);
     getDb().prepare('INSERT INTO audit_log (admin_id,action,entity) VALUES (?,?,?)').run(req.adminId,'apply_daily_pnl',`day${day_number}/${month}/${year}`);
     res.json({success:true,...result});
   }catch(e){res.status(500).json({error:e.message});}
