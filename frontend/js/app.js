@@ -69,6 +69,7 @@ const App = {
     }
 
     // Validate token silently — if invalid, clear it and treat as logged out
+    App.state.meTransientError = false;
     if (utils.isLoggedIn()) {
       try {
         const data = await api.getMe();
@@ -77,8 +78,11 @@ const App = {
         if (data.is_impersonation) App.showImpersonationBanner();
         else document.getElementById('impersonation-banner')?.remove();
       } catch(e) {
-        // Token invalid or expired — clear it silently, no error shown
-        api.clearToken();
+        // Only a 401 means the token is bad. A timeout / network / server
+        // error must NOT log the user out — the token stays so a refresh
+        // can retry; this load just treats the user as not loaded.
+        if (e && e.status === 401) api.clearToken();
+        else App.state.meTransientError = true;
         App.state.user = null;
         App.state.balance = null;
       }
@@ -163,9 +167,12 @@ const App = {
       return;
     }
 
-    // Has token but user not loaded yet (e.g. token present but getMe failed) → clear and redirect
+    // Has token but user not loaded yet (e.g. token present but getMe failed).
+    // Only clear the token when the failure was an auth failure (401). On a
+    // timeout / network error the token stays — the user goes to login, but
+    // a refresh retries getMe and can still succeed instead of logging out.
     if (authRequired && hasToken && !loggedIn) {
-      api.clearToken();
+      if (!App.state.meTransientError) api.clearToken();
       App.state.user = null;
       if (cleanPath !== '/login') sessionStorage.setItem('nx_redirect', cleanPath);
       history.replaceState({}, '', '/login');

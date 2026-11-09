@@ -44,9 +44,19 @@ const api = {
     const to=setTimeout(()=>ctl.abort(),10000);
     opts.signal=ctl.signal;
     let res;
-    try { res=await fetch(path,opts); } finally { clearTimeout(to); }
+    try { res=await fetch(path,opts); }
+    catch(err) {
+      clearTimeout(to);
+      // A timeout/network failure is NOT an auth failure: mark it so
+      // callers keep the token (a retry can still succeed) instead of
+      // logging the user out.
+      const e=new Error(err&&err.name==='AbortError'?'Request timed out':(err&&err.message)||'Network error');
+      e.code=err&&err.name==='AbortError'?'TIMEOUT':'NETWORK';
+      throw e;
+    }
+    finally { clearTimeout(to); }
     const json=await res.json().catch(()=>({}));
-    if(!res.ok){ if(res.status===401&&admin) api._adminAuthFail(path); const _e=new Error(json.error||`HTTP ${res.status}`); if(json.suggestion) _e.suggestion=json.suggestion; throw _e; }
+    if(!res.ok){ if(res.status===401&&admin) api._adminAuthFail(path); const _e=new Error(json.error||`HTTP ${res.status}`); _e.status=res.status; if(json.suggestion) _e.suggestion=json.suggestion; throw _e; }
     return json;
   },
 

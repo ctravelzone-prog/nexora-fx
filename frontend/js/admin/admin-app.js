@@ -94,7 +94,9 @@ const AdminApp = {
       // idempotent — it returns early if already running).
       try{AdminComponents.startLivePush();}catch(e){}
     } catch(e) {
-      api.clearAdminToken();
+      // Only a 401 means the admin token is bad. A timeout / network error
+      // must NOT log the admin out — the token stays so a refresh retries.
+      if (e && e.status === 401) api.clearAdminToken();
       AdminApp.showLogin();
     }
     window.onpopstate = () => AdminApp.route(window.location.pathname);

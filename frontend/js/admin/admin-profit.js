@@ -48,6 +48,7 @@ AdminPages.profit=async function(selTraderId){
       adminApi.getShowcaseUsers(),
       adminApi.getMoney(),
     ]);
+    if(dRes.status!=='fulfilled'){ utils.toast('Could not load trader plans: '+(dRes.reason&&dRes.reason.message||'failed'),'error'); }
     const d=dRes.status==='fulfilled'?dRes.value:{plans:[],traders:[]};
     const pdata=pRes.status==='fulfilled'?pRes.value:[];
     const auto=aRes.status==='fulfilled'?aRes.value:{};
