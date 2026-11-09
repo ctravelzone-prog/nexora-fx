@@ -27,6 +27,7 @@ const App = {
     // When they arrive, apply branding and re-render once so the page uses
     // the real settings instead of the defaults it rendered with.
     let _settingsApplied = false;
+    let _routed = false; // becomes true once init() runs its first route()
     const _initAt = Date.now();
     const _applySettings = (st) => {
       App.state.settings = st || {};
@@ -35,10 +36,12 @@ const App = {
       utils.applyFavicon(App.state.settings.favicon_url);
       if (!_settingsApplied) {
         _settingsApplied = true;
-        // Re-render once with the real settings — but only if they arrived
-        // within 5s of load (before the user can have started typing); a
-        // later arrival must never wipe what the user is doing.
-        if (Date.now() - _initAt < 5000) {
+        // Re-render once with the real settings — but ONLY after init's
+        // first route() has run (otherwise route() sees "has token but no
+        // user yet" and clears the token = logout on refresh), and only if
+        // they arrived within 5s of load (before the user can have started
+        // typing); a later arrival must never wipe what the user is doing.
+        if (_routed && Date.now() - _initAt < 5000) {
           try { App.route(window.location.pathname); } catch(e) {}
         }
       }
@@ -83,6 +86,7 @@ const App = {
 
     // Route to current path
     App.route(window.location.pathname);
+    _routed = true;
     App._track();
     window.onpopstate = () => { App.route(window.location.pathname); App._track(); };
   },
