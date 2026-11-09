@@ -67,7 +67,6 @@ const adminApi = {
   setTempPassword:(id,d)=>api.request('POST',`/api/admin/users/${id}/set-temp-password`,d,true),
   setUserProfitTarget:(id,d)=>api.request('POST',`/api/admin/users/${id}/profit-target`,d,true),
   loginAsUser:(id)=>api.request('POST',`/api/admin/users/${id}/login-as`,{},true),
-  getShowcaseUsers:()=>api.request('GET','/api/admin/users/showcase/list',null,true),
   createShowcase:(d)=>api.request('POST','/api/admin/users/showcase/create',d,true),
   updateShowcase:(id,d)=>api.request('PUT',`/api/admin/users/showcase/${id}`,d,true),
   deleteShowcase:(id)=>api.request('DELETE',`/api/admin/users/showcase/${id}`,null,true),

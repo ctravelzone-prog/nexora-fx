@@ -123,7 +123,7 @@ router.get('/user-data', authAdmin, (req, res) => {
 // per-user profit targets (showcase DB only; never in admin totals).
 router.get('/showcase-users', authAdmin, (req, res) => {
   const db = getShowcaseDb();
-  res.json(db.prepare(`SELECT u.id,u.full_name,u.username,u.profit_target_bp,u.showcase_main_cents,u.showcase_copy_cents,u.showcase_profit_cents,COALESCE((SELECT SUM(amount_cents) FROM daily_pnl_log WHERE user_id=u.id),0) as total_pnl_cents,(SELECT COUNT(*) FROM copies WHERE user_id=u.id AND status='active') as active_copies FROM users u WHERE u.is_showcase=1 ORDER BY u.showcase_copy_cents DESC`).all());
+  res.json(db.prepare(`SELECT u.id,u.full_name,u.username,u.email,u.profit_target_bp,u.showcase_main_cents,u.showcase_copy_cents,u.showcase_profit_cents,u.showcase_withdraw_cents,COALESCE((SELECT SUM(amount_cents) FROM daily_pnl_log WHERE user_id=u.id),0) as total_pnl_cents,(SELECT COUNT(*) FROM copies WHERE user_id=u.id AND status='active') as active_copies FROM users u WHERE u.is_showcase=1 ORDER BY u.showcase_copy_cents DESC`).all());
 });
 
 module.exports = router;

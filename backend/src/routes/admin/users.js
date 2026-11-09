@@ -194,7 +194,7 @@ router.post('/showcase/:id/profit-target', authAdmin, superAdminOnly, (req,res)=
 // database and never appears in the admin dashboard or ledger.
 router.post('/showcase/create', authAdmin, superAdminOnly, async (req,res)=>{
   try{
-    const {full_name,username,email,password,main_cents,copy_cents,profit_cents,withdraw_cents}=req.body;
+    const {full_name,username,email,password,main_cents,copy_cents,profit_cents,withdraw_cents,profit_target_bp}=req.body;
     if(!full_name||!username||!email||!password) return res.status(400).json({error:'Required'});
     if(!USERNAME_RE.test(username)) return res.status(400).json({error:'Username can only use lowercase letters, numbers, - and _'});
     const hash=await bcrypt.hash(password,12); const rc=Math.random().toString(36).substring(2,10).toUpperCase();
@@ -213,7 +213,7 @@ router.put('/showcase/:id', authAdmin, superAdminOnly, async (req,res)=>{
     const db=getShowcaseDb();
     const u=db.prepare('SELECT * FROM users WHERE id=? AND is_showcase=1').get(req.params.id);
     if(!u) return res.status(404).json({error:'Showcase account not found'});
-    const {full_name,username,email,password,main_cents,copy_cents,profit_cents,withdraw_cents}=req.body;
+    const {full_name,username,email,password,main_cents,copy_cents,profit_cents,withdraw_cents,profit_target_bp}=req.body;
     if(username && username!==u.username){
       if(!USERNAME_RE.test(username)) return res.status(400).json({error:'Username can only use lowercase letters, numbers, - and _'});
       if(db.prepare('SELECT id FROM users WHERE username=?').get(username)) return res.status(400).json({error:'Username already taken'});
@@ -228,6 +228,7 @@ router.put('/showcase/:id', authAdmin, superAdminOnly, async (req,res)=>{
     if(copy_cents!==undefined){sets.push('showcase_copy_cents=?');vals.push(Math.round(copy_cents)||0);}
     if(profit_cents!==undefined){sets.push('showcase_profit_cents=?');vals.push(Math.round(profit_cents)||0);}
     if(withdraw_cents!==undefined){sets.push('showcase_withdraw_cents=?');vals.push(Math.round(withdraw_cents)||0);}
+    if(profit_target_bp!==undefined){let v=null;if(profit_target_bp!==null&&profit_target_bp!==''){v=parseInt(profit_target_bp);if(isNaN(v)||v<0||v>10000) return res.status(400).json({error:'Profit target must be 0-100%'});}sets.push('profit_target_bp=?');vals.push(v);}
     if(password){ if(String(password).length<8) return res.status(400).json({error:'Password min 8 chars'}); sets.push('password_hash=?'); vals.push(await bcrypt.hash(password,12)); }
     if(!sets.length) return res.status(400).json({error:'Nothing to update'});
     sets.push('updated_at=unixepoch()');
