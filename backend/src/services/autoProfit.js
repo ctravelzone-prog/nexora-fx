@@ -66,26 +66,34 @@ function setAutoLastDate(dateStr) {
     getDb().prepare("INSERT INTO site_settings (key,value) VALUES ('auto_profit_last_date',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value").run(dateStr);
   } catch (_) { /* never break the apply */ }
 }
-// Resets every copy's Daily PnL to $0.00 once per Dhaka day, at/after
-// midnight (Siam 10 Nov 2026): without this, a copy whose part has not
-// landed yet today keeps showing yesterday's Daily PnL — Ethan Tan
-// showed Day-1 +$2.40 on Day 2 before his part landed. Runs in BOTH
+// Syncs every copy's Daily PnL from today's log, once per Dhaka day,
+// at/after midnight (Siam 10 Nov 2026): without this, a copy whose part
+// has not landed yet today keeps showing yesterday's Daily PnL — Ethan
+// Tan showed Day-1 +$2.40 on Day 2 before his part landed. A copy whose
+// part ALREADY landed today keeps today's amount; the rest go to $0.00.
+// (A blind reset to 0 would wipe parts that landed before the first run
+// after deploy — that bug was caught and fixed in v128.12.) Runs in BOTH
 // databases (real + showcase users, same rule) and on every day,
 // including Sat/Sun (no profit then, so the display must be $0.00, not
 // Friday's). Idempotent: the reset date is stored in site_settings, so
-// a second call the same day is a no-op and can never wipe a part that
-// already landed today.
+// a second call the same day is a no-op.
 function resetDailyPnlIfDue(now = new Date()) {
-  const today = dhakaParts(now).dateStr;
+  const p = dhakaParts(now);
+  const today = p.dateStr;
   let last = null;
   try {
     const row = getDb().prepare("SELECT value FROM site_settings WHERE key='daily_pnl_reset_date'").get();
     last = row ? row.value : null;
   } catch (_) {}
   if (last === today) return { reset: false, date: today };
+  const day = currentCycleDay(p.year, p.month);
   let mainN = 0, scN = 0;
-  try { mainN = getMainDb().prepare('UPDATE copies SET daily_pnl_cents=0').run().changes; } catch (_) {}
-  try { scN = getShowcaseDb().prepare('UPDATE copies SET daily_pnl_cents=0').run().changes; } catch (_) {}
+  const syncDb = (db) => {
+    if (day === null) return db.prepare('UPDATE copies SET daily_pnl_cents=0').run().changes;
+    return db.prepare('UPDATE copies SET daily_pnl_cents=COALESCE((SELECT amount_cents FROM daily_pnl_log WHERE copy_id=copies.id AND cycle_year=? AND cycle_month=? AND day_number=?),0)').run(p.year, p.month, day).changes;
+  };
+  try { mainN = syncDb(getMainDb()); } catch (_) {}
+  try { scN = syncDb(getShowcaseDb()); } catch (_) {}
   try {
     getDb().prepare("INSERT INTO site_settings (key,value) VALUES ('daily_pnl_reset_date',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value").run(today);
   } catch (_) {}
