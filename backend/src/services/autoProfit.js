@@ -18,7 +18,7 @@
 // - After all 22 days are applied, auto (ON only) generates the NEXT
 //   month's trader plans once, so the next cycle is ready. If auto is
 //   OFF, no generation happens — admin clicks Generate after 22 days.
-const { getDb } = require('../models/database');
+const { getDb, getMainDb, getShowcaseDb } = require('../models/database');
 const { generateTraderPlans, traderPlansExist, currentCycleDay, globalNextDay, getTraderPlans, applyDailyPnl, formatTrickleWindow, formatMinutes, TRICKLE_START_MIN } = require('./profitService');
 
 // Returns the year/month/day of a Date in Asia/Dhaka time.
@@ -66,6 +66,31 @@ function setAutoLastDate(dateStr) {
     getDb().prepare("INSERT INTO site_settings (key,value) VALUES ('auto_profit_last_date',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value").run(dateStr);
   } catch (_) { /* never break the apply */ }
 }
+// Resets every copy's Daily PnL to $0.00 once per Dhaka day, at/after
+// midnight (Siam 10 Nov 2026): without this, a copy whose part has not
+// landed yet today keeps showing yesterday's Daily PnL — Ethan Tan
+// showed Day-1 +$2.40 on Day 2 before his part landed. Runs in BOTH
+// databases (real + showcase users, same rule) and on every day,
+// including Sat/Sun (no profit then, so the display must be $0.00, not
+// Friday's). Idempotent: the reset date is stored in site_settings, so
+// a second call the same day is a no-op and can never wipe a part that
+// already landed today.
+function resetDailyPnlIfDue(now = new Date()) {
+  const today = dhakaParts(now).dateStr;
+  let last = null;
+  try {
+    const row = getDb().prepare("SELECT value FROM site_settings WHERE key='daily_pnl_reset_date'").get();
+    last = row ? row.value : null;
+  } catch (_) {}
+  if (last === today) return { reset: false, date: today };
+  let mainN = 0, scN = 0;
+  try { mainN = getMainDb().prepare('UPDATE copies SET daily_pnl_cents=0').run().changes; } catch (_) {}
+  try { scN = getShowcaseDb().prepare('UPDATE copies SET daily_pnl_cents=0').run().changes; } catch (_) {}
+  try {
+    getDb().prepare("INSERT INTO site_settings (key,value) VALUES ('daily_pnl_reset_date',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value").run(today);
+  } catch (_) {}
+  return { reset: true, date: today, main: mainN, showcase: scN };
+}
 
 // True when the auto-profit switch is on (default ON).
 function isAutoEnabled() {
@@ -102,6 +127,7 @@ function dayRates(year, month, day) {
 // its Day 1. Returns what was applied (or why it skipped).
 function runAutoProfit(now = new Date(), opts = {}) {
   const { force = false } = opts; // force bypasses ONLY the day's time gate
+  resetDailyPnlIfDue(now); // Daily PnL clears at midnight, before any part lands
   if (!isAutoEnabled()) {
     const pd = dhakaParts(now);
     return { applied: false, reason: 'auto_disabled', dhakaDate: pd.dateStr, weekday: pd.weekday };
@@ -208,4 +234,4 @@ function startAutoProfit() {
   console.log('[auto-profit] Scheduler started — Mon–Fri, trickle 10:00 AM–7:00 PM Dhaka (one part per copied trader, per-trader plans), Sat/Sun skipped');
 }
 
-module.exports = { runAutoProfit, autoStatus, startAutoProfit, dhakaParts, isAutoEnabled, setAutoEnabled };
+module.exports = { runAutoProfit, autoStatus, startAutoProfit, dhakaParts, isAutoEnabled, setAutoEnabled, resetDailyPnlIfDue };

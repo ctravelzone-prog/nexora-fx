@@ -299,6 +299,29 @@ Components.startBellPoll=function(){
 // close means a dead token — stop (the bell poll stops too when logged out).
 Components._livePush=null;
 Components._livePushDelay=2000;
+// Live page refresh (Siam 10 Nov 2026): when a notification arrives
+// over the live connection, the money on the current page has changed
+// (profit part landed, deposit approved, balance added...) — re-render
+// the page in place so the user sees it WITHOUT refreshing. Only the
+// money pages (dashboard, my-copies, trade history, history,
+// notifications); skipped while a modal is open so a confirmation
+// (e.g. Stop Copy) is never disturbed. Re-calls the page function
+// directly (not App.route, which would scroll back to the top).
+// Works for real and showcase users alike — the page functions read
+// whichever database the user's token points at.
+Components._refreshLivePage=function(){
+  try{
+    if(typeof document!=='undefined'&&document.getElementById('modal-overlay'))return;
+    var path=window.location.pathname;
+    var fn=null;
+    if(path==='/dashboard')fn=Pages.dashboard;
+    else if(path==='/my-copies')fn=Pages.myCopies;
+    else if(path==='/trade-history')fn=Pages.tradeHistory;
+    else if(path==='/history')fn=Pages.history;
+    else if(path==='/notifications')fn=Pages.notifications;
+    if(typeof fn==='function'){try{fn();}catch(e){}}
+  }catch(e){}
+};
 Components.startLivePush=function(){
   if(Components._livePush||typeof WebSocket==='undefined')return;
   if(typeof utils==='undefined'||!utils.isLoggedIn())return;
@@ -315,6 +338,7 @@ Components.startLivePush=function(){
     if(!m||m.type!=='notification')return;
     if(typeof Components._bellPollTick==='function'){try{Components._bellPollTick();}catch(e){}}
     else{try{utils.toast(m.title||'New notification','success');}catch(e){}}
+    try{Components._refreshLivePage();}catch(e){}
   };
   ws.onclose=function(ev){
     Components._livePush=null;
