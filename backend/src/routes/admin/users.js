@@ -92,13 +92,30 @@ router.put('/:id/toggle-active', authAdmin, (req,res)=>{
 
 // POST /:id/add-balance — adds money to a user's Main or Profit
 // Balance (via withdrawService.adminAddBalance, audit-logged).
-// No notification is sent to the user (Siam 10 Nov 2026 — admin sends
-// notifications manually from the Notifications panel when wanted).
+// Notification is selectable (Siam 10 Nov 2026): the admin picks a
+// notification type in the Add Balance modal and the user sees the
+// exact reason. 'none' (default) sends no notification (v128.9).
+// Texts are Siam's exact words (10 Nov 2026); ** stripped — the
+// notification UI is plain text and the title is already bold.
+const ADD_BALANCE_NOTIFS={
+  bonus:{title:'\u{1F381} Special Welcome Bonus from NEXORA! \u{1F389}',body:(amt)=>`Congratulations!\n\nYour $${amt} Welcome Bonus has been successfully credited to your NEXORA account.\n\nThank you for choosing NEXORA. We wish you success in your copy trading journey!\n\nHappy Copy Trading! \u{1F680}\n\n\u2014 Team NEXORA`},
+  deposit:{title:'\u{1F4B0} Deposit Successful \u2013 NEXORA! \u{1F389}',body:(amt)=>`Congratulations!\n\nYour deposit of $${amt} has been successfully processed and credited to your NEXORA account.\n\nThank you for choosing NEXORA. We're glad to have you with us!\n\nHappy Copy Trading! \u{1F680}\n\n\u2014 Team NEXORA`},
+  refund:{title:'\u{1F4B8} Refund Successful \u2013 NEXORA! \u{1F389}',body:(amt)=>`Congratulations!\n\nYour refund of $${amt} has been successfully processed and credited to your NEXORA account.\n\nThank you for choosing NEXORA. We're glad to have you with us!\n\nHappy Copy Trading! \u{1F680}\n\n\u2014 Team NEXORA`},
+  correction:{title:'\u{1F4DD} Transaction Correction \u2013 NEXORA!',body:(amt,username)=>`Dear ${username},\n\nA correction of $${amt} has been successfully processed and updated in your NEXORA account.\n\nThank you for your patience and for choosing NEXORA.\n\nHappy Copy Trading! \u{1F680}\n\n\u2014 Team NEXORA`},
+};
 router.post('/:id/add-balance', authAdmin, (req,res)=>{
   try{
-    const {amount,type,reason}=req.body;
+    const {amount,type,reason,notify}=req.body;
     if(!amount) return res.status(400).json({error:'Amount required'});
+    const amt=parseFloat(amount).toFixed(2);
     adminAddBalance(parseInt(req.params.id),Math.round(parseFloat(amount)*100),type||'main',req.adminId,reason);
+    const tpl=ADD_BALANCE_NOTIFS[notify];
+    if(tpl){
+      const db=getDb();
+      const u=db.prepare('SELECT username FROM users WHERE id=?').get(parseInt(req.params.id));
+      db.prepare('INSERT INTO notifications (user_id,title,message,type) VALUES (?,?,?,?)')
+        .run(parseInt(req.params.id),tpl.title,tpl.body(amt,u?u.username:''),'success');
+    }
     res.json({success:true});
   }catch(e){res.status(500).json({error:e.message});}
 });
