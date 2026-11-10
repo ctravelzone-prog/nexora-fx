@@ -92,14 +92,13 @@ router.put('/:id/toggle-active', authAdmin, (req,res)=>{
 
 // POST /:id/add-balance — adds money to a user's Main or Profit
 // Balance (via withdrawService.adminAddBalance, audit-logged).
+// No notification is sent to the user (Siam 10 Nov 2026 — admin sends
+// notifications manually from the Notifications panel when wanted).
 router.post('/:id/add-balance', authAdmin, (req,res)=>{
   try{
     const {amount,type,reason}=req.body;
     if(!amount) return res.status(400).json({error:'Amount required'});
     adminAddBalance(parseInt(req.params.id),Math.round(parseFloat(amount)*100),type||'main',req.adminId,reason);
-    const db=getDb();
-    db.prepare('INSERT INTO notifications (user_id,title,message,type) VALUES (?,?,?,?)')
-      .run(parseInt(req.params.id),'Balance added',`Nexora FX added $${parseFloat(amount).toFixed(2)} to your ${(type||'main')==='profit'?'Profit':'Main'} Balance.`+(reason?` ${reason}`:''),'success');
     res.json({success:true});
   }catch(e){res.status(500).json({error:e.message});}
 });
