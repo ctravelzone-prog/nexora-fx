@@ -25,10 +25,17 @@
 // user is sent to History. APIs: api.getWithdrawInfo(), api.getMe().
 Pages.withdraw=async function(){
   try{
-    const [info,me]=await Promise.all([api.getWithdrawInfo(),api.getMe()]);
+    const [info,me,addrs]=await Promise.all([api.getWithdrawInfo(),api.getMe(),api.getWithdrawAddresses().catch(()=>[])]);
 // Fee for this withdraw: the early fee percent while locked, otherwise
 // the regular fee percent (0% once the lock has expired).
     const b=me.balance,locked=info.is_locked,fee=locked?info.early_fee_percent:(info.regular_fee_percent||0);
+    // Saved-address suggestion chips (Siam 12 Nov 2026): once a user
+    // withdraws to a BEP20 address, it shows below the wallet field —
+    // one tap fills it. Typing a different address still works.
+    const addrChips=(formId)=>{
+      if(!addrs||!addrs.length) return '';
+      return `<div class="mt-2"><p class="text-xs text-gray-400 mb-1">Saved addresses — tap to use:</p><div class="flex flex-wrap gap-2">${addrs.map(a=>`<button type="button" onclick="Pages._fillWallet('${formId}','${a}')" title="${a}" class="text-xs font-mono px-2 py-1 rounded-full border border-orange-200 bg-orange-50 text-orange-600 hover:bg-orange-100">${a.slice(0,6)}...${a.slice(-4)}</button>`).join('')}</div></div>`;
+    };
     // Main withdrawal cap (v122): never more than the total deposited.
     const mainMaxCents=Math.min(b.main_cents, b.total_deposited_cents||0);
     const blocked=me.user?.blocks?.includes('withdraw');
@@ -47,6 +54,7 @@ Pages.withdraw=async function(){
             <div><label class="input-label">Amount (USD)</label><input name="amount" type="number" step="0.01" min="0.01" max="${(mainMaxCents/100).toFixed(2)}" class="input-field" placeholder="0.00" oninput="Pages._mfee(this,${fee},${locked?1:0})"><p class="text-xs text-gray-400 mt-1">Max $${(mainMaxCents/100).toFixed(2)} — a Main withdrawal cannot exceed your total deposited amount.</p></div>
             <div id="main-fee-info" class="text-sm text-gray-500 min-h-5"></div>
             <div><label class="input-label">USDT BEP20 Wallet Address</label><input name="wallet" type="text" placeholder="0x..." class="input-field" required></div>
+            ${addrChips('main-wd-form')}
             <div id="main-err" class="alert-danger hidden"></div>
             <button type="submit" id="main-btn" class="btn-primary">Submit Main Withdraw</button>
           </form>
@@ -63,6 +71,7 @@ Pages.withdraw=async function(){
           <form id="profit-wd-form" class="space-y-3">
             <div><label class="input-label">Amount (USD)</label><input name="amount" type="number" step="0.01" min="10" class="input-field" placeholder="Min $10.00"><p class="text-xs text-gray-400 mt-1">Minimum $10.00 · Max = Profit Balance · USDT BEP20 only</p></div>
             <div><label class="input-label">USDT BEP20 Wallet Address</label><input name="wallet" type="text" placeholder="Paste your BEP20 address (starts with 0x...)" class="input-field" required></div>
+            ${addrChips('profit-wd-form')}
             <div class="alert-warning text-xs">⚠️ BEP20 only — sending to another network may lose funds permanently.</div>
             <div id="profit-err" class="alert-danger hidden"></div>
             <button type="submit" id="profit-btn" class="btn-primary" ${b.profit_cents<1000?'disabled':''}>Submit Profit Withdraw</button>
@@ -79,3 +88,6 @@ Pages.withdraw=async function(){
 // (percent and dollars) and the amount the user will receive.
 // The fee applies only while the lock is active; after the lock it is $0.
 Pages._mfee=function(inp,feePct,isLocked){const v=parseFloat(inp.value)||0,fee=isLocked?parseFloat((v*feePct/100).toFixed(2)):0;const el=document.getElementById('main-fee-info');if(el&&v>0)el.innerHTML=`Fee: <strong class="${fee>0?'text-orange-500':'text-green-500'}">${fee>0?`${feePct}%=$${fee.toFixed(2)}`:'$0'}</strong> · Receive: <strong>$${(v-fee).toFixed(2)}</strong>`;};
+// Fills a withdraw form's wallet field with a saved address (1-click
+// from the suggestion chips). Typing a different address still works.
+Pages._fillWallet=function(formId,addr){const f=document.getElementById(formId);if(!f)return;const inp=f.querySelector('input[name="wallet"]');if(inp){inp.value=addr;inp.focus();}};

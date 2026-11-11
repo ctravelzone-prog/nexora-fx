@@ -26,16 +26,16 @@ AdminPages.kyc=async function(){
     AdminComponents.layout(`<h2 class="font-bold text-lg mb-4">KYC Submissions</h2>
     <div class="alert-info mb-4 text-sm">To request KYC from one specific user, go to <button onclick="AdminApp.navigate('/admin/kyc-control')" class="text-orange-500 font-semibold">Manage KYC Form \u2192</button></div>
     <div class="overflow-x-auto"><table class="data-table"><thead><tr><th>User</th><th>Status</th><th>Submitted</th><th>Documents</th><th>Actions</th></tr></thead><tbody>
-      ${kycs.map(k=>`<tr><td data-label="User">${k.full_name} (@${k.username})</td><td data-label="Status">${utils.statusBadge(k.status)}</td><td data-label="Submitted" class="text-xs">${utils.fmtDate(k.submitted_at)}</td><td data-label="Documents" class="text-xs"><div class="flex gap-1">${k.doc_front?`<a href="${k.doc_front}" target="_blank" class="text-blue-500">Front</a>`:''} ${k.doc_back?`<a href="${k.doc_back}" target="_blank" class="text-blue-500 ml-1">Back</a>`:''} ${k.selfie?`<a href="${k.selfie}" target="_blank" class="text-blue-500 ml-1">Selfie</a>`:''}</div></td><td data-label="Actions"><div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><button onclick="AdminPages._kycView(${k.id})" class="btn-secondary text-xs" style="width:auto;padding:5px 10px;white-space:nowrap">View</button>${k.status==='pending'?`<button onclick="AdminPages._kycAction(${k.id},'approve')" class="btn-primary text-xs" style="width:auto;padding:5px 10px;white-space:nowrap">Approve</button><button onclick="AdminPages._kycAction(${k.id},'reject')" class="btn-danger text-xs" style="width:auto;padding:5px 10px;white-space:nowrap">Reject</button>`:''}</div></td></tr>`).join('')}
+      ${kycs.map(k=>`<tr><td data-label="User">${k.full_name}${k.is_showcase?` <span style="background:#FEF3C7;color:#92400E;font-size:10px;font-weight:800;padding:2px 7px;border-radius:999px">SHOWCASE</span>`:''} (@${k.username})</td><td data-label="Status">${utils.statusBadge(k.status)}</td><td data-label="Submitted" class="text-xs">${utils.fmtDate(k.submitted_at)}</td><td data-label="Documents" class="text-xs"><div class="flex gap-1">${k.doc_front?`<a href="${k.doc_front}" target="_blank" class="text-blue-500">Front</a>`:''} ${k.doc_back?`<a href="${k.doc_back}" target="_blank" class="text-blue-500 ml-1">Back</a>`:''} ${k.selfie?`<a href="${k.selfie}" target="_blank" class="text-blue-500 ml-1">Selfie</a>`:''}</div></td><td data-label="Actions"><div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><button onclick="AdminPages._kycView(${k.id},${k.is_showcase?1:0})" class="btn-secondary text-xs" style="width:auto;padding:5px 10px;white-space:nowrap">View</button>${k.status==='pending'?`<button onclick="AdminPages._kycAction(${k.id},'approve',${k.is_showcase?1:0})" class="btn-primary text-xs" style="width:auto;padding:5px 10px;white-space:nowrap">Approve</button><button onclick="AdminPages._kycAction(${k.id},'reject',${k.is_showcase?1:0})" class="btn-danger text-xs" style="width:auto;padding:5px 10px;white-space:nowrap">Reject</button>`:''}</div></td></tr>`).join('')}
       ${kycs.length===0?'<tr><td colspan="5" class="text-center py-8 text-gray-400">No pending KYC submissions</td></tr>':''}
     </tbody></table></div>`,'KYC Control');
   }catch(e){document.getElementById('admin-app').innerHTML=`<p class="p-8 text-red-500">${e.message}</p>`;}
 };
 // Opens a modal with the full submitted KYC form (all field values the
 // user filled in, with the admin's field labels) plus the documents.
-AdminPages._kycView=async function(id){
+AdminPages._kycView=async function(id,isSc){
   try{
-    const [k,ctl]=await Promise.all([adminApi.getKYC(id),adminApi.getKYCControl().catch(()=>({fields:[]}))]);
+    const [k,ctl]=await Promise.all([adminApi.getKYC(id,isSc),adminApi.getKYCControl().catch(()=>({fields:[]}))]);
     const labels={};(ctl.fields||[]).forEach(f=>{labels[f.field_name]=f.field_label;});
     const fd=k.form_data||{};
     const rows=Object.keys(fd).map(key=>{
@@ -52,6 +52,6 @@ AdminPages._kycView=async function(id){
 };
 // Opens a modal to approve or reject a KYC submission (optional note)
   // via adminApi.reviewKYC.
-AdminPages._kycAction=function(id,action){
-  utils.showModal(`<div class="modal"><h2 class="font-bold mb-3">${action==='approve'?'Approve':'Reject'} KYC #${id}</h2><label class="input-label">Note (optional)</label><input id="kyc-note" type="text" class="input-field mb-3"><div class="flex gap-3"><button onclick="utils.closeModal()" class="btn-secondary flex-1">Cancel</button><button onclick="adminApi.reviewKYC(${id},{action:'${action}',note:document.getElementById('kyc-note').value}).then(()=>{utils.closeModal();utils.toast('KYC ${action}d!','success');AdminPages.kyc();}).catch(e=>utils.toast(e.message,'error'))" class="${action==='approve'?'btn-primary':'btn-danger'} flex-1">${action==='approve'?'Approve':'Reject'}</button></div></div>`);
+AdminPages._kycAction=function(id,action,isSc){
+  utils.showModal(`<div class="modal"><h2 class="font-bold mb-3">${action==='approve'?'Approve':'Reject'} KYC #${id}</h2><label class="input-label">Note (optional)</label><input id="kyc-note" type="text" class="input-field mb-3"><div class="flex gap-3"><button onclick="utils.closeModal()" class="btn-secondary flex-1">Cancel</button><button onclick="adminApi.reviewKYC(${id},{action:'${action}',note:document.getElementById('kyc-note').value,is_showcase:${isSc}===1}).then(()=>{utils.closeModal();utils.toast('KYC ${action}d!','success');AdminPages.kyc();}).catch(e=>utils.toast(e.message,'error'))" class="${action==='approve'?'btn-primary':'btn-danger'} flex-1">${action==='approve'?'Approve':'Reject'}</button></div></div>`);
 };

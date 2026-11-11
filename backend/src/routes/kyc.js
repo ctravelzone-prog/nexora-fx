@@ -75,8 +75,11 @@ router.post('/submit', authImpersonation, upload.any(), (req,res)=>{
     const kycId=db.prepare(`INSERT INTO kyc_submissions (user_id,doc_type,doc_front,doc_back,selfie,form_data,status) VALUES (?,?,?,?,?,?,'pending')`)
       .run(req.userId,doc_type||'passport',front,back,selfie,JSON.stringify(formData)).lastInsertRowid;
     db.prepare(`UPDATE users SET kyc_status='pending' WHERE id=?`).run(req.userId);
-    db.prepare('INSERT INTO admin_notifications (type,title,message,reference_id,reference_type,destination_pane) VALUES (?,?,?,?,?,?)')
-      .run('kyc','KYC submitted',(()=>{const u=db.prepare('SELECT full_name,username FROM users WHERE id=?').get(req.userId);return u?`${u.full_name} (@${u.username}) submitted KYC documents`:`User #${req.userId} submitted KYC documents`;})(),kycId,'kyc','kyc');
+    // Admin notifications always live in the MAIN DB (like deposits) so
+    // the admin bell sees showcase submissions too (Siam 12 Nov 2026):
+    // reference_type 'showcase_kyc' for showcase users, 'kyc' for real.
+    getMainDb().prepare('INSERT INTO admin_notifications (type,title,message,reference_id,reference_type,destination_pane) VALUES (?,?,?,?,?,?)')
+      .run('kyc','KYC submitted',(()=>{const u=db.prepare('SELECT full_name,username FROM users WHERE id=?').get(req.userId);return u?`${u.full_name} (@${u.username}) submitted KYC documents`:`User #${req.userId} submitted KYC documents`;})(),kycId,req.isShowcase?'showcase_kyc':'kyc','kyc');
     res.json({success:true,message:'KYC submitted. Under review.'});
   }catch(e){res.status(500).json({error:e.message});}
 });

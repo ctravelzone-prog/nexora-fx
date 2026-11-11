@@ -90,7 +90,7 @@ const adminApi = {
   // KYC reviews, support tickets, password-reset (forget) requests and
   // request-money approvals.
   getKYCList:(p)=>api.request('GET',`/api/admin/kyc?${new URLSearchParams(p||{})}`,null,true),
-  getKYC:(id)=>api.request('GET',`/api/admin/kyc/${id}`,null,true),
+  getKYC:(id,isSc)=>api.request('GET',`/api/admin/kyc/${id}${isSc?'?is_showcase=1':''}`,null,true),
   reviewKYC:(id,d)=>api.request('POST',`/api/admin/kyc/${id}/review`,d,true),
   getTickets:(p)=>api.request('GET',`/api/admin/tickets?${new URLSearchParams(p||{})}`,null,true),
   getForgetRequests:()=>api.request('GET','/api/admin/forget-requests',null,true),

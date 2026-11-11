@@ -99,4 +99,16 @@ router.get('/history', authImpersonation, (req,res)=>{
   res.json(db.prepare('SELECT * FROM withdrawals WHERE user_id=? ORDER BY created_at DESC').all(req.userId));
 });
 
+// GET /api/withdraw/addresses — the user's saved BEP20 payout addresses
+// (Siam 12 Nov 2026): once a user withdraws to an address, it shows as a
+// 1-click suggestion on the withdraw page. Source: confirmed rows in
+// user_addresses UNION the distinct addresses of past withdrawals that
+// were not rejected (pending/approved/paid all count — a rejected address
+// was wrong, so it never suggests). Newest first, max 10. Works for real
+// + showcase users (getDb is routed by the auth middleware).
+router.get('/addresses', authImpersonation, (req,res)=>{
+  const db=getDb();
+  const rows=db.prepare('SELECT address, MAX(created_at) AS last_used FROM (SELECT address, created_at FROM user_addresses WHERE user_id=? AND confirmed=1 UNION ALL SELECT LOWER(wallet_address) AS address, created_at FROM withdrawals WHERE user_id=? AND status<>\'rejected\' AND wallet_address IS NOT NULL AND wallet_address<>\'\') GROUP BY address ORDER BY last_used DESC LIMIT 10').all(req.userId, req.userId);
+  res.json(rows.map(r=>r.address));
+});
 module.exports = router;

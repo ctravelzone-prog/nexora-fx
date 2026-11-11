@@ -118,6 +118,7 @@ const api = {
   // Withdraw: USDT BEP20 only, from Main Balance. Profit Balance has a
   // $10 minimum; Main Balance withdrawn before 3 months loses 15%.
   getWithdrawInfo:()=>api.request('GET','/api/withdraw/info'),
+  getWithdrawAddresses:()=>api.request('GET','/api/withdraw/addresses'),
   withdrawMain:(d)=>api.request('POST','/api/withdraw/main',d),
   withdrawProfit:(d)=>api.request('POST','/api/withdraw/profit',d),
   getWithdrawHistory:()=>api.request('GET','/api/withdraw/history'),
