@@ -67,8 +67,20 @@ router.delete('/:id', authAdmin, superAdminOnly, (req,res)=>{
     db.prepare('DELETE FROM deposits WHERE user_id=?').run(id);
     db.prepare('DELETE FROM withdrawals WHERE user_id=?').run(id);
     db.prepare('DELETE FROM kyc_submissions WHERE user_id=?').run(id);
+    // v128.17: these tables also reference users(id) with NO cascade, and
+    // the delete used to miss them, so deleting a user who had ever
+    // withdrawn (user_addresses), had a failed deposit verify
+    // (payment_attempts), a profile/phone change request, a block, or a
+    // forget request with messages failed with "FOREIGN KEY constraint
+    // failed". Delete them all before the user row itself.
+    db.prepare('DELETE FROM forget_request_messages WHERE request_id IN (SELECT id FROM forget_requests WHERE user_id=?)').run(id);
     db.prepare('DELETE FROM forget_requests WHERE user_id=?').run(id);
     db.prepare('DELETE FROM money_requests WHERE user_id=?').run(id);
+    db.prepare('DELETE FROM profile_change_requests WHERE user_id=?').run(id);
+    db.prepare('DELETE FROM user_blocks WHERE user_id=?').run(id);
+    db.prepare('DELETE FROM user_addresses WHERE user_id=?').run(id);
+    db.prepare('DELETE FROM payment_attempts WHERE user_id=?').run(id);
+    db.prepare('DELETE FROM showcase_profit_log WHERE user_id=?').run(id);
     db.prepare('DELETE FROM notifications WHERE user_id=?').run(id);
     db.prepare('DELETE FROM impersonation_sessions WHERE user_id=?').run(id);
     db.prepare('DELETE FROM audit_log WHERE user_id=?').run(id);
@@ -289,6 +301,11 @@ router.delete('/showcase/:id', authAdmin, superAdminOnly, (req,res)=>{
     db.prepare('DELETE FROM referrals WHERE referrer_user_id=? OR referred_user_id=?').run(u.id,u.id);
     db.prepare('DELETE FROM user_blocks WHERE user_id=?').run(u.id);
     db.prepare('DELETE FROM showcase_profit_log WHERE user_id=?').run(u.id);
+    // v128.17: these also reference users(id) with no cascade — a showcase
+    // user who had withdrawn (user_addresses) or a failed deposit verify
+    // (payment_attempts) could not be deleted either.
+    db.prepare('DELETE FROM user_addresses WHERE user_id=?').run(u.id);
+    db.prepare('DELETE FROM payment_attempts WHERE user_id=?').run(u.id);
     db.prepare('DELETE FROM balances WHERE user_id=?').run(u.id);
     db.prepare('DELETE FROM users WHERE id=?').run(u.id);
   });
