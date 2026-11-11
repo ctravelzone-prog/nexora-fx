@@ -149,7 +149,17 @@ function adminAddBalance(userId, amountCents, balanceType, adminId, reason) {
   return db.transaction(() => {
     H.getOrCreateBalance(userId);
     const col = balanceType === 'profit' ? 'profit_cents' : 'main_cents';
-    db.prepare(`UPDATE balances SET ${col}=${col}+?,updated_at=unixepoch() WHERE user_id=?`).run(amountCents, userId);
+    // Main credits count as deposited money (Siam 12 Nov 2026): they start
+    // the 3-month lock (first_deposit_at) and count toward the Main
+    // withdraw max (total_deposited_cents). Without this, a user with only
+    // admin-added money showed "Locked until — / 0 months remaining" and
+    // Max $0.00, and could never withdraw it. Profit credits touch
+    // neither (Profit has no lock and no deposit cap).
+    if (balanceType === 'main') {
+      db.prepare('UPDATE balances SET main_cents=main_cents+?,total_deposited_cents=total_deposited_cents+?,first_deposit_at=COALESCE(first_deposit_at,unixepoch()),updated_at=unixepoch() WHERE user_id=?').run(amountCents, amountCents, userId);
+    } else {
+      db.prepare(`UPDATE balances SET ${col}=${col}+?,updated_at=unixepoch() WHERE user_id=?`).run(amountCents, userId);
+    }
     db.prepare('INSERT INTO transactions (user_id,type,amount_cents,fee_cents,net_cents,direction,status,reason,formula) VALUES (?,?,?,0,?,?,?,?,?)')
       .run(userId, 'admin_credit', amountCents, amountCents, 'in', 'completed',
         reason || 'Nexora FX balance adjustment', `${balanceType} += $${H.fmtC(amountCents)} (Nexora FX)`);
