@@ -446,14 +446,17 @@ function dailyGlobalTotal() {
 // bad-address | new-address | over-deposit-cap |
 // over-per-tx-max | over-daily-limit | over-global-cap |
 // insufficient-hot-wallet | already-processing | api-error | geo-blocked.
-async function tryAutoWithdraw(withdrawalId, db) {
+// opts.manual: called from the admin Approve button (v128.16) — the admin
+// explicitly authorized this send, so the auto-off check is skipped. The
+// admin Approve now SENDS via Binance instead of only marking paid.
+async function tryAutoWithdraw(withdrawalId, db, opts) {
   const udb = db || getDb();
   const wd = udb.prepare('SELECT * FROM withdrawals WHERE id=?').get(withdrawalId);
   if (!wd || wd.status !== 'pending') return { auto: false, reason: 'not-pending' };
   const u = udb.prepare('SELECT is_showcase FROM users WHERE id=?').get(wd.user_id);
   if (u && u.is_showcase === 1) return { auto: false, reason: 'showcase' };
   const cfg = getAutoSettings();
-  if (!cfg.autoWithdraw) return { auto: false, reason: 'auto-off' };
+  if (!cfg.autoWithdraw && !(opts && opts.manual)) return { auto: false, reason: 'auto-off' };
   if (!cfg.withdrawKey || !cfg.withdrawSecret) return { auto: false, reason: 'not-configured' };
   const fail = (reason) => {
     try { udb.prepare('UPDATE withdrawals SET fail_reason=?, updated_at=unixepoch() WHERE id=?').run(reason, withdrawalId); } catch (_) {}

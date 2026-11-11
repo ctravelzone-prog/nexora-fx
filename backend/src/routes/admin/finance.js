@@ -16,6 +16,7 @@ const { getDb, getMainDb, getShowcaseDb, runWithDb } = require('../../models/dat
 const { authAdmin } = require('../../middleware/auth');
 const { applyDeposit } = require('../../services/moneyService');
 const { processWithdrawal } = require('../../services/withdrawService');
+const { tryAutoWithdraw, confirmAddress, getAutoSettings } = require('../../services/autoPayments');
 const { markAdminNotifRead } = require('../../services/moneyHelpers');
 
 // GET /deposits — all deposit requests with user name/username, newest
@@ -98,14 +99,45 @@ router.get('/withdrawals', authAdmin, (req,res)=>{
 // POST /withdrawals/:id/process — approves or rejects a pending
 // withdrawal (body: action 'approve'|'reject') via
 // withdrawService.processWithdrawal.
-router.post('/withdrawals/:id/process', authAdmin, (req,res)=>{
+// Approve SENDS the money via Binance (v128.16 — before this, Approve
+// only marked the row paid and the admin had to send from Binance
+// himself, so users were told 'paid' with nothing sent). On approve
+// for a real user: the address is confirmed (the admin verified it),
+// then tryAutoWithdraw attempts the Binance send. If it succeeds the
+// row is paid with the real Binance tx id. If Binance is not configured
+// (no withdraw key) it falls back to mark-paid (admin sends manually).
+// If the send fails for any other reason the withdrawal STAYS pending
+// and the error is returned — it is never marked paid without sending.
+// Pass force:true to skip the Binance attempt and mark paid directly
+// (the 'Mark Paid' button — use only after sending manually).
+router.post('/withdrawals/:id/process', authAdmin, async (req,res)=>{
   try{
-    const {action,note,is_showcase: isScFlag}=req.body;
+    const {action,note,is_showcase: isScFlag,force: forceFlag}=req.body;
     if(!['approve','reject'].includes(action)) return res.status(400).json({error:'Action must be approve or reject'});
     const isSc = isScFlag === true;
-    if (isSc) runWithDb(getShowcaseDb(), ()=>processWithdrawal(parseInt(req.params.id),action,req.adminId,note));
-    else processWithdrawal(parseInt(req.params.id),action,req.adminId,note);
-    markAdminNotifRead(getMainDb(), isSc ? 'showcase_withdrawal' : 'withdrawal', parseInt(req.params.id));
+    const force = forceFlag === true;
+    const id = parseInt(req.params.id);
+    if(action==='approve' && !isSc && !force){
+      const db = getMainDb();
+      const wd = db.prepare('SELECT * FROM withdrawals WHERE id=? AND status=\'pending\'').get(id);
+      if(!wd) return res.status(400).json({error:'Withdrawal not found or already processed'});
+      const cfg = getAutoSettings();
+      if(cfg.withdrawKey && cfg.withdrawSecret){
+        // Admin verified this address by approving — confirm it so the
+        // new-address check passes and future withdrawals auto-send.
+        try{ confirmAddress(db, wd.user_id, wd.wallet_address); }catch(_){}
+        const sent = await tryAutoWithdraw(id, db, {manual:true});
+        if(sent.auto){
+          markAdminNotifRead(getMainDb(), 'withdrawal', id);
+          return res.json({success:true,message:'Withdrawal approved and sent via Binance',tx_hash:sent.txId});
+        }
+        return res.status(400).json({error:`Binance send failed (${sent.reason}${sent.message?': '+sent.message:''}). Withdrawal is still pending — send $${(wd.net_cents/100).toFixed(2)} USDT (BEP20) manually from Binance to ${wd.wallet_address}, then use Mark Paid.`});
+      }
+      // No Binance withdraw key — fall through to mark-paid (admin sends manually).
+    }
+    if (isSc) runWithDb(getShowcaseDb(), ()=>processWithdrawal(id,action,req.adminId,note));
+    else processWithdrawal(id,action,req.adminId,note);
+    markAdminNotifRead(getMainDb(), isSc ? 'showcase_withdrawal' : 'withdrawal', id);
     res.json({success:true,message:`Withdrawal ${action==='approve'?'approved':'rejected'}`});
   }catch(e){res.status(400).json({error:e.message});}
 });
