@@ -139,6 +139,22 @@ function processWithdrawal(withdrawalId, action, adminId, adminNote) {
     db.prepare('INSERT INTO notifications (user_id,title,message,type) VALUES (?,?,?,?)')
       .run(wd.user_id, `Withdrawal ${newStatus}`, msg,
         newStatus === 'paid' ? 'success' : 'warning');
+    // v128.18: also notify the ADMIN — before this, an approve/reject left
+    // no success message in Admin Notifications (only the original
+    // request). Own reference_type ('withdrawal_paid' /
+    // 'withdrawal_rejected') so the request's mark-as-read never clears
+    // it; it stays unread until the admin reads it.
+    try {
+      const un = db.prepare('SELECT username FROM users WHERE id=?').get(wd.user_id);
+      const who = un ? `@${un.username}` : `#${wd.user_id}`;
+      const refType = isSc
+        ? (newStatus === 'paid' ? 'showcase_withdrawal_paid' : 'showcase_withdrawal_rejected')
+        : (newStatus === 'paid' ? 'withdrawal_paid' : 'withdrawal_rejected');
+      const aTitle = newStatus === 'paid'
+        ? `Withdrawal approved $${H.fmtC(wd.net_cents)} to ${who}`
+        : `Withdrawal rejected $${H.fmtC(wd.amount_cents)} — ${who}`;
+      H.createAdminNotif(getMainDb(), 'withdraw', aTitle, withdrawalId, refType, 'withdrawals');
+    } catch (_) {}
   })();
 }
 

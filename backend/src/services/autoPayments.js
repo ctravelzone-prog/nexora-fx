@@ -494,6 +494,11 @@ async function tryAutoWithdraw(withdrawalId, db, opts) {
   // Paid: mark the withdrawal + History row completed, add to the
   // withdrawn total, and notify the user — the same outcome as a manual
   // admin approval (see withdrawService.processWithdrawal).
+  // v128.18: also notify the ADMIN (the admin never saw a success message
+  // for auto-paid withdrawals — only the original request). The admin
+  // notification uses its own reference_type ('withdrawal_paid') so the
+  // request's mark-as-read never clears it; it stays unread with the
+  // Binance tx id until the admin reads it.
   udb.transaction(() => {
     udb.prepare(`UPDATE withdrawals SET status='paid', tx_hash=?, auto=1, fail_reason=NULL, updated_at=unixepoch() WHERE id=?`).run(sent.id, withdrawalId);
     udb.prepare(`UPDATE transactions SET status='completed' WHERE reference=?`).run(`WD-${withdrawalId}`);
@@ -504,6 +509,10 @@ async function tryAutoWithdraw(withdrawalId, db, opts) {
       : `Your $${H.fmtC(wd.amount_cents)} ${kind} withdrawal has been paid automatically. No fee — you received $${H.fmtC(wd.net_cents)}. Binance withdrawal ID: ${sent.id}.`;
     udb.prepare('INSERT INTO notifications (user_id,title,message,type) VALUES (?,?,?,?)')
       .run(wd.user_id, 'Withdrawal paid', msg, 'success');
+    try {
+      const wu = udb.prepare('SELECT username FROM users WHERE id=?').get(wd.user_id);
+      H.createAdminNotif(getMainDb(), 'withdraw', `Withdrawal paid $${H.fmtC(wd.net_cents)} to @${wu ? wu.username : wd.user_id} — Binance ${sent.id}`, withdrawalId, (u && u.is_showcase === 1) ? 'showcase_withdrawal_paid' : 'withdrawal_paid', 'withdrawals');
+    } catch (_) {}
   })();
   return { auto: true, txId: sent.id };
 }

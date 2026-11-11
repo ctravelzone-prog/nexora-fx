@@ -5,7 +5,7 @@ Users deposit (Binance Pay), copy top traders, earn a daily profit target, and
 withdraw (USDT BEP20). Admins approve deposits/withdrawals and manage users,
 traders, profit schedules, and site settings from a separate admin panel.
 
-**Version in this zip: v99 (cache v128.17)
+**Version in this zip: v100 (cache v128.18)
 
 > **A new developer should read this file first, then the header comment at
 > the top of any source file.** Every source file has a header comment that

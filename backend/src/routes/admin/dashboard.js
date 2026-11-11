@@ -68,7 +68,8 @@ router.get('/notifications', authAdmin, (req,res)=>{
   const resolveUser=(n)=>{try{
     if(n.reference_type==='user') return userOf(n.reference_id);
     if(n.reference_type==='deposit'){const r=db.prepare('SELECT user_id FROM deposits WHERE id=?').get(n.reference_id);return r?userOf(r.user_id):null;}
-    if(n.reference_type==='withdrawal'){const r=db.prepare('SELECT user_id FROM withdrawals WHERE id=?').get(n.reference_id);return r?userOf(r.user_id):null;}
+    if(n.reference_type==='withdrawal'||n.reference_type==='withdrawal_paid'||n.reference_type==='withdrawal_rejected'){const r=db.prepare('SELECT user_id FROM withdrawals WHERE id=?').get(n.reference_id);return r?userOf(r.user_id):null;}
+    if(n.reference_type==='showcase_withdrawal'||n.reference_type==='showcase_withdrawal_paid'||n.reference_type==='showcase_withdrawal_rejected'){const sc=getShowcaseDb();const r=sc.prepare('SELECT user_id FROM withdrawals WHERE id=?').get(n.reference_id);return r?sc.prepare('SELECT full_name,username,email FROM users WHERE id=?').get(r.user_id):null;}
     if(n.reference_type==='kyc'){const r=db.prepare('SELECT user_id FROM kyc_submissions WHERE id=?').get(n.reference_id);return r?userOf(r.user_id):null;}
     if(n.reference_type==='showcase_kyc'){const sc=getShowcaseDb();const r=sc.prepare('SELECT user_id FROM kyc_submissions WHERE id=?').get(n.reference_id);return r?sc.prepare('SELECT full_name,username,email FROM users WHERE id=?').get(r.user_id):null;}
     if(n.reference_type==='ticket'){const r=db.prepare('SELECT user_id FROM support_tickets WHERE id=?').get(n.reference_id);return r?userOf(r.user_id):null;}
