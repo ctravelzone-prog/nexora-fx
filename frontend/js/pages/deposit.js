@@ -28,7 +28,7 @@ Pages.deposit=async function(){
     const bepAddr=wallet.bep20_address||'';
     Components.layout(`
       <div class="max-w-3xl">
-        <div class="flex items-center gap-3 mb-6"><button onclick="history.back()" class="p-2 rounded-lg hover:bg-gray-100">${svgIcons.arrow_left}</button><div><h1 class="text-xl font-bold">Create Deposit</h1><p class="text-sm text-gray-400">Fund your account with USDT</p></div><button onclick="App.navigate('/history')" class="ml-auto btn-secondary text-sm" style="padding:8px 16px">Deposit History →</button></div>
+        <div class="flex items-center gap-3 mb-6"><button onclick="history.back()" class="p-2 rounded-lg hover:bg-gray-100">${svgIcons.arrow_left}</button><div><h1 class="text-xl font-bold">Create Deposit</h1><p class="text-sm text-gray-400">Fund your account with USDT</p></div><button onclick="App.navigate('/history?tab=dep')" class="ml-auto btn-secondary text-sm" style="padding:8px 16px">Deposit History →</button></div>
         ${!enabled?`<div class="alert-warning">${blocked?'Deposits are disabled for your account.':'Deposits are currently disabled.'} Please contact support.</div>`:''}
         ${enabled?`<div class="card">
           <div class="flex items-center justify-between mb-4"><h2 class="font-bold text-lg">Deposit in 3 steps</h2><span class="orange-tag" id="dep-tag">BINANCE PAY</span></div>
@@ -72,7 +72,7 @@ Pages.deposit=async function(){
     if(enabled) document.getElementById('dep-form').onsubmit=async(e)=>{
       e.preventDefault();const f=e.target,err=document.getElementById('dep-err'),btn=document.getElementById('dep-btn');
       err.classList.add('hidden');utils.loading(btn,true);
-      try{await api.submitDeposit({txid:f.txid.value,amount:parseFloat(f.amount.value),method:Pages._depMethod});utils.toast('Deposit submitted successfully','success');App.navigate('/history');}
+      try{await api.submitDeposit({txid:f.txid.value,amount:parseFloat(f.amount.value),method:Pages._depMethod});utils.toast('Deposit submitted successfully','success');App.navigate('/history?tab=dep');}
       catch(ex){err.textContent=ex.message;err.classList.remove('hidden');}
       utils.loading(btn,false);
     };
