@@ -60,8 +60,8 @@ Pages._stopTicketPoll=function(){if(Pages._ticketPoll){clearInterval(Pages._tick
 // user messages on the left (grey). Returns an HTML string.
 Pages._ticketMsgsHTML=function(msgs){return msgs.map(m=>`<div class="flex gap-3 ${m.sender_type==='admin'?'flex-row-reverse':''}">
               <div class="w-8 h-8 rounded-full flex-shrink-0 ${m.sender_type==='admin'?'bg-orange-500':'bg-gray-200'} flex items-center justify-center text-xs font-bold ${m.sender_type==='admin'?'text-white':'text-gray-600'}">${m.sender_type==='admin'?'A':'U'}</div>
-              <div class="max-w-xs lg:max-w-md ${m.sender_type==='admin'?'bg-orange-50 text-right':'bg-gray-50'} rounded-xl p-3">
-                <p class="text-sm">${m.message}</p><p class="text-xs text-gray-400 mt-1">${utils.fmtDateTime(m.created_at)}</p>
+              <div class="max-w-md ${m.sender_type==='admin'?'bg-orange-50':'bg-gray-50'} rounded-xl p-3">
+                <p class="text-sm text-left leading-relaxed whitespace-pre-wrap">${m.message}</p><p class="text-xs text-gray-400 mt-1 ${m.sender_type==='admin'?'text-right':''}">${utils.fmtDateTime(m.created_at)}</p>
               </div></div>`).join('');};
 // Poll tick: reloads one ticket and updates only what changed (messages,
 // status badge). Skips work if the user already left this thread, and
