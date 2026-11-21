@@ -43,7 +43,7 @@ AdminPages._stopTicketPoll=function(){if(AdminPages._ticketPoll){clearInterval(A
 AdminPages._ticketMsgsHTML=function(msgs){return msgs.map(m=>`<div class="flex gap-3 ${m.sender_type==='admin'?'flex-row-reverse':''}">
             <div class="w-8 h-8 rounded-full flex-shrink-0 ${m.sender_type==='admin'?'bg-orange-500 text-white':'bg-gray-200 text-gray-600'} flex items-center justify-center text-xs font-bold">${m.sender_type==='admin'?'A':'U'}</div>
             <div class="max-w-md ${m.sender_type==='admin'?'bg-orange-50 ml-auto':'bg-gray-50'} rounded-xl p-3">
-              <p class="text-sm text-left leading-relaxed whitespace-pre-wrap">${m.message}</p><p class="text-xs text-gray-400 mt-1 ${m.sender_type==='admin'?'text-right':''}">${utils.fmtDateTime(m.created_at)}</p>
+              <p class="text-sm text-left leading-relaxed">${utils.formatTicketMsg(m.message)}</p><p class="text-xs text-gray-400 mt-1 ${m.sender_type==='admin'?'text-right':''}">${utils.fmtDateTime(m.created_at)}</p>
             </div></div>`).join('');};
 // Poll tick: reloads one ticket via adminApi.getTicket, updates the
   // status badge if it changed, and re-renders only when messages changed.

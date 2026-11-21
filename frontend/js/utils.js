@@ -146,4 +146,16 @@ const utils = {
   isLoggedIn() { return !!localStorage.getItem('nx_token'); },
   // True when an admin token is stored (does not check if it is still valid).
   isAdminLoggedIn() { return !!localStorage.getItem('nx_admin_token'); },
+  // Formats a support-ticket message for display (v128.21): the admin
+  // pastes multi-paragraph text from another app, so line breaks must
+  // survive and pasted **bold** markers must render as bold. Escapes
+  // HTML first (a message can never inject markup), then **bold**,
+  // then newlines to <br> — so breaks render even if the CSS
+  // white-space class is cached away.
+  formatTicketMsg(msg) {
+    if (msg === null || msg === undefined) return '';
+    let s = String(msg).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    s = s.replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>');
+    return s.replace(/\r\n/g, '\n').replace(/\n/g, '<br>');
+  },
 };
